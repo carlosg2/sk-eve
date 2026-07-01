@@ -6,6 +6,8 @@ Tesis de investigación para un mini-AGI empresarial sobre Intelisis ERP, reform
 
 > **Linaje:** Esta es la versión v1. La formulación original (Sigma AGI como capa de inteligencia con ERP Kernel, Company Twin, Trace2Skill, Agent Cortex, Execution Gateway, Governance) se conserva íntegra en [`tesis-v0.md`](./tesis-v0.md). v1 no descarta v0: lo reorienta. Toda la arquitectura por capas de v0 sigue vigente; lo que cambia es la **unidad de ejecución**: del *turno conversacional* al *loop con estado*.
 
+> **Empieza por aquí:** El marco de nivel superior está en [`arquitectura.md`](./arquitectura.md) — las **tres abstracciones** (Meta-fábrica, Agente, Company Twin) + Governance transversal. Este documento (`tesis.md`) desarrolla en detalle **El Agente**: el modelo de ejecución por loops.
+
 ---
 
 ## 0. Qué cambió y por qué

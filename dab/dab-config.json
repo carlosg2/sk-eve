@@ -21892,7 +21892,7 @@
       "source": {
         "object": "dbo.CXP",
         "type": "table",
-        "object-description": "Cuentas por Pagar (cabecera). PK: ID. Estatus: ABIERTO(pendiente)|CONCLUIDO|CANCELADO. Campos clave: ID, Proveedor(FK→Prov), Vencimiento(fecha ISO sin comillas en filtros), Saldo(decimal pendiente), Importe, Moneda(MXN/USD), Estatus, FechaEmision, Condicion, CtaDinero(FK→CtaDinero), FormaPago, FechaProgramada. Filtros frecuentes: Estatus eq 'ABIERTO', Vencimiento le 2026-12-31."
+        "object-description": "Cuentas por Pagar (cabecera). PK: ID. Estatus: SINAFECTAR(borrador)|PENDIENTE(pendiente de pago)|CONCLUIDO(pagado)|CANCELADO. Campos clave: ID, Proveedor(FK→Prov), Vencimiento(fecha ISO sin comillas en filtros), Saldo(decimal pendiente), Importe, Moneda(MXN/USD), Estatus, FechaEmision, Condicion, CtaDinero(FK→CtaDinero), FormaPago, FechaProgramada. Filtros frecuentes: Estatus eq 'PENDIENTE', Vencimiento le 2026-12-31."
       },
       "mcp": {
         "dml-tools": true
@@ -22825,7 +22825,7 @@
       "source": {
         "object": "dbo.Dinero",
         "type": "table",
-        "object-description": "Tesorería (movimientos bancarios). PK: ID. Estatus: ABIERTO|CONCLUIDO|CANCELADO. Campos: ID, Mov, MovID, FechaEmision, CtaDinero(FK→CtaDinero), CtaDineroDestino, Importe, Saldo, Estatus, BeneficiarioNombre, Referencia, Concepto, Moneda, TipoCambio."
+        "object-description": "Tesorería (movimientos bancarios). PK: ID. Estatus: SINAFECTAR(borrador)|PENDIENTE|CONCLUIDO|CANCELADO. Campos: ID, Mov, MovID, FechaEmision, CtaDinero(FK→CtaDinero), CtaDineroDestino, Importe, Saldo, Estatus, BeneficiarioNombre, Referencia, Concepto, Moneda, TipoCambio."
       },
       "mcp": {
         "dml-tools": true

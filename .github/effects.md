@@ -1,0 +1,1 @@
+Refactor this code using the guidance in this blog post https://aidanbleser.com/blog/posts/dont-use-effect.md
