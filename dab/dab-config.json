@@ -13186,7 +13186,8 @@
             "description": "Unidad (varchar(50))",
             "required": true
           }
-        ]
+        ],
+        "object-description": "SP de consulta: retorna el factor de conversión entre unidades de medida de un artículo. Params: Empresa, Articulo (clave), Unidad (clave UM). Retorna {Result: factor_numerico}. Útil para conversiones en órdenes de compra. Solo lectura."
       },
       "mcp": {
         "custom-tool": true
@@ -21092,7 +21093,8 @@
             "description": "Mov (VARCHAR(20))",
             "required": true
           }
-        ]
+        ],
+        "object-description": "SP de consulta: indica si existen movimientos pendientes de surtido para un módulo y tipo de movimiento. Retorna {Result: 0|1} (0=no existen, 1=existen). Params: Modulo, Mov. Solo lectura."
       },
       "mcp": {
         "custom-tool": true
@@ -21224,7 +21226,8 @@
             "description": "Estatus",
             "required": true
           }
-        ]
+        ],
+        "object-description": "SP de consulta: retorna las situaciones válidas para un movimiento en un estatus dado. Usar ANTES de cambiar_situacion para conocer los valores permitidos. Params: Empresa, Modulo (CXP/DIN/GAS…), Mov (ej. 'Gasto Pasivo'), Estatus (ej. 'PENDIENTE'). Retorna: {Result: 'Normal'|'Autorizado'|…}. Solo lectura."
       },
       "mcp": {
         "custom-tool": true
@@ -21277,7 +21280,8 @@
             "description": "Mov (varchar(20))",
             "required": true
           }
-        ]
+        ],
+        "object-description": "SP de consulta: indica si un movimiento permite asociar complementos de otros módulos. Retorna {Result: true|false}. Params: Indicador (string '1'), Modulo, Mov. Solo lectura."
       },
       "mcp": {
         "custom-tool": true
@@ -24409,7 +24413,8 @@
             "description": "Tipo (varchar(50))",
             "required": true
           }
-        ]
+        ],
+        "object-description": "SP de consulta: retorna las formas de pago disponibles para captura según módulo y movimiento. Params: Empresa, Modulo, Mov, Usuario, Campo ('FormaPago'), CobroIntegrado (BOOLEAN — true/false, NO string), Tipo (string). Retorna array de formas de pago. Solo lectura."
       },
       "mcp": {
         "custom-tool": true
@@ -24433,7 +24438,7 @@
           ]
         }
       ],
-      "description": "Fn Forma pago(s) Ayuda Captura. Params: @Empresa varchar(5), @Modulo varchar(5), @Mov varchar(20), @Usuario varchar(10), @Campo varchar(20), @CobroIntegrado bit. Tablas: EmpresaGral, FormaPago, FormaPagoTipo, FormaPagoTipoD. Módulo: Dinero/Bancos"
+      "description": "Fn Forma pago(s) Ayuda Captura. Params: @Empresa varchar(5), @Modulo varchar(5), @Mov varchar(20), @Usuario varchar(10), @Campo varchar(20), @CobroIntegrado bit. Tablas: EmpresaGral, FormaPago, FormaPagoTipo, FormaPagoTipoD. Módulo: Dinero/Bancos. NOTA: @CobroIntegrado es bit/boolean — pasar true/false (NO '0'/'1')."
     },
     "Gasto": {
       "source": {
@@ -26771,7 +26776,8 @@
     "GastoConceptoProv": {
       "source": {
         "object": "dbo.spGastoConceptoProv",
-        "type": "stored-procedure"
+        "type": "stored-procedure",
+        "object-description": "SP de consulta: retorna conceptos de gasto para un proveedor/acreedor. ADVERTENCIA: requiere parámetro @Acreedor que NO está declarado en el config — llamar vía execute_entity con parameters:{Acreedor:'...'} en vez de este tool. Solo lectura."
       },
       "mcp": {
         "custom-tool": true
@@ -26795,7 +26801,7 @@
           ]
         }
       ],
-      "description": "Gasto(s) concepto(s) proveedor. Módulo: Gastos",
+      "description": "Gasto(s) concepto(s) proveedor. Módulo: Gastos. ADVERTENCIA: el SP requiere @Acreedor (no declarado en config). Llamar vía execute_entity(GastoConceptoProv, parameters:{Acreedor:'<clave>'}).",
       "fields": [
         {
           "name": "Result",
@@ -26853,7 +26859,8 @@
             "description": "TipoImpuesto (varchar(10))",
             "required": true
           }
-        ]
+        ],
+        "object-description": "SP de consulta: retorna la tasa de un tipo de impuesto por su clave. Param: TipoImpuesto (clave del catálogo TipoImpuesto1, ej. 'IVA_16'). Retorna {Result: tasa_decimal}. Solo lectura."
       },
       "mcp": {
         "custom-tool": true
@@ -34680,7 +34687,8 @@
             "description": "Opcion (varchar(1))",
             "required": true
           }
-        ]
+        ],
+        "object-description": "SP de consulta: retorna la opción de encabezado de un movimiento. Param: Opcion (string). Retorna {Result: string}. Solo lectura."
       },
       "mcp": {
         "custom-tool": true
@@ -34709,6 +34717,140 @@
         {
           "name": "Result",
           "type": "varchar"
+        }
+      ]
+    },
+    "CxpConSaldo": {
+      "source": {
+        "object": "dbo.CxpConSaldo",
+        "type": "view",
+        "key-fields": [
+          "Empresa",
+          "Proveedor",
+          "Moneda"
+        ],
+        "object-description": "Saldo acumulado de CXP PENDIENTE agrupado por Proveedor+Empresa+Moneda, con Nombre del proveedor. 1 fila por proveedor+moneda. Ideal para top deudores sin aggregate. Solo lectura."
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": false
+      },
+      "rest": {
+        "enabled": false
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "description": "Saldo CXP PENDIENTE por proveedor. Campos: Empresa(PK), Proveedor(PK), Moneda(PK), Saldo, Nombre(ProveedorNombre), NombreCorto, Categoria, Familia, Estatus(del proveedor). Una fila por combinación empresa+proveedor+moneda.",
+      "fields": [
+        {
+          "name": "Empresa",
+          "description": "char. PK. Empresa ERP",
+          "primary-key": true
+        },
+        {
+          "name": "Proveedor",
+          "description": "char. PK. Clave del proveedor",
+          "primary-key": true
+        },
+        {
+          "name": "Moneda",
+          "description": "char. PK. Moneda (Pesos/USD)",
+          "primary-key": true
+        },
+        {
+          "name": "Saldo",
+          "description": "money. Saldo total pendiente del proveedor en esa moneda"
+        },
+        {
+          "name": "Nombre",
+          "description": "varchar. Nombre completo del proveedor"
+        },
+        {
+          "name": "NombreCorto",
+          "description": "varchar. Nombre corto del proveedor"
+        },
+        {
+          "name": "Estatus",
+          "description": "varchar. Estatus del proveedor (ALTA=activo)"
+        }
+      ]
+    },
+    "CtaDineroConSaldo": {
+      "source": {
+        "object": "dbo.CtaDineroConSaldo",
+        "type": "view",
+        "key-fields": [
+          "CtaDinero"
+        ],
+        "object-description": "Cuentas bancarias con saldo pre-calculado (Saldo, PorConciliar, SaldoConciliado). Reemplaza CtaDinero cuando se necesita el saldo. Activas: Estatus eq 'ALTA'. Solo lectura."
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": false
+      },
+      "rest": {
+        "enabled": false
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "description": "CtaDinero con saldo calculado. Campos: CtaDinero(PK), Descripcion, NumeroCta, Institucion, Moneda, Empresa, Estatus, Saldo, PorConciliar, SaldoConciliado, Categoria, Grupo. Activas: Estatus eq 'ALTA'.",
+      "fields": [
+        {
+          "name": "CtaDinero",
+          "description": "varchar. PK. Clave de la cuenta bancaria",
+          "primary-key": true
+        },
+        {
+          "name": "Descripcion",
+          "description": "varchar. Nombre descriptivo de la cuenta"
+        },
+        {
+          "name": "NumeroCta",
+          "description": "varchar. Número de cuenta bancaria"
+        },
+        {
+          "name": "Institucion",
+          "description": "varchar. Banco/institución financiera"
+        },
+        {
+          "name": "Moneda",
+          "description": "char. Moneda de la cuenta (Pesos/USD)"
+        },
+        {
+          "name": "Empresa",
+          "description": "char. Empresa ERP a la que pertenece"
+        },
+        {
+          "name": "Estatus",
+          "description": "varchar. ALTA=activa, BAJA=inactiva"
+        },
+        {
+          "name": "Saldo",
+          "description": "money. Saldo actual calculado"
+        },
+        {
+          "name": "PorConciliar",
+          "description": "money. Saldo pendiente de conciliar"
+        },
+        {
+          "name": "SaldoConciliado",
+          "description": "money. Saldo ya conciliado"
         }
       ]
     }

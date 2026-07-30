@@ -26,11 +26,15 @@ Agente conversacional de ERP (Intelisis) construido con **Eve + SvelteKit**. Se 
 docker start sv5-sqlserver   # o el nombre del contenedor
 
 # 2. DAB custom (MCP server)
+# NOTA: el fork DAB ignora --config con path absoluto; carga siempre desde su CWD.
+# dab-custom/dab-config.json es un SYMLINK a sk-eve/dab/dab-config.json (creado 2026-07-01).
+# Todo cambio en dab/dab-config.json aplica automáticamente al reiniciar el DAB.
+# Binario: sigma-dab .NET 10 ARM64 compilado para macOS (2026-07-01).
+# El binario self-contained (./Azure.DataApiBuilder.Service) es bloqueado por Gatekeeper en macOS 26.
+# Usar el modo DLL con ~/.dotnet/dotnet (no requiere DOTNET_ROLL_FORWARD).
 export CONNECTION_STRING='Server=localhost,1433;Database=JoyaRock_300326;User Id=sa;Password=MyStrong!Password123;TrustServerCertificate=true'
 cd "/Users/carlosgarzagarza/Documents/MASERP/Sigma Intelisis/shared/dab-engine/dab-custom"
-dotnet Azure.DataApiBuilder.Service.dll \
-  --config "/Users/carlosgarzagarza/Documents/GitHub/sk-eve/dab/dab-config.json" \
-  --urls "http://localhost:5050"
+~/.dotnet/dotnet Azure.DataApiBuilder.Service.dll --urls "http://localhost:5050"
 
 # 3. SvelteKit + Eve (en sk-eve/)
 nvm use 24

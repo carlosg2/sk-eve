@@ -12,6 +12,8 @@ archivo markdown con frontmatter tipado y queryable.
 
 * [ERP Kernel](erp-kernel/) - Conocimiento universal de Intelisis. Capa 1, cambia lento. `tenant: null`.
 * [Empresas](companies/) - Company Twin por tenant. Capa 3, cambia medio/rápido.
+  * [ICF — Industrias Campo Fresco](companies/icf/) — **tenant activo**. Empresa ERP: `CP`. MCP: `https://api2.maserp.mx/icf/mcp`
+  * [JoyaRock](companies/joyarock-300326/) — tenant anterior (referencia).
 
 # Convención de frontmatter
 

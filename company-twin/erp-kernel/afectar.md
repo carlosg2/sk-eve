@@ -7,7 +7,7 @@ layer: erp-kernel
 tenant: null
 tags: [afectar, estatus, transiciones, gobierno, escritura]
 timestamp: 2026-07-01T00:00:00Z
-mcp_tools: [execute_entity]
+mcp_tools: [afectar, execute_entity]
 ---
 
 # Resumen
@@ -45,12 +45,31 @@ SINAFECTAR --(AFECTAR)--> PENDIENTE --(AFECTAR)--> CONCLUIDO
 | `Base` | Todo / Pendiente / Seleccion / Reservado / Ordenado |
 | `GenerarMov` | Tipo de mov a generar (solo con GENERAR) |
 | `Usuario` | Usuario que ejecuta |
-| `Estacion` | ID de estación |
+| `Estacion` | **Int32** (no string). Default: `1`. ID de estación de trabajo. Si no hay una estación real, usar `1`. |
+
+# Cómo llamar (recipe)
+
+Usar el **tool dedicado `afectar`** (está en el allow-list de Eve).
+**No** usar `execute_entity(Afectar, ...)` — el tool dedicado tiene mejor tipado.
+
+```
+afectar(
+  Modulo = "DIN",       # o CXP, GAS, etc.
+  ID = <id_movimiento>, # int
+  Accion = "AFECTAR",   # ver tabla de acciones
+  Base = "Todo",
+  Usuario = "ADMIN",
+  Estacion = 1          # Int32 obligatorio — usar 1 si no hay estación real
+)
+```
+
+**`Estacion` es Int32 — nunca pasar como string** ("WEB", "1", etc. → error de tipo).
 
 # Retorno
 
-- `Ok`: NULL = éxito; código (ej. 60030) = error.
+- `Ok`: NULL = éxito; código (ej. 60030, 60040) = error.
 - `OkRef`: detalle del resultado.
+- **60040** = error de validación de negocio: el movimiento no existe, ya está en CONCLUIDO/CANCELADO (inmutable), o le faltan partidas requeridas. Antes de afectar, verificar con `read_records(Dinero|CXP, filter: "ID eq <n>", select: "ID,Estatus")` que el estatus es `SINAFECTAR`.
 
 # Governance
 

@@ -64,7 +64,10 @@ read_records(entity=CXP, filter="Estatus eq 'PENDIENTE'")
 read_records(entity=CXP, filter="Estatus eq 'PENDIENTE' and Vencimiento le 2026-12-31")
 
 # Total pendiente por proveedor
-aggregate_records(entity=CXP, filter="Estatus eq 'PENDIENTE'", groupBy=Proveedor, aggregate="sum(Saldo)")
+aggregate_records(entity=CXP, function=sum, field=Saldo, filter="Estatus eq 'PENDIENTE'", groupby=[Proveedor])
+
+# Proveedores que deben más de 50k (HAVING nativo)
+aggregate_records(entity=CXP, function=sum, field=Saldo, filter="Estatus eq 'PENDIENTE'", groupby=[Proveedor], having={ gt: 50000 })
 ```
 
 # Reglas de escritura
@@ -72,3 +75,24 @@ aggregate_records(entity=CXP, filter="Estatus eq 'PENDIENTE'", groupBy=Proveedor
 - `create_record` requiere: `Mov`, `Proveedor`, `Moneda`, `FechaEmision`.
 - `Saldo` es solo lectura (lo calcula el ERP).
 - Transiciones de estatus (AFECTAR/CANCELAR) se hacen vía el stored proc `Afectar`, no con `update_record`.
+
+# Valores válidos
+
+- **`Estatus`:** `SINAFECTAR` · `PENDIENTE` · `CONCLUIDO` · `CANCELADO`.
+- **`Mov`** (debe existir en MovTipo del módulo CXP; valores observados en JoyaRock):
+  `Gasto Pasivo`, `Entrada Compra`, `Gasto Arrendado`, `Solicitud Cheque`, `Pago`,
+  `Retencion`, `Gasto`, `Anticipo SI`, `Aplicacion`, `Prestamo`, `Gasto Pasivo SI`,
+  `Solicitud Deposito`. **No inventes valores de `Mov`** — usa uno de la lista o consulta
+  `aggregate_records(CXP, count, *, groupby:[Mov])` para el catálogo real del tenant.
+
+# Cómo crear (recipe)
+
+Campos **requeridos**: `Mov` (de la lista de arriba), `Proveedor` (clave existente en Prov),
+`Moneda` (ej. `Pesos`), `FechaEmision` (fecha ISO). Defaults: `Estatus` → `SINAFECTAR`.
+Gotcha: el ID lo asigna el ERP; `Saldo` no se envía (calculado). Tras crear, usar `Afectar`
+para pasar a `PENDIENTE`.
+
+# Capacidades OData (DAB)
+
+Transversales del motor (operadores, no-HAVING/JOIN, formato de fechas): ver
+[ERP Kernel — Capacidades OData](index.md#capacidades-odata-dab). No se repiten por módulo.
