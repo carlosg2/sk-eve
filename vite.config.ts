@@ -1,11 +1,13 @@
 import adapter from '@sveltejs/adapter-auto';
 import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 import { eveSvelteKit } from 'eve/sveltekit';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [
 		eveSvelteKit(),
+		tailwindcss(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

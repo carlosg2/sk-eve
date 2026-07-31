@@ -9,7 +9,7 @@ import type { RequestHandler } from "./$types";
 //   authored  — tools en agent/tools/*.ts (defineTool)
 //   framework — framework tools de Eve activas sin sandbox
 
-const MCP_URL = "http://localhost:5050/mcp";
+const MCP_URL = "https://api2.maserp.mx/icf/mcp";
 
 async function initMcpSession(): Promise<string | null> {
   try {
@@ -71,7 +71,7 @@ export const GET: RequestHandler = async () => {
       const body = (await parseSseText(res)) as any;
       const all: Array<{ name: string; description: string; inputSchema: unknown }> = body?.result?.tools ?? [];
       mcpTotal = all.length;
-      const ALLOW = new Set(["describe_entities","read_records","aggregate_records","create_record","update_record","delete_record","execute_entity","afectar","cambiar_situacion"]);
+      const ALLOW = new Set(["describe_entities","read_records","aggregate_records","create_record","update_record","delete_record","execute_entity","buscar_registro","afectar","cambiar_situacion"]);
       mcpTools = all.filter((t) => ALLOW.has(t.name));
     } catch { /* DAB unavailable */ }
   }
@@ -108,37 +108,3 @@ export const GET: RequestHandler = async () => {
   });
 };
 
-
-async function initMcpSession(): Promise<string | null> {
-  try {
-    const res = await fetch(MCP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json, text/event-stream" },
-      body: JSON.stringify({
-        jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "devtools", version: "1" } },
-      }),
-    });
-    const sessionId = res.headers.get("mcp-session-id");
-    if (!sessionId) return null;
-    // notifications/initialized
-    await fetch(MCP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json, text/event-stream", "Mcp-Session-Id": sessionId },
-      body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
-    });
-    return sessionId;
-  } catch {
-    return null;
-  }
-}
-
-async function parseSseText(res: Response): Promise<unknown> {
-  const text = await res.text();
-  for (const line of text.split("\n")) {
-    const s = line.replace(/^data:\s*/, "").trim();
-    if (!s) continue;
-    try { return JSON.parse(s); } catch { /* skip */ }
-  }
-  return null;
-}

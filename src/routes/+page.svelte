@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useEveAgent } from "eve/svelte";
+  import { computeDiagnostics, redactSensitiveData, unwrapMcpOutput, type StreamEv } from "$lib/lib/agent-diagnostics";
 
   type HandleMessageStreamEvent = {
     type: string;
@@ -68,7 +69,7 @@
     if (typeof value === "string") return value;
     if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
     try {
-      const text = JSON.stringify(value, null, 2);
+      const text = JSON.stringify(redactSensitiveData(value), null, 2);
       return text.length > 1200 ? `${text.slice(0, 1200)}…` : text;
     } catch {
       return String(value);
@@ -89,7 +90,7 @@
           const conn = a.input?.connection ? ` [${a.input.connection}]` : "";
           return `🔌 Inicializando conexión${conn}`;
         }
-        return `${name}(${JSON.stringify(a.input ?? a.arguments ?? {}).slice(0, 80)})`;
+        return `${name}(${formatToolPayload(a.input ?? a.arguments ?? {}).replace(/\s+/g, " ").slice(0, 80)})`;
       }).join(", ");
       return `🔧 tool call  →  ${calls}`;
     }
@@ -141,35 +142,10 @@
     if (typeof value === "string") return value;
     if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
     try {
-      return JSON.stringify(value, null, 2);
+      return JSON.stringify(redactSensitiveData(value), null, 2);
     } catch {
       return String(value);
     }
-  }
-
-  // Des-anida el envoltorio MCP: los tools devuelven
-  // { content: [{ type: "text", text: "<JSON string escapado>" }], isError }.
-  // Extrae el `text` interno, lo re-parsea si es JSON, y devuelve datos limpios
-  // (sin \n, \" ni \uXXXX). Si no es un envoltorio MCP, cae al payload normal.
-  function unwrapMcpOutput(output: unknown): string {
-    const content = (output as any)?.content;
-    if (Array.isArray(content)) {
-      const texts = content
-        .filter((c) => c?.type === "text" && typeof c.text === "string")
-        .map((c) => c.text as string);
-      if (texts.length) {
-        return texts
-          .map((t) => {
-            try {
-              return JSON.stringify(JSON.parse(t), null, 2);
-            } catch {
-              return t; // no era JSON: texto plano tal cual
-            }
-          })
-          .join("\n");
-      }
-    }
-    return fullToolPayload(output);
   }
 
   // Indenta cada línea de un bloque multilínea con 2 espacios, para que los
@@ -454,6 +430,11 @@
     return "flow";
   }
 
+  // --- Diagnóstico agregado (módulo compartido: src/lib/lib/agent-diagnostics)
+  // Separa tiempo de MODELO vs TOOLS, calcula tok/s + cache hit% y detecta
+  // anti-patrones (paginación, narración, resultados enormes, errores, cache frío).
+  let diagnostics = $derived(computeDiagnostics(agent.events as StreamEv[], eventTs));
+
   type DevRow = {
     idx: number;
     type: string;
@@ -553,10 +534,14 @@
         case "step.completed": {
           badge = "step";
           const u = (d.usage ?? {}) as Record<string, number>;
+          const pm = ((d.providerMetadata as any)?.anthropic ?? {}) as Record<string, number>;
           const inTok = u.inputTokens ?? u.promptTokens ?? 0;
           const outTok = u.outputTokens ?? u.completionTokens ?? 0;
-          summary = `finish=${d.finishReason} · tokens in=${inTok} out=${outTok}`;
-          detail = fullToolPayload(d.usage ?? {});
+          const cRead = u.cacheReadTokens ?? u.cachedInputTokens ?? u.cacheReadInputTokens ?? pm.cacheReadInputTokens ?? 0;
+          const cWrite = u.cacheWriteTokens ?? u.cacheCreationInputTokens ?? pm.cacheCreationInputTokens ?? 0;
+          const cacheStr = (cRead || cWrite) ? ` · cache r=${cRead} w=${cWrite}` : "";
+          summary = `finish=${d.finishReason} · tokens in=${inTok} out=${outTok}${cacheStr}`;
+          detail = fullToolPayload({ usage: d.usage, providerMetadata: (d as any).providerMetadata });
           break;
         }
         case "step.failed":
@@ -693,6 +678,35 @@
   </div>
 
   {#if showDevtools}
+    {#if devRows.length > 0}
+      <div class="dt-diag">
+        <div class="dt-metrics">
+          <span class="dt-metric"><b>{fmtMs(diagnostics.turnMs)}</b><i>turno</i></span>
+          <span class="dt-metric"><b>{diagnostics.steps}</b><i>steps</i></span>
+          <span class="dt-metric model"><b>{fmtMs(diagnostics.modelTime)}</b><i>modelo*</i></span>
+          <span class="dt-metric tool"><b>{diagnostics.toolCalls > 0 && diagnostics.toolTime === 0 ? "n/d" : fmtMs(diagnostics.toolTime)}</b><i>tools</i></span>
+          <span class="dt-metric"><b>{diagnostics.tokPerSec.toFixed(0)}</b><i>tok/s ef.</i></span>
+          <span class="dt-metric"><b>{diagnostics.outputTok}</b><i>out tok</i></span>
+          <span class="dt-metric cache" class:good={diagnostics.cacheHit > 0.3}><b>{(diagnostics.cacheHit * 100).toFixed(0)}%</b><i>cache hit</i></span>
+          <span class="dt-metric"><b>{diagnostics.cacheRead}/{diagnostics.cacheWrite}</b><i>cache r/w</i></span>
+        </div>
+        {#if diagnostics.modelTime + diagnostics.toolTime > 0}
+          <div class="dt-bars" title="tiempo modelo (azul) vs tools (ámbar)">
+            <span class="dt-seg model" style="flex:{diagnostics.modelTime || 1}"></span>
+            <span class="dt-seg tool" style="flex:{diagnostics.toolTime || 0.0001}"></span>
+          </div>
+        {/if}
+        {#if diagnostics.warnings.length}
+          <div class="dt-warnings">
+            {#each diagnostics.warnings as w}
+              <div class="dt-warn lvl-{w.level}">{w.level === "error" ? "⛔" : w.level === "warn" ? "⚠️" : "ℹ️"} {w.msg}</div>
+            {/each}
+          </div>
+        {:else}
+          <div class="dt-warn lvl-ok">✅ Sin anti-patrones detectados</div>
+        {/if}
+      </div>
+    {/if}
     <div class="dt-table" role="table">
       <div class="dt-head" role="row">
         <span class="dt-col-time">t</span>
@@ -836,6 +850,36 @@
     padding: 0.2rem 0.5rem; border-radius: 4px; cursor: pointer;
     font-family: monospace; font-size: 0.72rem;
   }
+
+  /* DevTools — panel de diagnóstico agregado */
+  .dt-diag {
+    background: #0b1220; border-bottom: 1px solid #1e293b;
+    padding: 0.6rem 0.8rem; display: flex; flex-direction: column; gap: 0.55rem;
+  }
+  .dt-metrics { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .dt-metric {
+    display: flex; flex-direction: column; align-items: center;
+    background: #131f36; border: 1px solid #1e293b; border-radius: 6px;
+    padding: 0.3rem 0.7rem; min-width: 62px;
+  }
+  .dt-metric b { color: #e2e8f0; font-family: monospace; font-size: 0.92rem; font-weight: 600; }
+  .dt-metric i { color: #64748b; font-style: normal; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.1rem; }
+  .dt-metric.model b { color: #7dd3fc; }
+  .dt-metric.tool b { color: #fbbf24; }
+  .dt-metric.cache b { color: #f87171; }
+  .dt-metric.cache.good b { color: #4ade80; }
+  .dt-bars { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: #0f172a; }
+  .dt-seg.model { background: #0284c7; }
+  .dt-seg.tool { background: #d97706; }
+  .dt-warnings { display: flex; flex-direction: column; gap: 0.25rem; }
+  .dt-warn {
+    font-family: monospace; font-size: 0.72rem; line-height: 1.4;
+    padding: 0.3rem 0.5rem; border-radius: 4px; border-left: 3px solid transparent;
+  }
+  .dt-warn.lvl-error { background: #2a1416; color: #fca5a5; border-left-color: #dc2626; }
+  .dt-warn.lvl-warn  { background: #241a06; color: #fcd34d; border-left-color: #d97706; }
+  .dt-warn.lvl-info  { background: #0f1e2e; color: #7dd3fc; border-left-color: #0284c7; }
+  .dt-warn.lvl-ok    { background: #0c1f16; color: #4ade80; border-left-color: #16a34a; }
   .dt-table {
     background: #0f172a; border-radius: 0 0 4px 4px;
     max-height: 520px; overflow-y: auto;

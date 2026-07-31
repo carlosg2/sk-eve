@@ -51,6 +51,33 @@ Parámetros: `entidad` (req), `campo` (req), `termino` (req), `modo` (CONTIENE|E
 Entidades soportadas: Prov, Cte, Art, Compra, Venta, Inv, ArtDisponibleDesc, ArtDisponible, GastoT, CompraD, VentaD, MovTipo, Alm.
 
 ---
+
+## Patrón 0.1 — Compras de un proveedor por nombre
+
+Cuando el usuario pregunta **“qué compras tenemos de X”** sin rango de fechas,
+interpretar “tenemos” como **compromisos vigentes**. Priorizar órdenes pendientes;
+no mezclar órdenes, entradas y controles de calidad como si fueran compras distintas.
+
+```
+PASO 1: buscar_registro({ entidad:"Prov", campo:"Nombre", termino:"Mexicana de Arroz", primero:5 })
+→ elegir coincidencia exacta normalizada; si hay dos plausibles, preguntar al usuario
+
+PASO 2: read_records(Compra,
+  filter: "Proveedor eq 'PP-0085' and Estatus eq 'PENDIENTE' and (Mov eq 'Orden Compra' or Mov eq 'Orden Compra OP' or Mov eq 'Orden Compra AF' or Mov eq 'Orden Compra AFSocio' or Mov eq 'Orden Compra Socios' or Mov eq 'Orden Compra Emida')",
+  select: "ID,Mov,MovID,FechaEmision,Importe,Estatus,Almacen,Condicion",
+  orderby: ["FechaEmision desc"],
+  first: 50)
+```
+
+Reglas de respuesta:
+- Abrir con la decisión útil: **N órdenes pendientes · $total**.
+- Mostrar solo esas órdenes en la tabla principal.
+- Si no hay pendientes, decirlo y consultar como fallback las últimas 10 entradas concluidas.
+- Historial concluido, entradas y control de calidad van en secciones separadas y solo si el usuario los pide.
+- Si la actividad más reciente tiene más de 90 días, destacarlo: **“Sin actividad reciente; último movimiento: fecha”**.
+- Si la respuesta trae cursor/página siguiente, NO afirmar un total calculado en cliente; decir “primeros 50” o usar `aggregate_records`.
+
+---
 ```
 read_records(ArtDisponibleDesc,
   filter: "Almacen eq 'GRAL'",
@@ -66,14 +93,13 @@ read_records(ArtDisponibleDesc,
   select: "Articulo,Descripcion1,Disponible,Apartado,DispMenosApartado,Almacen")
 ```
 
-### Búsqueda por texto parcial (sin contains — traer y filtrar)
+### Búsqueda por texto parcial (usar buscar_registro, NO paginar)
 ```
-PASO 1: read_records(ArtDisponibleDesc,
-  filter: "Almacen eq 'GRAL' and Disponible gt 0",
-  select: "Articulo,Descripcion1,Disponible,Unidad",
-  first: 200)
-→ Filtrar client-side por texto en Descripcion1
+buscar_registro({ entidad:"ArtDisponibleDesc", campo:"Descripcion1", termino:"Frijol" })
 ```
+NUNCA hagas `read_records` con `first` alto para "traer y filtrar en cliente":
+pagina miles de filas a contexto y dispara la latencia. `buscar_registro` hace el
+LIKE en el servidor y devuelve solo lo que coincide.
 
 ### Con datos de clasificación (familia, grupo)
 ```
