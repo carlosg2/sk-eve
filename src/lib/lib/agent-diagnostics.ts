@@ -23,6 +23,34 @@ export type Diagnostics = {
 	warnings: Warning[];
 };
 
+function formatDuration(ms: number): string {
+	return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`;
+}
+
+/** Resumen estable para inspectores accesibles y herramientas de automatización. */
+export function formatDiagnosticsSummary(diagnostics: Diagnostics): string {
+	const toolTime = diagnostics.toolCalls > 0 && diagnostics.toolTime === 0
+		? "n/d"
+		: formatDuration(diagnostics.toolTime);
+	const lines = [
+		"## DIAGNOSTICS",
+		`turn=${formatDuration(diagnostics.turnMs)} steps=${diagnostics.steps} model=${formatDuration(diagnostics.modelTime)} tools=${toolTime} calls=${diagnostics.toolCalls}`,
+		`tokens: input=${diagnostics.inputTok} output=${diagnostics.outputTok} throughput=${diagnostics.tokPerSec.toFixed(0)} tok/s`,
+		`cache: hit=${(diagnostics.cacheHit * 100).toFixed(0)}% read=${diagnostics.cacheRead} write=${diagnostics.cacheWrite}`,
+	];
+
+	if (diagnostics.warnings.length === 0) {
+		lines.push("warnings: none");
+	} else {
+		lines.push("warnings:");
+		for (const warning of diagnostics.warnings) {
+			lines.push(`- [${warning.level}] ${warning.msg}`);
+		}
+	}
+
+	return lines.join("\n");
+}
+
 /** Redacta secretos, datos bancarios y contacto personal sin mutar el evento original. */
 export function redactSensitiveData(value: unknown): unknown {
 	if (Array.isArray(value)) return value.map(redactSensitiveData);
@@ -92,7 +120,7 @@ export function friendlyToolLabel(name: string, input: Record<string, unknown> =
  * @param tsOf   función que devuelve el timestamp (ms epoch) de un evento
  */
 export function computeDiagnostics(
-	events: StreamEv[],
+	events: readonly StreamEv[],
 	tsOf: (ev: StreamEv, idx: number) => number
 ): Diagnostics {
 	const warnings: Warning[] = [];
@@ -229,7 +257,7 @@ export function computeDiagnostics(
 	if (steps >= 2 && cacheRead === 0 && cacheWrite === 0) {
 		warnings.push({
 			level: "info",
-			msg: `Sin métricas de cache — ¿middleware de prompt-cache activo? (reinicia el server)`,
+			msg: `Sin métricas de cache — verifica que Eve detecte el modelo como Anthropic directo`,
 		});
 	} else if (steps >= 2 && cacheRead === 0 && cacheWrite > 0) {
 		warnings.push({ level: "info", msg: `Cache escrito pero 0 lecturas — el prefijo cambia entre steps` });

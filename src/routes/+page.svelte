@@ -1,6 +1,6 @@
 <script lang="ts">
   import { useEveAgent } from "eve/svelte";
-  import { computeDiagnostics, redactSensitiveData, unwrapMcpOutput, type StreamEv } from "$lib/lib/agent-diagnostics";
+  import { computeDiagnostics, formatDiagnosticsSummary, redactSensitiveData, unwrapMcpOutput, type StreamEv } from "$lib/lib/agent-diagnostics";
 
   type HandleMessageStreamEvent = {
     type: string;
@@ -41,7 +41,7 @@
   // que aún no hemos respondido.
   let pendingInputs = $derived.by(() => {
     const out: InputRequest[] = [];
-    for (const ev of agent.events as HandleMessageStreamEvent[]) {
+    for (const ev of agent.events as readonly HandleMessageStreamEvent[]) {
       if (ev.type !== "input.requested") continue;
       const reqs = ((ev.data?.requests as InputRequest[]) ?? []);
       for (const r of reqs) {
@@ -160,7 +160,7 @@
   // Suma de tokens de todos los step.completed del turno.
   let tokenTotals = $derived.by(() => {
     let input = 0, output = 0, total = 0;
-    for (const ev of agent.events as HandleMessageStreamEvent[]) {
+    for (const ev of agent.events as readonly HandleMessageStreamEvent[]) {
       if (ev.type !== "step.completed") continue;
       const u = (ev.data?.usage ?? {}) as Record<string, number>;
       input += u.inputTokens ?? u.promptTokens ?? 0;
@@ -170,6 +170,9 @@
     if (!total) total = input + output;
     return { input, output, total };
   });
+
+  // Métricas compartidas por el inspector textual y el panel visual.
+  let diagnostics = $derived(computeDiagnostics(agent.events as readonly StreamEv[], eventTs));
 
   // Transcripción chronological completa: cada evento significativo en una
   // línea (o bloque) de texto plano. Optimizado para lectura por agente.
@@ -183,9 +186,11 @@
       lines.push(`pending_hitl: ${pendingInputs.length} (requiere respuesta)`);
     }
     lines.push(``);
+    lines.push(formatDiagnosticsSummary(diagnostics));
+    lines.push(``);
     lines.push(`## TRACE`);
 
-    for (const ev of agent.events as HandleMessageStreamEvent[]) {
+    for (const ev of agent.events as readonly HandleMessageStreamEvent[]) {
       const d = (ev as any).data ?? {};
       switch (ev.type) {
         case "session.started":
@@ -330,7 +335,7 @@
   // Re-consulta cuando aparece un nuevo step.started (nuevo input al modelo) o
   // cuando el turno vuelve a 'ready' (para capturar el último step del turno).
   $effect(() => {
-    const stepCount = (agent.events as HandleMessageStreamEvent[])
+    const stepCount = (agent.events as readonly HandleMessageStreamEvent[])
       .filter((e) => e.type === "step.started").length;
     const key = `${stepCount}:${agent.status}`;
     if (key === `${lastFetchedStepCount}:${agent.status}` && agent.status !== "ready") return;
@@ -430,11 +435,6 @@
     return "flow";
   }
 
-  // --- Diagnóstico agregado (módulo compartido: src/lib/lib/agent-diagnostics)
-  // Separa tiempo de MODELO vs TOOLS, calcula tok/s + cache hit% y detecta
-  // anti-patrones (paginación, narración, resultados enormes, errores, cache frío).
-  let diagnostics = $derived(computeDiagnostics(agent.events as StreamEv[], eventTs));
-
   type DevRow = {
     idx: number;
     type: string;
@@ -448,7 +448,7 @@
   };
 
   let devRows = $derived.by<DevRow[]>(() => {
-    const evs = agent.events as HandleMessageStreamEvent[];
+    const evs = agent.events as readonly HandleMessageStreamEvent[];
     if (!evs.length) return [];
     const base = eventTs(evs[0], 0);
     const rows: DevRow[] = [];
@@ -646,15 +646,13 @@
 
 <section class="inspector-section" aria-label="Agent inspector">
   <div class="inspector-bar">
-    <button class="inspector-toggle" onclick={() => showInspector = !showInspector}>
+    <button class="inspector-toggle" aria-expanded={showInspector} aria-controls="agent-trace" onclick={() => showInspector = !showInspector}>
       {showInspector ? "▼" : "▶"} Inspector (texto plano · sin screenshots)
     </button>
     <span class="inspector-meta">status: {agent.status} · {agent.events.length} eventos · {tokenTotals.total} tokens</span>
     <button class="inspector-copy" onclick={copyTrace}>Copiar</button>
   </div>
-  {#if showInspector}
-    <pre id="agent-trace" class="inspector-pre" data-status={agent.status} data-events={agent.events.length}>{traceText}</pre>
-  {/if}
+  <pre id="agent-trace" class:inspector-collapsed={!showInspector} class="inspector-pre" data-status={agent.status} data-events={agent.events.length}>{traceText}</pre>
 </section>
 
 <section class="devtools" aria-label="Agent DevTools">
@@ -821,6 +819,17 @@
     padding: 0.75rem; border-radius: 0 0 4px 4px; margin: 0;
     max-height: 480px; overflow-y: auto;
     white-space: pre-wrap; word-break: break-word;
+  }
+  .inspector-pre.inspector-collapsed {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   /* DevTools — panel visual estilo Chrome DevTools (para humano) */

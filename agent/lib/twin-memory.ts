@@ -1,6 +1,7 @@
 import { readFile, appendFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { runtimeConfig } from "./runtime-config.js";
 
 // Localiza company-twin/ subiendo desde cwd (Eve bundlea, import.meta.url no sirve).
 function resolveBundleRoot(): string {
@@ -15,13 +16,11 @@ function resolveBundleRoot(): string {
   return join(process.cwd(), "company-twin");
 }
 
-// Store de aprendizajes del tenant (parte del Company Twin, capa state).
-// Por ahora hardcodeado a joyarock-300326 (multi-tenant vendrá con la sesión).
-const TENANT = "joyarock-300326";
+// Store de aprendizajes del tenant activo (parte del Company Twin, capa state).
 const LEARNINGS_PATH = join(
   resolveBundleRoot(),
   "companies",
-  TENANT,
+  runtimeConfig.tenant,
   "state",
   "learnings.md",
 );

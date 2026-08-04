@@ -1,0 +1,12 @@
+{
+  "Prov": ["Proveedor", "Nombre", "NombreCorto", "Estatus", "Condicion"],
+  "Cte": ["Cliente", "Nombre", "NombreCorto", "Estatus", "Condicion"],
+  "Art": ["Articulo", "Descripcion1", "Descripcion2", "Unidad", "Estatus", "Familia", "Categoria", "Grupo"],
+  "ArtDisponible": ["Empresa", "Articulo", "Almacen", "Disponible", "Apartado", "DispMenosApartado"],
+  "ArtDisponibleDesc": ["Empresa", "Articulo", "Descripcion1", "Descripcion2", "Almacen", "Disponible", "Apartado", "DispMenosApartado", "Unidad"],
+  "Compra": ["ID", "Mov", "MovID", "FechaEmision", "Proveedor", "Importe", "Estatus", "Almacen", "Condicion"],
+  "Venta": ["ID", "Mov", "MovID", "FechaEmision", "Cliente", "Importe", "Estatus", "Almacen", "Condicion"],
+  "Inv": ["ID", "Mov", "MovID", "FechaEmision", "Estatus", "Almacen"],
+  "GastoT": ["ID", "Mov", "MovID", "FechaEmision", "Acreedor", "Importe", "Estatus"],
+  "MovTipo": ["Modulo", "Mov", "Clave", "Estatus"]
+}

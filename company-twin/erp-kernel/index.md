@@ -31,6 +31,14 @@ Las transiciones se ejecutan con el SP [Afectar](afectar.md), no con `update_rec
 * [MovTipo](movtipo.md) - Tipos de movimiento por módulo (claves VTAS.P, VTAS.F, COMS.O, COMS.F).
 * [Alm](alm.md) - Almacenes (catálogo maestro).
 
+# Entidades — módulo MRP / Planeación de compras
+
+* [Empresa](empresa.md) - Catálogo de empresas (instalaciones multiempresa).
+* [EmpresaCfg2](empresacfg2.md) - Configuración de planeación por empresa (TipoPeriodo, Horizonte).
+* [ArtAlm](artalm.md) - Configuración de planeación de artículo por almacén (IS, lote, múltiplos).
+* [PlanArtOP](planartop.md) - Órdenes planeadas resultado de la explosión MRP (sugerido de compra oficial).
+* [PlaneacionMRP](planeacion-mrp.md) - SP `spPlanArt`, fuente de verdad que prevalece sobre cálculo manual.
+
 # Stored procedures (escritura de estatus)
 
 * [Afectar](afectar.md) - Transiciones de estatus (AFECTAR/CANCELAR/AUTORIZAR).

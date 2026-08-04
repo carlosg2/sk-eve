@@ -2,6 +2,7 @@ import { json } from "@sveltejs/kit";
 import { readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { RequestHandler } from "./$types";
+import { runtimeConfig } from "../../../../agent/lib/runtime-config.js";
 
 // Dev endpoint: inventario COMPLETO de tools disponibles para el modelo.
 // Devuelve 3 capas:
@@ -9,7 +10,7 @@ import type { RequestHandler } from "./$types";
 //   authored  — tools en agent/tools/*.ts (defineTool)
 //   framework — framework tools de Eve activas sin sandbox
 
-const MCP_URL = "https://api2.maserp.mx/icf/mcp";
+const MCP_URL = runtimeConfig.mcpUrl;
 
 async function initMcpSession(): Promise<string | null> {
   try {
@@ -48,7 +49,7 @@ async function parseSseText(res: Response): Promise<unknown> {
 // Sandbox tools (bash/glob/grep/read_file/write_file) no están disponibles
 // porque agent.ts no configura sandbox.
 const FRAMEWORK_TOOLS = [
-  { name: "connection_search", description: "Discover and register tools from MCP connections. (Patched: eager preload — runs silently on session start, no round-trip needed.)" },
+  { name: "connection_search", description: "Discover and register tools from MCP connections." },
   { name: "load_skill",        description: "Dynamically load a skill by name. Skills inject focused instructions for a domain (e.g. CXP, tesorería)." },
   { name: "ask_question",      description: "Ask the user a question and wait for a response. Triggers a HITL input.requested event." },
   { name: "todo",              description: "Manage a durable task list for the current session. Survives compaction." },

@@ -27,23 +27,24 @@ semántica. Esencial para filtrar ventas/compras por su categoría (pendiente/fi
 | `SubClave` | varchar | Sub-clasificación |
 | `Orden` | int | Orden de aparición |
 
-# Claves semánticas principales (ICF — BD INCF, verificadas)
+# Claves semánticas principales
 
 ## Módulo VTAS
 
-| Clave | Significado | Movimientos |
-|---|---|---|
-| `VTAS.P` | Pendiente (sin facturar) | Pedido, Orden Surtido, Orden Surtido R, Ingreso, Contratos, Pedido Posfechado, Reservacion |
-| `VTAS.F` | En firme (facturado) | Factura, Factura Credito, Factura Activo, Factura Flexible, Factura Prorrateada, FacturaDIF, FacturaE, Nota Venta, Nota Venta R, Cancelacion NC |
+| Clave | Significado |
+|---|---|
+| `VTAS.P` | Pendiente (sin facturar) |
+| `VTAS.F` | En firme (facturado) |
 
 ## Módulo COMS
 
-| Clave | Significado | Movimientos |
-|---|---|---|
-| `COMS.O` | Abierto/pendiente | Orden Compra, Orden Compra OP, Orden Compra AF, Orden Compra AFSocio, Orden Compra Socios, Orden Compra Emida, Aduana, Confirma Proveedor, Control Calidad, Factura Proveedor |
-| `COMS.F` | En firme (recibido) | Entrada Compra, Entrada Mercancia, Entrada Maquila, Entrada Consignacion, Entrada Insumos, Entrada Herramienta, Entrada Consumibles, Entrada de Prestamo, Compra Activos, CompraActivos Socios |
+| Clave | Significado |
+|---|---|
+| `COMS.O` | Abierto/pendiente |
+| `COMS.F` | En firme (recibido) |
 
-> ⚠️ **NUNCA usar la Clave como valor de `Mov`**. `COMS.F` no es un `Mov`. Usar los nombres de Mov de la tabla.
+> ⚠️ **NUNCA usar la Clave como valor de `Mov`**. Los nombres concretos de
+> movimiento varían por tenant y se resuelven con `MovTipo` o su overlay company.
 
 # Patrones de consulta
 

@@ -32,6 +32,9 @@ Catálogo maestro de productos. Referenciado por Compra, Venta, Inv, y las vista
 | `Familia` | varchar | Familia de producto |
 | `Unidad` | varchar | Unidad de medida base |
 | `Estatus` | varchar | `ALTA` \| `BAJA` |
+| `SeCompra` | lógico | Default `Verdadero` |
+| `SeProduce` | lógico | Si el artículo se produce (no solo se compra) |
+| `AlmacenROP` | varchar | **Almacén de Orden** (default para punto de reorden). Se usa en [PlaneacionMRP](planeacion-mrp.md)/[PlanArtOP](planartop.md) para distinguir compra (`Art.AlmacenROP = PlanArtOP.Almacen`) de distribución (`Art.AlmacenROP != PlanArtOP.Almacen`). **No existe como campo en `PlanArtOP`** — solo en `Art`. |
 
 > ⚠️ `contains`/`LIKE` no soportado en filtros OData. Para buscar por nombre parcial,
 > traer candidatos y filtrar client-side, o usar la clave exacta.

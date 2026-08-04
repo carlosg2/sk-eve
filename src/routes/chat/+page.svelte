@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { useEveAgent } from 'eve/svelte';
-	import { computeDiagnostics, friendlyToolLabel, redactSensitiveData, unwrapMcpOutput } from '$lib/lib/agent-diagnostics';
+	import { computeDiagnostics, formatDiagnosticsSummary, friendlyToolLabel, redactSensitiveData, unwrapMcpOutput } from '$lib/lib/agent-diagnostics';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import * as InputGroup from '$lib/components/ui/input-group/index.js';
 	import * as MessageScroller from '$lib/components/ui/message-scroller/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import * as Queue from '$lib/components/ai-elements/queue/index.js';
 	import MessageAnimated from '$lib/components/message-animated.svelte';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
@@ -64,13 +65,41 @@
 	}
 
 	// Diagnóstico agregado (módulo compartido con / ).
-	const diagnostics = $derived(computeDiagnostics(agent.events as StreamEv[], eventTs));
+	const diagnostics = $derived(computeDiagnostics(agent.events as readonly StreamEv[], eventTs));
+
+	// ── Todo widget (tool framework `todo`) ─────────────────────────────────
+	// Solo puede existir una lista a la vez: el tool siempre reemplaza el
+	// arreglo completo, así que basta con leer el último `action.result`.
+	type TodoItem = { content: string; priority: 'high' | 'medium' | 'low'; status: 'pending' | 'in_progress' | 'completed' | 'cancelled' };
+	type TodoOutput = { counts: { pending: number; in_progress: number; completed: number; cancelled: number; total: number }; todos: TodoItem[] };
+
+	let todoOpen = $state(true);
+
+	const todoState = $derived.by((): TodoOutput | null => {
+		const evs = agent.events as readonly StreamEv[];
+		for (let i = evs.length - 1; i >= 0; i--) {
+			const ev = evs[i];
+			if (ev.type !== 'action.result') continue;
+			const r = (ev.data?.result ?? {}) as any;
+			if ((r.toolName ?? r.name) !== 'todo') continue;
+			let output = r.output;
+			if (typeof output === 'string') {
+				try { output = JSON.parse(output); } catch { return null; }
+			}
+			if (output && Array.isArray(output.todos)) return output as TodoOutput;
+			return null;
+		}
+		return null;
+	});
+
+	// Se limpia sola cuando ya no quedan tareas pendientes/en curso.
+	const todoActive = $derived(!!todoState && (todoState.counts.pending > 0 || todoState.counts.in_progress > 0));
 
 	// Estado en vivo: qué está haciendo el agente AHORA (mejora la UX percibida
 	// durante los ~segundos de generación/tool en que no hay texto que mostrar).
 	const liveStatus = $derived.by(() => {
 		if (!isBusy) return null;
-		const evs = agent.events as StreamEv[];
+		const evs = agent.events as readonly StreamEv[];
 		let step = 0;
 		let label = 'Entendiendo tu consulta…';
 		for (const ev of evs) {
@@ -112,7 +141,7 @@
 
 	const tokenTotals = $derived.by(() => {
 		let input = 0, output = 0, total = 0;
-		for (const ev of agent.events as StreamEv[]) {
+		for (const ev of agent.events as readonly StreamEv[]) {
 			if (ev.type !== 'step.completed') continue;
 			const u = ((ev.data?.usage ?? {}) as Record<string, number>);
 			input += u.inputTokens ?? u.promptTokens ?? 0;
@@ -131,8 +160,10 @@
 		lines.push(`events: ${agent.events.length} · messages: ${agent.data.messages.length}`);
 		lines.push(`tokens: in=${tokenTotals.input} out=${tokenTotals.output} total=${tokenTotals.total}`);
 		lines.push('');
+		lines.push(formatDiagnosticsSummary(diagnostics));
+		lines.push('');
 		lines.push('## TRACE');
-		for (const ev of agent.events as StreamEv[]) {
+		for (const ev of agent.events as readonly StreamEv[]) {
 			const d = (ev as any).data ?? {};
 			switch (ev.type) {
 				case 'session.started':  lines.push('[session.started]'); break;
@@ -170,7 +201,7 @@
 
 	const devRows = $derived.by(() => {
 		const rows: DevRow[] = [];
-		const evs = agent.events as StreamEv[];
+		const evs = agent.events as readonly StreamEv[];
 		const t0 = evs.length ? eventTs(evs[0], 0) : 0;
 		let prev = t0;
 		evs.forEach((ev, idx) => {
@@ -318,6 +349,34 @@
 					<span class="inline-block size-2 animate-pulse rounded-full bg-blue-500"></span>
 					<span class="font-medium text-foreground/80">{liveStatus.label}</span>
 					<span class="tabular-nums text-muted-foreground/70">{Math.max(1, Math.ceil(elapsedMs / 1000))} s</span>
+				</div>
+			{/if}
+
+			{#if todoActive && todoState}
+				<div class="shrink-0 px-3 pt-1">
+					<Queue.Root>
+						<Queue.Section bind:open={todoOpen}>
+							<Queue.SectionTrigger>
+								<Queue.SectionLabel count={todoState.counts.total} label="tareas" />
+							</Queue.SectionTrigger>
+							<Queue.SectionContent>
+								<Queue.List>
+									{#each todoState.todos as item, i (i)}
+										{@const isDone = item.status === 'completed' || item.status === 'cancelled'}
+										<Queue.Item>
+											<div class="flex items-center gap-2">
+												<Queue.ItemIndicator completed={isDone} />
+												<Queue.ItemContent completed={isDone}>{item.content}</Queue.ItemContent>
+											</div>
+											{#if item.status === 'in_progress'}
+												<Queue.ItemDescription>en curso…</Queue.ItemDescription>
+											{/if}
+										</Queue.Item>
+									{/each}
+								</Queue.List>
+							</Queue.SectionContent>
+						</Queue.Section>
+					</Queue.Root>
 				</div>
 			{/if}
 

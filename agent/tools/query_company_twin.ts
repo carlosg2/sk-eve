@@ -1,27 +1,10 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { readdir, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { join, relative } from "node:path";
+import { resolveCompanyTwinRoot, runtimeConfig } from "../lib/runtime-config.js";
 
-// Raíz del bundle OKF (Company Twin). Vive en el repo como file system
-// hardcodeado (ADR-002): store externo simple, migra a DB cuando un eval lo exija.
-// Eve bundlea los tools en node_modules/.cache, así que import.meta.url no es
-// fiable: buscamos `company-twin/` subiendo desde el cwd del runtime.
-function resolveBundleRoot(): string {
-  let dir = process.cwd();
-  for (let i = 0; i < 8; i++) {
-    const candidate = join(dir, "company-twin");
-    if (existsSync(candidate)) return candidate;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  // Fallback: relativo al cwd aunque no exista (el error será claro).
-  return join(process.cwd(), "company-twin");
-}
-
-const BUNDLE_ROOT = resolveBundleRoot();
+const BUNDLE_ROOT = resolveCompanyTwinRoot();
 
 const RESERVED = new Set(["index.md", "log.md"]);
 
@@ -115,16 +98,17 @@ export default defineTool({
       .enum(["erp-kernel", "vertical", "company", "skill"])
       .optional()
       .describe("Filtrar por capa del Context Stack"),
-    tenant: z.string().optional().describe("Filtrar por tenant (ej: 'joyarock-300326'). Los conceptos con tenant null son universales."),
+    limit: z.number().int().min(1).max(20).default(5).describe("Máximo de coincidencias de metadata"),
   }),
-  async execute({ query, concept, layer, tenant }) {
+  async execute({ query, concept, layer, limit }) {
     const concepts = await loadConcepts();
+    const visible = concepts.filter((candidate) => candidate.tenant === null || candidate.tenant === runtimeConfig.tenant);
 
     // Modo lectura: cuerpo completo de un concepto.
     if (concept) {
-      const found = concepts.find((c) => c.id === concept);
+      const found = visible.find((candidate) => candidate.id === concept);
       if (!found) {
-        return { error: `Concepto '${concept}' no encontrado`, available: concepts.map((c) => c.id) };
+        return { error: `Concepto '${concept}' no encontrado para el tenant activo` };
       }
       return {
         id: found.id,
@@ -137,9 +121,8 @@ export default defineTool({
     }
 
     // Modo búsqueda: progressive disclosure (solo metadata, no cuerpos).
-    let pool = concepts;
+    let pool = visible;
     if (layer) pool = pool.filter((c) => c.layer === layer);
-    if (tenant) pool = pool.filter((c) => c.tenant === tenant || c.tenant === null);
 
     const terms = (query ?? "").toLowerCase().split(/\s+/).filter((t) => t.length > 1);
     const ranked =
@@ -152,7 +135,8 @@ export default defineTool({
             .map((x) => x.c);
 
     return {
-      matches: ranked.map((c) => ({
+      tenant: runtimeConfig.tenant,
+      matches: ranked.slice(0, limit).map((c) => ({
         id: c.id,
         type: c.type,
         layer: c.layer,

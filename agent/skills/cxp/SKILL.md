@@ -1,10 +1,8 @@
 ---
 description: >
-  [INACTIVO para ICF] Use SOLO cuando el usuario pregunte explícitamente sobre
-  Cuentas por Pagar (CXP), tesorería (Dinero), o cuentas bancarias (CtaDinero)
-  en un tenant con esos módulos. Para ICF, usar el skill icf en su lugar.
+  Use when the user asks explicitly about Cuentas por Pagar (CXP), tesorería
+  (Dinero), o cuentas bancarias (CtaDinero) en un tenant con esos módulos.
 ---
-
 # Skill: Módulo CXP / Tesorería — patrones de ejecución
 
 > **Este skill es SOLO procedural** (cómo ejecutar secuencias). El **schema** de las

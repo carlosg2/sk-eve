@@ -10,4 +10,5 @@ MCP: `https://api2.maserp.mx/icf/mcp`
 # Contenido
 
 * [Políticas](policies/) - Límites de aprobación y reglas operativas.
+* [MRP / Forecast-Planeación (FC)](mrp/) - Módulo de explosión de materiales, forecast y plan de producción.
 * [Estado / Aprendizajes](state/learnings.md) - Buffer de errores y reglas descubiertas en runtime.

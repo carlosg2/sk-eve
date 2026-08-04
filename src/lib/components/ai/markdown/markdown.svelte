@@ -3,6 +3,7 @@
 	import { Streamdown, type StreamdownProps, code } from "streamdown-svelte";
 	import { mode } from "mode-watcher";
 	import type { HTMLAttributes } from "svelte/elements";
+	import { normalizeMarkdownTables } from "./normalize-tables";
 
 	import githubLightDefault from "@shikijs/themes/github-light-default";
 	import githubDarkDefault from "@shikijs/themes/github-dark-default";
@@ -18,11 +19,12 @@
 	let currentTheme = $derived(
 		mode.current === "dark" ? "github-dark-default" : "github-light-default"
 	);
+	let normalizedContent = $derived(normalizeMarkdownTables(content));
 </script>
 
 <div {id} class={cn(className)} {...restProps}>
 	<Streamdown
-		{content}
+		content={normalizedContent}
 		class="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
 		shikiTheme={currentTheme}
 		baseTheme="shadcn"

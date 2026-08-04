@@ -158,3 +158,20 @@
 	0%, 70%, 100% { opacity: 1; }
 	20%, 50% { opacity: 0; }
 }
+
+/* Streamdown's table "fullscreen" mode (Elements/Table.svelte) uses
+   position: fixed; inset: 0. Its ancestors in the chat message tree
+   (message-scroller-viewport's contain-content, message-scroller-item's
+   content-visibility:auto, and bubble-content's overflow-hidden) each
+   establish a containing/clipping block for fixed-position descendants,
+   so the "fullscreen" dialog only grows inside those boxes (taller, but
+   never truly covering the viewport) instead of escaping to the real
+   viewport. Suspend containment/clipping on those ancestors while a
+   table-fullscreen dialog is open anywhere in the DOM. */
+body:has([data-streamdown='table-fullscreen']) [data-slot='message-scroller-viewport'],
+body:has([data-streamdown='table-fullscreen']) [data-slot='message-scroller-item'],
+body:has([data-streamdown='table-fullscreen']) [data-slot='bubble-content'] {
+	contain: none !important;
+	content-visibility: visible !important;
+	overflow: visible !important;
+}

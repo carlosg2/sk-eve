@@ -35,6 +35,16 @@ Detalle de líneas de artículos de [Venta](/erp-kernel/venta.md). Un registro p
 > - `ImporteDetalle` = `Cantidad * Precio` (calculado)
 > - Para la descripción del artículo, hacer join manual con `Art.Descripcion1`
 
+> ⚠️ **`CantidadPendiente` es `null` (no `0`) en renglones de documentos ya
+> `CONCLUIDO`/`CANCELADO`.** Solo viene poblado (numérico, puede ser `0` o mayor) mientras
+> el documento sigue `PENDIENTE`. Para calcular **demanda real** (pedidos de venta
+> pendientes, señal `PV` del MRP manual), usar siempre `CantidadPendiente` — **nunca
+> `Cantidad`** (esa es la cantidad originalmente solicitada, no lo que falta por surtir).
+> Filtrar `CantidadPendiente gt 0` es un proxy eficiente de "renglón con demanda abierta"
+> sin necesitar el join a `Venta`; para el caso estricto (excluir `CANCELADO` con residual
+> no depurado), confirmar `Venta.Estatus eq 'PENDIENTE'` vía el patrón de 2 pasos de
+> [Venta](/erp-kernel/venta.md).
+
 # Patrones de consulta
 
 ```

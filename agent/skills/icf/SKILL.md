@@ -2,20 +2,20 @@
 description: >
   Use when the user asks about disponibilidad de artículos, inventario, stock,
   ventas (pedidos, facturas, clientes), compras (órdenes, entradas, proveedores),
-  o cualquier consulta operativa de Industrias Campo Fresco (ICF).
+  o cualquier consulta operativa del ERP Intelisis.
 ---
 
-# Skill: Operaciones ICF — Ventas, Compras, Inventario
+# Skill: Operaciones Intelisis — Ventas, Compras, Inventario
 
 > **Este skill es SOLO procedural.** El schema de entidades vive en el Company Twin:
 > `query_company_twin({ query, layer: "erp-kernel" })`.
 
-Conexión MCP: **`intelisis-dab`** → `https://api2.maserp.mx/icf/mcp`
+Conexión MCP: **`intelisis-dab`**.
 Tools: `read_records`, `aggregate_records`, `create_record`, `update_record`, `delete_record`, `execute_entity`, **`buscar_registro`** (búsqueda texto parcial).
 
 ## Recordatorios críticos
 
-- **Empresa ICF = `INCF`** — incluirlo siempre en `create_record`.
+- **Empresa, almacenes y defaults** — obtenerlos de la política `company` del tenant activo; nunca asumir valores de otro cliente.
 - **Parámetros sin `$`**: `filter`, `select`, `first`, `orderby` (NO `$filter`, `$select`, etc.).
 - **`in` NO soportado** — usar `or` chains: `Mov eq 'Pedido' or Mov eq 'Factura'`.
 - **Búsqueda texto parcial → `buscar_registro`** (tool MCP nativo, ver Patrón 0). Respuesta en `result.value.value[]`.
@@ -63,7 +63,7 @@ PASO 1: buscar_registro({ entidad:"Prov", campo:"Nombre", termino:"Mexicana de A
 → elegir coincidencia exacta normalizada; si hay dos plausibles, preguntar al usuario
 
 PASO 2: read_records(Compra,
-  filter: "Proveedor eq 'PP-0085' and Estatus eq 'PENDIENTE' and (Mov eq 'Orden Compra' or Mov eq 'Orden Compra OP' or Mov eq 'Orden Compra AF' or Mov eq 'Orden Compra AFSocio' or Mov eq 'Orden Compra Socios' or Mov eq 'Orden Compra Emida')",
+  filter: "Proveedor eq 'PP-0085' and Estatus eq 'PENDIENTE' and (<MOVS_COMS_O>)",
   select: "ID,Mov,MovID,FechaEmision,Importe,Estatus,Almacen,Condicion",
   orderby: ["FechaEmision desc"],
   first: 50)
@@ -80,7 +80,7 @@ Reglas de respuesta:
 ---
 ```
 read_records(ArtDisponibleDesc,
-  filter: "Almacen eq 'GRAL'",
+  filter: "Almacen eq '<ALMACEN_DEL_TENANT>'",
   select: "Articulo,Descripcion1,Disponible,Apartado,DispMenosApartado,Unidad",
   orderby: ["Disponible desc"],
   first: 50)
@@ -103,7 +103,7 @@ LIKE en el servidor y devuelve solo lo que coincide.
 
 ### Con datos de clasificación (familia, grupo)
 ```
-PASO 1: read_records(ArtDisponibleDesc, filter="Almacen eq 'GRAL'", select="Articulo,Disponible")
+PASO 1: read_records(ArtDisponibleDesc, filter="Almacen eq '<ALMACEN_DEL_TENANT>'", select="Articulo,Disponible")
 PASO 2: read_records(Art, filter="Familia eq 'Frijol' and Estatus eq 'ALTA'", select="Articulo,Descripcion1,Grupo,Categoria,Linea,Familia")
 → Unir por Articulo
 ```
@@ -112,14 +112,14 @@ PASO 2: read_records(Art, filter="Familia eq 'Frijol' and Estatus eq 'ALTA'", se
 
 ## Patrón 2 — Ventas pendientes (VTAS.P)
 
-Movimientos VTAS.P en esta BD: **Pedido, Orden Surtido, Orden Surtido R, Ingreso, Contratos, Pedido Posfechado, Reservacion**.
+Resolver los movimientos `VTAS.P` con `MovTipo` o con la política del tenant. No reutilizar listas de otra empresa.
 
 > ⚠️ `VTAS.P` es una CLAVE de MovTipo. El campo `Mov` en Venta NUNCA contiene 'VTAS.P'.
 
 ### Cabecero de ventas pendientes
 ```
 read_records(Venta,
-  filter: "Estatus eq 'PENDIENTE' and (Mov eq 'Pedido' or Mov eq 'Orden Surtido' or Mov eq 'Orden Surtido R' or Mov eq 'Ingreso' or Mov eq 'Contratos' or Mov eq 'Pedido Posfechado' or Mov eq 'Reservacion')",
+  filter: "Estatus eq 'PENDIENTE' and (<MOVS_VTAS_P>)",
   select: "ID,Empresa,Mov,MovID,FechaEmision,Ejercicio,Periodo,Cliente,Importe,Impuestos,Estatus,Moneda",
   orderby: ["Ejercicio asc","Periodo asc","FechaEmision asc"])
 ```
@@ -147,14 +147,14 @@ PASO 3 (opcional): read_records(Art,
 
 ## Patrón 3 — Ventas en firme / facturadas (VTAS.F)
 
-Movimientos VTAS.F en esta BD: **Factura, Factura Credito, Factura Activo, Factura Flexible, Factura Prorrateada, FacturaDIF, FacturaE, Nota Venta, Nota Venta R, Cancelacion NC**.
+Resolver los movimientos `VTAS.F` con `MovTipo` o con la política del tenant.
 
 > ⚠️ `VTAS.F` es una CLAVE. NUNCA usar `Mov eq 'VTAS.F'`.
 
 ### Cabecero
 ```
 read_records(Venta,
-  filter: "Estatus eq 'CONCLUIDO' and (Mov eq 'Factura' or Mov eq 'Factura Credito' or Mov eq 'Factura Activo' or Mov eq 'Factura Flexible' or Mov eq 'Factura Prorrateada' or Mov eq 'FacturaDIF' or Mov eq 'FacturaE' or Mov eq 'Nota Venta' or Mov eq 'Nota Venta R')",
+  filter: "Estatus eq 'CONCLUIDO' and (<MOVS_VTAS_F>)",
   select: "ID,Empresa,Mov,MovID,FechaEmision,Ejercicio,Periodo,Cliente,Importe,Impuestos,Estatus,Moneda",
   orderby: ["Ejercicio asc","Periodo asc","FechaEmision asc"])
 ```
@@ -174,14 +174,14 @@ aggregate_records(Venta,
 
 ## Patrón 4 — Compras pendientes (COMS.O)
 
-Movimientos COMS.O en esta BD: **Orden Compra, Orden Compra OP, Orden Compra AF, Orden Compra AFSocio, Orden Compra Socios, Orden Compra Emida, Aduana, Confirma Proveedor, Control Calidad, Factura Proveedor**.
+Resolver los movimientos `COMS.O` con `MovTipo` o con la política del tenant.
 
 > ⚠️ `COMS.O` es una CLAVE. NUNCA usar `Mov eq 'COMS.O'`.
 
 ### Cabecero de compras pendientes
 ```
 read_records(Compra,
-  filter: "Estatus eq 'PENDIENTE' and (Mov eq 'Orden Compra' or Mov eq 'Orden Compra OP' or Mov eq 'Orden Compra AF' or Mov eq 'Orden Compra AFSocio' or Mov eq 'Orden Compra Socios' or Mov eq 'Orden Compra Emida' or Mov eq 'Aduana' or Mov eq 'Confirma Proveedor' or Mov eq 'Control Calidad' or Mov eq 'Factura Proveedor')",
+  filter: "Estatus eq 'PENDIENTE' and (<MOVS_COMS_O>)",
   select: "ID,Empresa,Mov,MovID,FechaEmision,Ejercicio,Periodo,Proveedor,Importe,Impuestos,Estatus,Moneda",
   orderby: ["FechaEmision asc"])
 ```
@@ -206,13 +206,13 @@ PASO 3 (opcional): read_records(Art, filter="...", select="Articulo,Descripcion1
 
 ## Patrón 5 — Compras en firme (COMS.F)
 
-Movimientos COMS.F en esta BD: **Entrada Compra, Entrada Mercancia, Entrada Maquila, Entrada Consignacion, Entrada Insumos, Entrada Herramienta, Entrada Consumibles, Entrada de Prestamo, Compra Activos, CompraActivos Socios**.
+Resolver los movimientos `COMS.F` con `MovTipo` o con la política del tenant.
 
 > ⚠️ `COMS.F` es una CLAVE. NUNCA usar `Mov eq 'COMS.F'`. Los Movs son los nombres listados arriba.
 
 ```
 read_records(Compra,
-  filter: "Estatus eq 'CONCLUIDO' and (Mov eq 'Entrada Compra' or Mov eq 'Entrada Mercancia' or Mov eq 'Entrada Maquila' or Mov eq 'Entrada Consignacion' or Mov eq 'Entrada Insumos' or Mov eq 'Entrada Herramienta' or Mov eq 'Entrada Consumibles' or Mov eq 'Entrada de Prestamo' or Mov eq 'Compra Activos' or Mov eq 'CompraActivos Socios')",
+  filter: "Estatus eq 'CONCLUIDO' and (<MOVS_COMS_F>)",
   select: "ID,Empresa,Mov,MovID,FechaEmision,Ejercicio,Periodo,Proveedor,Importe,Impuestos,Estatus,Moneda",
   orderby: ["FechaEmision asc"])
 ```
@@ -222,7 +222,7 @@ read_records(Compra,
 ## Reglas de eficiencia
 
 1. **`ArtDisponibleDesc` sobre `ArtDisponible`** — ya incluye Descripcion1 sin join adicional.
-2. **Usar MovTipo cacheado** (valores en este skill) — evitar lookup de MovTipo en cada query.
+2. **Usar la política del tenant si contiene MovTipo verificado**; si no, resolverlo con `read_records(MovTipo, ...)`.
 3. **`aggregate_records` para métricas** — nunca leer todos y calcular en memoria.
 4. **Paralelizar** pasos independientes (cabecero + lookup de Prov/Cte simultáneos).
 5. **Limitar con `select` y `first`** siempre.

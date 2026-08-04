@@ -52,18 +52,18 @@ porque ya incluye descripción y unidad del artículo sin necesidad de join con 
 # Patrones de consulta
 
 ```
-# Disponibilidad de todos los artículos en almacén GRAL
-read_records(ArtDisponibleDesc, filter="Almacen eq 'GRAL'", select="Articulo,Descripcion1,Disponible,Apartado,DispMenosApartado,Unidad")
+# Disponibilidad de todos los artículos en un almacén del tenant
+read_records(ArtDisponibleDesc, filter="Almacen eq '<ALMACEN>'", select="Articulo,Descripcion1,Disponible,Apartado,DispMenosApartado,Unidad")
 
 # Disponibilidad de un artículo específico
 read_records(ArtDisponibleDesc, filter="Articulo eq '000002'", select="Articulo,Descripcion1,Disponible,Almacen")
 
 # Artículos con disponible > 0
-read_records(ArtDisponibleDesc, filter="Disponible gt 0 and Almacen eq 'GRAL'", select="Articulo,Descripcion1,Disponible,Unidad", orderby=["Disponible desc"])
+read_records(ArtDisponibleDesc, filter="Disponible gt 0 and Almacen eq '<ALMACEN>'", select="Articulo,Descripcion1,Disponible,Unidad", orderby=["Disponible desc"])
 
 # Total disponible por artículo (todos los almacenes)
 aggregate_records(ArtDisponible, sum, Disponible, groupby=["Articulo"], orderby="desc")
 ```
 
-> ⚠️ **Sin `contains`**: para buscar por texto parcial en Descripcion1, traer un rango
-> con `first: 100` y filtrar client-side, o buscar por clave exacta de Articulo o Familia.
+> ⚠️ **Sin `contains`**: para buscar por texto parcial en Descripcion1, usar
+> `buscar_registro`; no traer rangos grandes para filtrar en el modelo.
