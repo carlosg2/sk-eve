@@ -21,8 +21,8 @@
 	let { tenant, agent, initialOpenPath = null, onOpenSkill }: Props = $props();
 	let deepLinkConsumed = false;
 
-	type Scope = "agent" | "global";
-	let scope = $state<Scope>("agent");
+	type Scope = "tenant" | "catalog";
+	let scope = $state<Scope>("tenant");
 
 	let skills = $state<Skill[]>([]);
 	let globalSkills = $state<Skill[]>([]);
@@ -35,7 +35,7 @@
 	let creating = $state(false);
 	let createError = $state<string | null>(null);
 
-	const visibleSkills = $derived(scope === "agent" ? skills : globalSkills);
+	const visibleSkills = $derived(scope === "tenant" ? skills : globalSkills);
 
 	async function load() {
 		loading = true;
@@ -54,7 +54,8 @@
 				deepLinkConsumed = true;
 				const match = skills.find((s) => s.path === initialOpenPath) ?? globalSkills.find((s) => s.path === initialOpenPath);
 				if (match) {
-					scope = match.path.startsWith("agent-skills/") ? "global" : "agent";
+					// El deep-link abre el catálogo completo (contiene toda skill, de cualquier tenant).
+					scope = "catalog";
 					editing = match;
 				}
 			}
@@ -81,10 +82,10 @@
 		creating = true;
 		createError = null;
 		try {
-			const endpoint = scope === "agent" ? "/studio/api/skills" : "/studio/api/global-skills";
+			const endpoint = scope === "tenant" ? "/studio/api/skills" : "/studio/api/global-skills";
 			const payload =
-				scope === "agent"
-					? { tenant, agent, name: newName, description: newDescription }
+				scope === "tenant"
+					? { tenant, name: newName, description: newDescription }
 					: { name: newName, description: newDescription };
 			const res = await fetch(endpoint, {
 				method: "POST",
@@ -93,7 +94,7 @@
 			});
 			if (!res.ok) throw new Error(await res.text());
 			const { skill } = (await res.json()) as { skill: Skill };
-			if (scope === "agent") {
+			if (scope === "tenant") {
 				skills = [...skills, skill].sort((a, b) => a.slug.localeCompare(b.slug));
 			} else {
 				globalSkills = [...globalSkills, skill].sort((a, b) => a.slug.localeCompare(b.slug));
@@ -146,31 +147,33 @@
 		<div class="flex items-center gap-1 border-b border-border px-4 py-2">
 			<button
 				type="button"
-				onclick={() => (scope = "agent")}
-				class="rounded-md px-2.5 py-1 text-[12px] font-medium {scope === 'agent'
+				onclick={() => (scope = "tenant")}
+				class="rounded-md px-2.5 py-1 text-[12px] font-medium {scope === 'tenant'
 					? 'bg-muted text-foreground'
 					: 'text-muted-foreground hover:bg-muted/50'}"
 			>
-				De este agente ({skills.length})
+				Del tenant ({skills.length})
 			</button>
 			<button
 				type="button"
-				onclick={() => (scope = "global")}
-				class="rounded-md px-2.5 py-1 text-[12px] font-medium {scope === 'global'
+				onclick={() => (scope = "catalog")}
+				class="rounded-md px-2.5 py-1 text-[12px] font-medium {scope === 'catalog'
 					? 'bg-muted text-foreground'
 					: 'text-muted-foreground hover:bg-muted/50'}"
 			>
-				Globales — compilados ({globalSkills.length})
+				Catálogo completo ({globalSkills.length})
 			</button>
 		</div>
 
 		<p class="border-b border-border px-4 py-2 text-[12px] leading-snug text-muted-foreground">
-			{#if scope === "agent"}
-				Los skills son instrucciones que el agente carga bajo demanda. La <strong>descripción</strong> es el
-				hint de ruteo que decide cuándo se activa. Se inyectan en el runtime del agente activo.
+			{#if scope === "tenant"}
+				Skills del catálogo visibles para <strong>{tenant}</strong> (<code>agent/skill-library/</code>, por
+				frontmatter <code>tenant</code>). Qué skills carga <em>cada</em> agente se define con checks en el tab
+				<strong>Capabilities</strong>.
 			{:else}
-				Viven en <code>agent/skills/</code>, se compilan con Eve y se cargan on-demand vía <code>load_skill</code>
-				— aplican a <strong>cualquier</strong> agente/tenant, no solo al seleccionado. Edítalos con cuidado.
+				Todo el catálogo (<code>agent/skill-library/</code>), incluidas skills de otros tenants y las
+				<strong>universales</strong> (<code>tenant: null</code>). Se cargan on-demand vía <code>load_skill</code>.
+				Edítalas con cuidado.
 			{/if}
 		</p>
 
@@ -211,10 +214,10 @@
 				</div>
 			{:else if visibleSkills.length === 0}
 				<div class="px-4 py-8 text-center text-sm text-muted-foreground">
-					{#if scope === "agent"}
-						Este agente no tiene skills. Crea uno con <strong>Nuevo</strong>.
+					{#if scope === "tenant"}
+						No hay skills en el catálogo visibles para <strong>{tenant}</strong>. Crea una con <strong>Nuevo</strong>.
 					{:else}
-						No hay skills globales en <code>agent/skills/</code>.
+						Catálogo vacío en <code>agent/skill-library/</code>.
 					{/if}
 				</div>
 			{:else}

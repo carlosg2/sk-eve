@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user asks sobre faltante de materia prima, insumos o
   concentrado por familia (versión agregada). Corresponde a la ruta

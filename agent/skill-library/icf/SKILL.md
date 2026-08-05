@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user asks about disponibilidad de artículos, inventario, stock,
   ventas (pedidos, facturas, clientes), compras (órdenes, entradas, proveedores),

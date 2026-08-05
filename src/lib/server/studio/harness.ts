@@ -69,33 +69,33 @@ export function twinRoot(): string {
 	return join(process.cwd(), "company-twin");
 }
 
-/** Resuelve `agent/skills/` (skills globales compilados, cargados vía `load_skill`). */
-export function agentSkillsRoot(): string {
+/** Resuelve `agent/skill-library/` (catálogo de skills scopeadas por tenant/agente). */
+export function skillLibraryRoot(): string {
 	let dir = process.cwd();
 	for (let depth = 0; depth < 8; depth++) {
-		const candidate = join(dir, "agent", "skills");
+		const candidate = join(dir, "agent", "skill-library");
 		if (existsSync(candidate)) return candidate;
 		const parent = dirname(dir);
 		if (parent === dir) break;
 		dir = parent;
 	}
-	return join(process.cwd(), "agent", "skills");
+	return join(process.cwd(), "agent", "skill-library");
 }
 
-/** Prefijo que distingue rutas de `agent/skills/` dentro del API genérico de archivos. */
+/** Prefijo que distingue rutas del catálogo (`agent/skill-library/`) en el API genérico de archivos. */
 const AGENT_SKILLS_PREFIX = "agent-skills/";
 
 /**
  * Resuelve una ruta relativa (recibida del cliente) contra `company-twin/` (o,
- * si empieza con `agent-skills/`, contra `agent/skills/`) y verifica que no
- * escape del raíz correspondiente. Lanza si hay traversal.
+ * si empieza con `agent-skills/`, contra `agent/skill-library/`) y verifica que
+ * no escape del raíz correspondiente. Lanza si hay traversal.
  */
 export function safeResolve(relPath: string): string {
 	if (relPath.startsWith(AGENT_SKILLS_PREFIX)) {
-		const root = agentSkillsRoot();
+		const root = skillLibraryRoot();
 		const full = resolve(root, relPath.slice(AGENT_SKILLS_PREFIX.length));
 		if (full !== root && !full.startsWith(root + sep)) {
-			throw new Error(`Ruta fuera de agent/skills: ${relPath}`);
+			throw new Error(`Ruta fuera de agent/skill-library: ${relPath}`);
 		}
 		return full;
 	}
@@ -430,13 +430,15 @@ export async function deleteAgent(tenant: string, slug: string): Promise<void> {
 	await rm(dir, { recursive: true, force: true });
 }
 
-// ── capabilities: skills del agente ──────────────────────────────────────────
+// ── capabilities: catálogo de skills ─────────────────────────────────────────
 
 export type AgentCapability = {
 	slug: string;
 	name: string;
 	description: string | null;
-	/** Ruta del archivo editable, relativa a `company-twin/`. */
+	/** Visibilidad por tenant: `null` (universal) o lista de slugs de tenant. */
+	tenant: string[] | null;
+	/** Ruta del archivo editable (prefijo `agent-skills/`). */
 	path: string;
 };
 
@@ -449,58 +451,20 @@ function firstHeading(body: string): string | null {
 	return null;
 }
 
-/**
- * Lista los skills de un agente: cada `skills/<slug>/SKILL.md` con su
- * `description` de frontmatter (el hint de ruteo que decide cuándo se carga).
- */
-export async function listAgentSkills(tenant: string, agent: string): Promise<AgentCapability[]> {
-	const base = join("companies", slugify(tenant), "agents", slugify(agent), "skills");
-	const dir = join(twinRoot(), base);
-	if (!existsSync(dir)) return [];
-	const out: AgentCapability[] = [];
-	for (const entry of await readdir(dir, { withFileTypes: true })) {
-		if (!entry.isDirectory()) continue;
-		const rel = join(base, entry.name, "SKILL.md");
-		const full = join(twinRoot(), rel);
-		if (!existsSync(full)) continue;
-		const { fm, body } = parseFrontmatter(await readFile(full, "utf8"));
-		out.push({
-			slug: entry.name,
-			name: firstHeading(body) ?? entry.name,
-			description: str(fm.description),
-			path: rel,
-		});
-	}
-	return out.sort((a, b) => a.slug.localeCompare(b.slug));
-}
-
-/** Crea un skill load-on-demand en `skills/<slug>/SKILL.md`. */
-export async function createAgentSkill(input: {
-	tenant: string;
-	agent: string;
-	name: string;
-	description: string;
-	body?: string;
-}): Promise<AgentCapability> {
-	const tenant = slugify(input.tenant);
-	const agent = slugify(input.agent);
-	const slug = slugify(input.name);
-	if (!slug) throw new Error("Nombre de skill inválido.");
-	const rel = join("companies", tenant, "agents", agent, "skills", slug, "SKILL.md");
-	if (existsSync(join(twinRoot(), rel))) throw new Error(`El skill '${slug}' ya existe.`);
-	const body = input.body?.trim() || `# ${input.name}\n\nDescribe cómo el agente debe ejecutar este skill.`;
-	const md = ["---", `description: ${JSON.stringify(input.description)}`, "---", "", body, ""].join("\n");
-	await writeTwinFile(rel, md);
-	return { slug, name: input.name, description: input.description, path: rel };
+/** Normaliza el frontmatter `tenant` (escalar/lista/null) a lista o `null` (universal). */
+function tenantVisibility(v: string | string[] | null | undefined): string[] | null {
+	if (v == null) return null;
+	if (Array.isArray(v)) return v;
+	return [v];
 }
 
 /**
- * Lista los skills GLOBALES (`agent/skills/<slug>/SKILL.md`, compilados por Eve,
- * cargados on-demand vía `load_skill` para CUALQUIER agente/tenant — a
- * diferencia de `listAgentSkills`, que son por-agente e inyectados siempre).
+ * Lista el catálogo de skills (`agent/skill-library/<slug>/SKILL.md`). Si se pasa
+ * `tenant`, filtra a las visibles para ese tenant (frontmatter `tenant` = `null`
+ * o incluye el slug). Sin `tenant`, devuelve todo el catálogo.
  */
-export async function listGlobalSkills(): Promise<AgentCapability[]> {
-	const dir = agentSkillsRoot();
+export async function listCatalogSkills(tenant?: string): Promise<AgentCapability[]> {
+	const dir = skillLibraryRoot();
 	if (!existsSync(dir)) return [];
 	const out: AgentCapability[] = [];
 	for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -508,30 +472,167 @@ export async function listGlobalSkills(): Promise<AgentCapability[]> {
 		const full = join(dir, entry.name, "SKILL.md");
 		if (!existsSync(full)) continue;
 		const { fm, body } = parseFrontmatter(await readFile(full, "utf8"));
+		const visibility = tenantVisibility(fm.tenant);
+		if (tenant && visibility !== null && !visibility.includes(slugify(tenant))) continue;
 		out.push({
 			slug: entry.name,
 			name: firstHeading(body) ?? entry.name,
 			description: str(fm.description),
+			tenant: visibility,
 			path: `${AGENT_SKILLS_PREFIX}${entry.name}/SKILL.md`,
 		});
 	}
 	return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-/** Crea un skill global en `agent/skills/<slug>/SKILL.md`. */
-export async function createGlobalSkill(input: {
+/**
+ * Crea una skill en el catálogo (`agent/skill-library/<slug>/SKILL.md`) con su
+ * visibilidad `tenant`. `tenant: null` = universal (opt-in por cualquier agente).
+ */
+export async function createCatalogSkill(input: {
 	name: string;
 	description: string;
+	tenant?: string | null;
 	body?: string;
 }): Promise<AgentCapability> {
 	const slug = slugify(input.name);
 	if (!slug) throw new Error("Nombre de skill inválido.");
 	const rel = `${AGENT_SKILLS_PREFIX}${slug}/SKILL.md`;
 	if (existsSync(safeResolve(rel))) throw new Error(`El skill '${slug}' ya existe.`);
-	const body = input.body?.trim() || `# ${input.name}\n\nDescribe cómo el agente debe ejecutar este skill.`;
-	const md = ["---", `description: ${JSON.stringify(input.description)}`, "---", "", body, ""].join("\n");
+	const tenantLine = input.tenant ? `tenant: ${slugify(input.tenant)}` : "tenant: null";
+	const body =
+		input.body?.trim() || `# ${input.name}\n\nDescribe cómo el agente debe ejecutar este skill.`;
+	const md = ["---", tenantLine, `description: ${JSON.stringify(input.description)}`, "---", "", body, ""].join(
+		"\n",
+	);
 	await writeTwinFile(rel, md);
-	return { slug, name: input.name, description: input.description, path: rel };
+	return {
+		slug,
+		name: input.name,
+		description: input.description,
+		tenant: input.tenant ? [slugify(input.tenant)] : null,
+		path: rel,
+	};
+}
+
+// ── capabilities: manifest del agente (agent.md) ─────────────────────────────
+
+export type AgentManifest = {
+	skills: string[];
+	kernel: string[] | "*";
+	mcpTools: string[];
+};
+
+function asStrList(v: string | string[] | null | undefined): string[] {
+	if (Array.isArray(v)) return v;
+	if (typeof v === "string" && v.trim()) return [v.trim()];
+	return [];
+}
+
+function agentDefPath(tenant: string, agent: string): string {
+	return join("companies", slugify(tenant), "agents", slugify(agent), "agent.md");
+}
+
+/** Ruta relativa (a `company-twin/`) del `agent.md` de un agente. */
+export function agentMdPath(tenant: string, agent: string): string {
+	return agentDefPath(tenant, agent);
+}
+
+/** Lee el manifest de capacidades (`skills`/`kernel`/`mcp_tools`) de un `agent.md`. */
+export async function readAgentManifest(tenant: string, agent: string): Promise<AgentManifest> {
+	const full = join(twinRoot(), agentDefPath(tenant, agent));
+	if (!existsSync(full)) return { skills: [], kernel: "*", mcpTools: [] };
+	const { fm } = parseFrontmatter(await readFile(full, "utf8"));
+	const kernelRaw = fm.kernel;
+	const kernel: string[] | "*" =
+		kernelRaw === undefined ||
+		kernelRaw === null ||
+		kernelRaw === "*" ||
+		(Array.isArray(kernelRaw) && kernelRaw.includes("*"))
+			? "*"
+			: asStrList(kernelRaw);
+	return { skills: asStrList(fm.skills), kernel, mcpTools: asStrList(fm.mcp_tools) };
+}
+
+/** Serializa un valor de manifest como línea YAML inline (lista o `"*"`). */
+function manifestLine(key: string, value: string[] | "*"): string {
+	if (value === "*") return `${key}: "*"`;
+	return `${key}: [${value.join(", ")}]`;
+}
+
+/**
+ * Reescribe (función pura) las claves `skills`/`kernel`/`mcp_tools` del
+ * frontmatter de un `agent.md`, preservando el resto del documento. Lanza si el
+ * frontmatter está ausente o mal formado. Usada por `writeAgentManifest` (que
+ * persiste) y por el motor Evolve (que solo necesita el diff).
+ */
+export function applyManifestToAgentMd(raw: string, next: AgentManifest): string {
+	if (!raw.startsWith("---")) throw new Error("agent.md sin frontmatter.");
+	const end = raw.indexOf("\n---", 3);
+	if (end === -1) throw new Error("agent.md con frontmatter mal formado.");
+	const fmBlock = raw.slice(4, end);
+	const rest = raw.slice(end); // "\n---...resto"
+	const lines = fmBlock.split("\n").filter((line) => {
+		const m = line.match(/^([A-Za-z0-9_]+):/);
+		return !m || !["skills", "kernel", "mcp_tools"].includes(m[1]);
+	});
+	lines.push(
+		manifestLine("skills", next.skills),
+		manifestLine("kernel", next.kernel),
+		manifestLine("mcp_tools", next.mcpTools),
+	);
+	return `---\n${lines.join("\n").replace(/\n+$/, "")}${rest}`;
+}
+
+/**
+ * Reescribe las claves `skills`/`kernel`/`mcp_tools` del frontmatter de un
+ * `agent.md`, preservando el resto del documento. Inserta la clave si falta.
+ */
+export async function writeAgentManifest(
+	tenant: string,
+	agent: string,
+	patch: Partial<AgentManifest>,
+): Promise<AgentManifest> {
+	const rel = agentDefPath(tenant, agent);
+	const full = join(twinRoot(), rel);
+	if (!existsSync(full)) throw new Error(`No existe agent.md para '${tenant}/${agent}'.`);
+	const raw = await readFile(full, "utf8");
+	const current = await readAgentManifest(tenant, agent);
+	const next: AgentManifest = {
+		skills: patch.skills ?? current.skills,
+		kernel: patch.kernel ?? current.kernel,
+		mcpTools: patch.mcpTools ?? current.mcpTools,
+	};
+	await writeFile(full, applyManifestToAgentMd(raw, next), "utf8");
+	return next;
+}
+
+// ── capabilities: conceptos del ERP Kernel ───────────────────────────────────
+
+export type KernelConcept = {
+	/** Id corto (nombre de archivo sin `.md`), usado en el manifest `kernel`. */
+	id: string;
+	title: string;
+	description: string | null;
+};
+
+/** Lista los conceptos de la capa ERP Kernel (`company-twin/erp-kernel/*.md`). */
+export async function listKernelConcepts(): Promise<KernelConcept[]> {
+	const dir = join(twinRoot(), "erp-kernel");
+	if (!existsSync(dir)) return [];
+	const out: KernelConcept[] = [];
+	for (const entry of await readdir(dir, { withFileTypes: true })) {
+		if (!entry.isFile() || !entry.name.endsWith(".md") || entry.name === "index.md") continue;
+		const { fm, body } = parseFrontmatter(await readFile(join(dir, entry.name), "utf8"));
+		if (!fm.type) continue;
+		const id = entry.name.replace(/\.md$/, "");
+		out.push({
+			id,
+			title: str(fm.title) ?? firstHeading(body) ?? id,
+			description: str(fm.description),
+		});
+	}
+	return out.sort((a, b) => a.id.localeCompare(b.id));
 }
 
 // ── capabilities: tools del runtime ──────────────────────────────────────────

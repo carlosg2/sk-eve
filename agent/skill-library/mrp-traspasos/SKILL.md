@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user pregunta por traspasos/movimientos de mercancía
   programados entre almacenes por semana. Corresponde a la ruta "Programa de

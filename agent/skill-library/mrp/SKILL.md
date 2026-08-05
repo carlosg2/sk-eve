@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user asks about MRP, explosión de materiales, forecast de venta,
   arribos proyectados, plan o programa de producción, capacidad de centros,
@@ -46,6 +47,13 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
 | Modelado de Centros | Configuración/capacidad de centros y estaciones, balanceo | [`mrp-modelado-centros`](/agent/skills/mrp-modelado-centros/SKILL.md) |
 | Validación de Insumos (`/produccion`) | Cobertura de materiales para producir, alcance, capacidad | [`mrp-produccion`](/agent/skills/mrp-produccion/SKILL.md) |
 | Programa de Traspasos | Traspasos entre almacenes por semana — ⚠️ no confirmado en DAB | [`mrp-traspasos`](/agent/skills/mrp-traspasos/SKILL.md) |
+
+> **¿Pregunta de análisis consolidado (no de una ruta específica)?** Stock de
+> seguridad/min-máx (`UV_QV_PPTOCOMPRA`), inventario disponible, cobertura de
+> materia prima a 30 días, cumplimiento plan vs. real, capacidad de centros o
+> forecast vs. ventas en una sola respuesta → usar
+> [`mrp-cf`](/agent/skill-library/mrp-cf/SKILL.md) (analista MRP CF) en vez de
+> este índice.
 
 ## Patrones comunes a TODO el módulo FC (aplican en los 12 skills)
 

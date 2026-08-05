@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user pregunta por configuración/capacidad de centros de
   trabajo y estaciones (turnos, capacidad real, balanceo de carga). Corresponde

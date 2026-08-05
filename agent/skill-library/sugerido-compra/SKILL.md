@@ -1,4 +1,5 @@
 ---
+tenant: marmoles
 description: >
   Use when the user asks for sugerido de compra, planeacion de compras, MRP,
   requerimiento neto, punto de reorden, spPlanArt, orden de compra sugerida,

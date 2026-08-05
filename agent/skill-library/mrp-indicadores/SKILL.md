@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user asks por cumplimiento de producción (programado vs.
   producido), forecast vs. venta real, o KPIs de eficiencia por centro de

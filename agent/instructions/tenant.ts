@@ -1,20 +1,22 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
-import { runtimeConfig } from "../lib/runtime-config.js";
+import { loadRuntimeConfig } from "../lib/runtime-config.js";
 
 export default defineDynamic({
   events: {
-    "session.started": async () =>
-      defineInstructions({
+    "session.started": async () => {
+      const cfg = loadRuntimeConfig();
+      return defineInstructions({
         markdown: [
           "## Tenant activo",
           "",
-          `Empresa: **${runtimeConfig.companyName}**`,
-          `Tenant: \`${runtimeConfig.tenant}\``,
-          `Código Empresa en Intelisis: \`${runtimeConfig.erpCompany}\``,
+          `Empresa: **${cfg.companyName}**`,
+          `Tenant: \`${cfg.tenant}\``,
+          `Código Empresa en Intelisis: \`${cfg.erpCompany}\``,
           "",
           "Obtén políticas, almacenes, movimientos y defaults específicos con `query_company_twin`.",
           "No reutilices valores observados en otros tenants.",
         ].join("\n"),
-      }),
+      });
+    },
   },
 });

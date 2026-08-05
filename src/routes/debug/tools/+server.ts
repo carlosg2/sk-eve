@@ -2,7 +2,7 @@ import { json } from "@sveltejs/kit";
 import { readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { RequestHandler } from "./$types";
-import { runtimeConfig } from "../../../../agent/lib/runtime-config.js";
+import { loadRuntimeConfig } from "../../../../agent/lib/runtime-config.js";
 
 // Dev endpoint: inventario COMPLETO de tools disponibles para el modelo.
 // Devuelve 3 capas:
@@ -10,9 +10,8 @@ import { runtimeConfig } from "../../../../agent/lib/runtime-config.js";
 //   authored  — tools en agent/tools/*.ts (defineTool)
 //   framework — framework tools de Eve activas sin sandbox
 
-const MCP_URL = runtimeConfig.mcpUrl;
-
 async function initMcpSession(): Promise<string | null> {
+  const MCP_URL = loadRuntimeConfig().mcpUrl;
   try {
     const res = await fetch(MCP_URL, {
       method: "POST",
@@ -58,6 +57,7 @@ const FRAMEWORK_TOOLS = [
 ];
 
 export const GET: RequestHandler = async () => {
+  const MCP_URL = loadRuntimeConfig().mcpUrl;
   // 1. MCP tools (DAB)
   let mcpTools: Array<{ name: string; description: string; inputSchema: unknown }> = [];
   let mcpTotal = 0;

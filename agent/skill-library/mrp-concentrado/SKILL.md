@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user asks por el consolidado semanal de piezas/kilos a producir
   agrupado por familia de artículo, o por el programa de producción de

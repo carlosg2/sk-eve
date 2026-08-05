@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user pregunta por el presupuesto ganadero/VACA semanal, o por
   la asignación de lotes/series de materia prima (PEPS/FIFO) contra el plan de

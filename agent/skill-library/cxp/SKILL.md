@@ -1,10 +1,11 @@
 ---
+tenant: null
 description: >
   Use when the user asks explicitly about Cuentas por Pagar (CXP), tesorería
   (Dinero), o cuentas bancarias (CtaDinero) en un tenant con esos módulos.
 ---
 # Skill: Módulo CXP / Tesorería — patrones de ejecución
-
+ 
 > **Este skill es SOLO procedural** (cómo ejecutar secuencias). El **schema** de las
 > entidades (campos, tipos, estatus, relaciones) vive en el Company Twin:
 > `query_company_twin({ query, layer: "erp-kernel" })` → `{ concept: "erp-kernel/<entidad>" }`.

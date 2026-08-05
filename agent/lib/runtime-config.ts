@@ -27,6 +27,80 @@ export function resolveCompanyTwinRoot(): string {
   return join(process.cwd(), "company-twin");
 }
 
+/** Resuelve `agent/skill-library/` (catálogo de skills scopeadas por tenant/agente). */
+export function resolveSkillLibraryRoot(): string {
+  let dir = process.cwd();
+  for (let depth = 0; depth < 8; depth++) {
+    const candidate = join(dir, "agent", "skill-library");
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return join(process.cwd(), "agent", "skill-library");
+}
+
+type FrontmatterValue = string | string[] | null;
+
+/**
+ * Parser de frontmatter que soporta escalares, listas inline (`[a, b]`), `null`
+ * y block scalars (`>`/`|`). Necesario para el manifest del agente (listas
+ * `skills`/`mcp_tools`) y la visibilidad `tenant` de las skills del catálogo.
+ */
+function parseFrontmatter(raw: string): { fm: Record<string, FrontmatterValue>; body: string } {
+  if (!raw.startsWith("---")) return { fm: {}, body: raw };
+  const end = raw.indexOf("\n---", 3);
+  if (end === -1) return { fm: {}, body: raw };
+  const block = raw.slice(3, end).trim();
+  const body = raw.slice(end + 4).replace(/^\s*\n/, "");
+  const fm: Record<string, FrontmatterValue> = {};
+  const lines = block.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^([A-Za-z0-9_]+):\s*(.*)$/);
+    if (!m) continue;
+    const [, key, rawVal] = m;
+    const val = rawVal.trim();
+    if (val === ">" || val === "|" || val === ">-" || val === "|-") {
+      const folded = val.startsWith(">");
+      const cont: string[] = [];
+      let j = i + 1;
+      for (; j < lines.length; j++) {
+        if (lines[j].trim() === "") {
+          cont.push("");
+          continue;
+        }
+        if (!/^\s+/.test(lines[j])) break;
+        cont.push(lines[j].replace(/^\s+/, ""));
+      }
+      i = j - 1;
+      fm[key] = folded
+        ? cont.join(" ").replace(/\s+/g, " ").trim()
+        : cont.join("\n").replace(/\n+$/, "");
+    } else if (val.startsWith("[") && val.endsWith("]")) {
+      fm[key] = val
+        .slice(1, -1)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    } else if (val === "null" || val === "") {
+      fm[key] = null;
+    } else {
+      fm[key] = val.replace(/^["']|["']$/g, "");
+    }
+  }
+  return { fm, body };
+}
+
+function asList(v: FrontmatterValue | undefined): string[] {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string" && v.trim()) return [v.trim()];
+  return [];
+}
+
+function scalar(v: FrontmatterValue | undefined): string | null {
+  return typeof v === "string" ? v : null;
+}
+
 function readScalarFrontmatter(raw: string): Record<string, string> {
   if (!raw.startsWith("---")) return {};
   const end = raw.indexOf("\n---", 3);
@@ -79,44 +153,32 @@ export function loadSearchProjections(): SearchProjections {
   return JSON.parse(readFileSync(path, "utf8")) as SearchProjections;
 }
 
-export type ActiveAgentSkill = {
-  slug: string;
-  description: string | null;
-  body: string;
-};
-
 export type ActiveAgent = {
   tenant: string;
   slug: string;
   name: string;
   model: string | null;
   instructions: string;
-  skills: ActiveAgentSkill[];
+  /** Slugs del catálogo que este agente carga (membresía declarada en agent.md). */
+  skills: string[];
+  /** Scope de conceptos `layer: erp-kernel`: `"*"` (todos) o lista de ids. */
+  kernel: string[] | "*";
+  /** Allow-list efectiva de tools MCP para este agente (subset del superset del tenant). */
+  mcpTools: string[];
 };
 
-function readActiveAgentSkills(agentDir: string): ActiveAgentSkill[] {
-  const skillsDir = join(agentDir, "skills");
-  if (!existsSync(skillsDir)) return [];
-  const out: ActiveAgentSkill[] = [];
-  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const file = join(skillsDir, entry.name, "SKILL.md");
-    if (!existsSync(file)) continue;
-    const raw = readFileSync(file, "utf8");
-    const fm = readScalarFrontmatter(raw);
-    const body = raw.startsWith("---")
-      ? raw.slice(raw.indexOf("\n---", 3) + 4).replace(/^\s*\n/, "")
-      : raw;
-    out.push({ slug: entry.name, description: fm.description ?? null, body });
-  }
-  return out.sort((a, b) => a.slug.localeCompare(b.slug));
-}
+export type ScopedSkill = {
+  slug: string;
+  description: string | null;
+  markdown: string;
+};
 
 /**
  * Resuelve el agente activo (tenant + agente) desde `runtime.json` y carga su
- * `instructions.md`. Lee fresco de disco en cada llamada para que activar un
- * agente en /studio surta efecto sin reiniciar el runtime. Devuelve `null` si
- * no hay agente activo o si su carpeta no tiene instrucciones.
+ * `instructions.md` y su manifest de capacidades (`skills`/`kernel`/`mcp_tools`).
+ * Lee fresco de disco en cada llamada para que activar un agente en /studio surta
+ * efecto sin reiniciar el runtime. Devuelve `null` si no hay agente activo o si
+ * su carpeta no tiene instrucciones.
  */
 export function loadActiveAgent(): ActiveAgent | null {
   const twinRoot = resolveCompanyTwinRoot();
@@ -132,18 +194,50 @@ export function loadActiveAgent(): ActiveAgent | null {
   if (!existsSync(instrPath)) return null;
 
   const defPath = join(dir, "agent.md");
-  const fm = existsSync(defPath)
-    ? readScalarFrontmatter(readFileSync(defPath, "utf8"))
-    : {};
+  const fm = existsSync(defPath) ? parseFrontmatter(readFileSync(defPath, "utf8")).fm : {};
+
+  // `kernel` ausente o `"*"` (o lista con `*`) = todos los conceptos del kernel.
+  const kernelRaw = fm.kernel;
+  const kernel: string[] | "*" =
+    kernelRaw === undefined ||
+    kernelRaw === "*" ||
+    (Array.isArray(kernelRaw) && kernelRaw.includes("*"))
+      ? "*"
+      : asList(kernelRaw);
 
   return {
     tenant,
     slug,
-    name: fm.name ?? slug,
-    model: fm.model ?? null,
+    name: scalar(fm.name) ?? slug,
+    model: scalar(fm.model),
     instructions: readFileSync(instrPath, "utf8"),
-    skills: readActiveAgentSkills(dir),
+    skills: asList(fm.skills),
+    kernel,
+    mcpTools: asList(fm.mcp_tools),
   };
+}
+
+/**
+ * Carga las skills que el agente activo puede usar: intersección de su membresía
+ * (`agent.skills`) con la visibilidad por tenant del catálogo
+ * (`agent/skill-library/<slug>/SKILL.md`, frontmatter `tenant`). Devuelve el
+ * cuerpo markdown para advertirlas dinámicamente vía `defineSkill`.
+ */
+export function loadScopedSkills(agent: ActiveAgent): ScopedSkill[] {
+  const root = resolveSkillLibraryRoot();
+  if (!existsSync(root)) return [];
+  const membership = new Set(agent.skills);
+  const out: ScopedSkill[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !membership.has(entry.name)) continue;
+    const file = join(root, entry.name, "SKILL.md");
+    if (!existsSync(file)) continue;
+    const { fm, body } = parseFrontmatter(readFileSync(file, "utf8"));
+    const visible = fm.tenant == null || asList(fm.tenant).includes(agent.tenant);
+    if (!visible) continue;
+    out.push({ slug: entry.name, description: scalar(fm.description), markdown: body.trim() });
+  }
+  return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 export const runtimeConfig = loadRuntimeConfig();

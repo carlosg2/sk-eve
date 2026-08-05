@@ -1,4 +1,5 @@
 ---
+tenant: [icf, marmoles]
 description: >
   Use when the user asks about faltante de materia prima o insumos, gap de
   abasto, si alcanza el inventario para surtir pedidos/forecast del mes, o

@@ -3,8 +3,9 @@ import { loadActiveAgent } from "../lib/runtime-config.js";
 
 // Composición runtime del harness por agente: al iniciar sesión inyecta el
 // `instructions.md` del agente activo (tenant + agente en runtime.json), editado
-// desde /studio. Devuelve null cuando no hay agente activo, dejando el prompt
-// base intacto.
+// desde /studio. Las skills ya NO se inyectan aquí: el agente activo advierte su
+// catálogo scopeado on-demand vía `agent/skills/library.ts` (`load_skill`).
+// Devuelve null cuando no hay agente activo, dejando el prompt base intacto.
 export default defineDynamic({
   events: {
     "session.started": async () => {
@@ -17,13 +18,17 @@ export default defineDynamic({
         "",
         agent.instructions.trim(),
       ];
-      if (agent.skills.length) {
-        parts.push("", `## Skills de ${agent.name}`, "");
-        for (const skill of agent.skills) {
-          parts.push(`### ${skill.slug}`);
-          if (skill.description) parts.push(`_${skill.description}_`);
-          parts.push("", skill.body.trim(), "");
-        }
+      // Soft-gate de tools MCP: los hooks de Eve son solo-observación (no pueden
+      // vetar una tool call) y la conexión usa allow-list estática, así que el
+      // scope por agente se comunica al modelo aquí. Las escrituras siguen
+      // gateadas por HITL en la conexión.
+      if (agent.mcpTools.length) {
+        parts.push(
+          "",
+          "## Tools del ERP permitidas para este agente",
+          "",
+          `Usa únicamente estas tools MCP: ${agent.mcpTools.join(", ")}. No invoques otras.`,
+        );
       }
       return defineInstructions({ markdown: parts.join("\n") });
     },

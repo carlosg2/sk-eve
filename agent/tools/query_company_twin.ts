@@ -2,7 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { resolveCompanyTwinRoot, runtimeConfig } from "../lib/runtime-config.js";
+import { resolveCompanyTwinRoot, loadRuntimeConfig, loadActiveAgent } from "../lib/runtime-config.js";
 
 const BUNDLE_ROOT = resolveCompanyTwinRoot();
 
@@ -102,7 +102,19 @@ export default defineTool({
   }),
   async execute({ query, concept, layer, limit }) {
     const concepts = await loadConcepts();
-    const visible = concepts.filter((candidate) => candidate.tenant === null || candidate.tenant === runtimeConfig.tenant);
+    // Tenant activo FRESCO por llamada (no cacheado) para que cambiar de agente/
+    // tenant en /studio surta efecto sin reiniciar. Visibilidad por tenant +
+    // scope de kernel del agente activo.
+    const activeTenant = loadRuntimeConfig().tenant;
+    const kernelScope = loadActiveAgent()?.kernel ?? "*";
+    const visible = concepts.filter((candidate) => {
+      if (candidate.tenant !== null && candidate.tenant !== activeTenant) return false;
+      if (candidate.layer === "erp-kernel" && kernelScope !== "*") {
+        const shortId = candidate.id.split("/").pop() ?? candidate.id;
+        if (!kernelScope.includes(shortId) && !kernelScope.includes(candidate.id)) return false;
+      }
+      return true;
+    });
 
     // Modo lectura: cuerpo completo de un concepto.
     if (concept) {
@@ -135,7 +147,7 @@ export default defineTool({
             .map((x) => x.c);
 
     return {
-      tenant: runtimeConfig.tenant,
+      tenant: activeTenant,
       matches: ranked.slice(0, limit).map((c) => ({
         id: c.id,
         type: c.type,

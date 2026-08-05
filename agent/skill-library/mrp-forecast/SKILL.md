@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user asks por el desglose semanal de forecast/plan de
   producción (S1-S54, P1-P54) por artículo, cliente, centro de trabajo,

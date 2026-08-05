@@ -20,7 +20,7 @@ con `read_records(<Entidad>, first: 1)` sin `select` para ver todos los campos.
 
 # Contenido
 
-* [Núcleo MRP](mrp-explosion.md) — `ExplocionMatCF`, `BalanceFC`, `BalanceFCHist`, `ProcesadosCF`, `UtLogEjcProMrp`, `UtMaxMinCompra`, `UtMrpPrevioMateriaPrima`, `MovSituacionFC`, `MovSituacionUsuarioFC`.
+* [Núcleo MRP](mrp-explosion.md) — `ExplocionMatCF`, `BalanceFC`, `BalanceFCHist`, `ProcesadosCF`, `UtLogEjcProMrp`, `UtMaxMinCompra`, `UV_QV_PPTOCOMPRA`, `UtMrpPrevioMateriaPrima`, `MovSituacionFC`, `MovSituacionUsuarioFC`.
 * [Forecast y arribos a 12 semanas](mrp-forecast-arribos.md) — `Arribos12`, `Arribos12S`, `ArribosSub12S`, `FCArribos`, `ForecastArtFam12`, `ForecastBBC12`, `ForecastHist`, `ForecastAyuda`, `CalendarioFC`, `DimTiempoSemana`, `DimTiempoSemanaIso`, `ArtFamFC`.
 * [Plan y programa de producción](mrp-plan-produccion.md) — `ForecastPlanProduccion`, `ForecastPlanSemanal`, `ForecastPlanSemanalD`, `ProgramaProdProcesadosA`, `ProgramaProdSemillasA`, `ProgramaProdSituacionLog`, `Prod`, `ProdD`, `ResumenPlaneacionCF`, `ResumenPlaneacionCFHist`.
 * [Centros y estaciones de trabajo](mrp-centros-estaciones.md) — `Centro`, `CentroFC`, `CentroFCHist`, `CentroFCTemp`, `EstacionTFC`, `EstacionTFCHist`, `EstacionTFCTemp`, `ArtCentroTemp`.

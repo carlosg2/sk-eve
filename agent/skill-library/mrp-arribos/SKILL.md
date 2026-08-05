@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user asks about arribos (recepciones) proyectados a 12 semanas,
   cobertura de materia prima o BBC a futuro, cuándo se debe generar un embarque

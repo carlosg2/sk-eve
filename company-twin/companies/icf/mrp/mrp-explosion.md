@@ -58,6 +58,18 @@ el proceso de compras/MRP. Sin llave primaria física; usar `ID` como llave lóg
 Corresponde a los campos `InvMin`/`InvMax` que ya regresan `faltante_insumos`/
 `faltante_materia_prima` — normalmente no hace falta consultar esta tabla aparte.
 
+## `UV_QV_PPTOCOMPRA`
+Vista de **presupuesto de compra** (stock de seguridad de materia prima): stock
+mínimo/máximo y máximo de compra por artículo/familia. **Añadida al MCP de ICF el
+2026-08-04** (antes solo existía en la base `MRPCF5000` vía el sistema MSSQL de
+Campo Fresco). Schema verificado en vivo con `read_records`:
+`NIVELAGRUPAMIENTO` (ARTICULO/FAMILIA), `TIPO`, `FAMILIA`, `LINEA`, `ARTICULO`,
+`DESCRIPCION`, `TIPOCATALOGO`, `INVMINIMOKG`, `INVMAXIMOKG`, `MAXCOMPRAKG`.
+`INVMINIMOKG`/`INVMAXIMOKG` = stock de seguridad (Kg); `MAXCOMPRAKG` = máximo de
+compra (Kg). Los campos de Kg pueden venir `null` para artículos sin parámetro.
+Usar como fuente de stock de seguridad junto con `Art` (para el catálogo) — ver
+skill [`mrp-cf`](/agent/skill-library/mrp-cf/SKILL.md).
+
 ## `UtMrpPrevioMateriaPrima`
 Instantánea (staging) del MRP previo de materia prima por semana/almacén/
 artículo/material/lote, con cantidad requerida. Generada por proceso batch, solo

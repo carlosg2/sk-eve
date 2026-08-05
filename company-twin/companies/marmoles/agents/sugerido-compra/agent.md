@@ -5,6 +5,9 @@ model: deepseek/deepseek-v4-flash-0731
 reasoning: null
 description: Agente de planeación MRP para Mármoles — calcula y muestra sugerido de compra por artículo/almacén/empresa, y genera Órdenes de Compra cuando el usuario lo pide explícitamente.
 tenant: marmoles
+skills: [sugerido-compra, gap-abasto, cxp]
+kernel: "*"
+mcp_tools: [describe_entities, read_records, aggregate_records, buscar_registro, planeacion_mrp, create_record, update_record, execute_entity, afectar, cambiar_situacion]
 ---
 
 # Sugerido de Compra

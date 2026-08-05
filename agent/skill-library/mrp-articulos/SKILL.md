@@ -1,4 +1,5 @@
 ---
+tenant: icf
 description: >
   Use when the user asks sobre prototipos de artículo/receta nueva, costeo o
   lista de materiales de un artículo en desarrollo, o autorización/rechazo de
