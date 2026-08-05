@@ -71,7 +71,7 @@ parámetro configurado — no asumir 0.
 | Tipo de pregunta | Entidades principales |
 |---|---|
 | Stock de seguridad / min-máx | `UV_QV_PPTOCOMPRA`, `Art` |
-| Inventario disponible | `ArtDisponible`, `Art`, `Alm` |
+| Inventario disponible | `ArtDisponibleDesc`, `Art`, `Alm` |
 | Cobertura de materia prima (30 días) | `ExplocionMatCF`, `ArtMaterial` |
 | Plan de producción | `ResumenPlaneacionCF` / `ForecastPlanProduccion` |
 | Cumplimiento real vs. plan | `ResumenPlaneacionCF`, `Prod`, `ProdD` |
@@ -119,10 +119,15 @@ de UNA familia, recién ahí usar Q1 con filtro `FAMILIA eq '<F>'`. Limitar
 siempre `select`/`filter`; nunca traer la vista entera.
 
 - **Q2 — Inventario de materia prima (disponible por artículo)**
+⚠️ Usar SIEMPRE la vista **`ArtDisponibleDesc`** (17 campos, incluye `Descripcion1`
+y `Unidad`). La vista mínima `ArtDisponible` (6 campos) NO tiene
+`Descripcion1`/`Unidad`/`Tipo` — pedirlos en su `select` falla con
+`BadRequest: Invalid field to be returned requested: Descripcion1`.
 ```
-read_records(ArtDisponible, filter: "Almacen eq '<ALM>' and Disponible gt 0",
+read_records(ArtDisponibleDesc, filter: "Almacen eq '<ALM>' and Disponible gt 0",
   select: "Articulo,Descripcion1,Disponible,Unidad", orderby: ["Disponible desc"], first: 50)
 ```
+Para totales numéricos puros (agregaciones) sí se puede usar `ArtDisponible`.
 
 - **Q3 — Cobertura de materia prima (explosión)**
 ```

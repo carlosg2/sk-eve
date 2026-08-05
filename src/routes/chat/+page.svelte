@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { useEveAgent } from 'eve/svelte';
-	import { computeDiagnostics, formatDiagnosticsSummary, friendlyToolLabel, redactSensitiveData, unwrapMcpOutput } from '$lib/lib/agent-diagnostics';
+	import { computeDiagnostics, detectMcpError, formatDiagnosticsSummary, friendlyToolLabel, redactSensitiveData, unwrapMcpOutput } from '$lib/lib/agent-diagnostics';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Empty from '$lib/components/ui/empty/index.js';
@@ -8,7 +8,10 @@
 	import * as MessageScroller from '$lib/components/ui/message-scroller/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import * as Queue from '$lib/components/ai-elements/queue/index.js';
+	import * as Reasoning from '$lib/components/ai-elements/reasoning/index.js';
+	import * as Tool from '$lib/components/ai-elements/tool/index.js';
 	import MessageAnimated from '$lib/components/message-animated.svelte';
+	import { watch } from 'runed';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import MessageCircleDashedIcon from '@lucide/svelte/icons/message-circle-dashed';
@@ -29,8 +32,127 @@
 	const isBusy = $derived(agent.status === 'submitted' || agent.status === 'streaming');
 	let elapsedMs = $state(0);
 
-	$effect(() => {
-		if (!isBusy) {
+	// ── Feed de actividad del turno activo (tool calls + razonamiento) ─────
+	// Se reconstruye desde los eventos del stream (append-only, en orden):
+	//   - `actions.requested`/`action.result` → tool calls con estado.
+	//   - `reasoning.appended`/`reasoning.completed` → bloques de razonamiento
+	//     que se van agregando (uno por segmento) con texto en vivo.
+	// Se resetea en cada `turn.started`.
+	type ActivityToolState = 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
+	type Activity =
+		| { kind: 'reasoning'; key: string; text: string; streaming: boolean }
+		| {
+				kind: 'tool';
+				key: string;
+				name: string;
+				state: ActivityToolState;
+				input: unknown;
+				output: unknown;
+				errorText?: string;
+		  };
+
+	const activities = $derived.by((): Activity[] => {
+		const evs = agent.events as readonly StreamEv[];
+		const out: Activity[] = [];
+		let reasoningSeq = 0;
+		let toolSeq = 0;
+		let openReasoning = -1;
+		for (const ev of evs) {
+			const d = (ev.data ?? {}) as Record<string, unknown>;
+			if (ev.type === 'turn.started') {
+				out.length = 0;
+				reasoningSeq = 0;
+				toolSeq = 0;
+				openReasoning = -1;
+			} else if (ev.type === 'reasoning.appended') {
+				if (openReasoning === -1) {
+					openReasoning = out.length;
+					out.push({ kind: 'reasoning', key: `r${reasoningSeq++}`, text: '', streaming: true });
+				}
+				const cur = out[openReasoning];
+				if (cur.kind === 'reasoning') {
+					const soFar = d?.reasoningSoFar;
+					const delta = d?.reasoningDelta;
+					cur.text =
+						typeof soFar === 'string'
+							? soFar
+							: cur.text + (typeof delta === 'string' ? delta : '');
+					cur.streaming = true;
+				}
+			} else if (ev.type === 'reasoning.completed') {
+				if (openReasoning === -1) {
+					openReasoning = out.length;
+					out.push({ kind: 'reasoning', key: `r${reasoningSeq++}`, text: '', streaming: false });
+				}
+				const cur = out[openReasoning];
+				if (cur.kind === 'reasoning') {
+					const full = d?.reasoning;
+					if (typeof full === 'string') cur.text = full;
+					cur.streaming = false;
+				}
+				openReasoning = -1;
+			} else if (ev.type === 'actions.requested') {
+				const actions = (d?.actions as unknown[]) ?? [];
+				for (const a of actions) {
+					const rec = (a ?? {}) as Record<string, unknown>;
+					const name = String(rec?.name ?? rec?.toolName ?? rec?.tool ?? 'tool');
+					out.push({
+						kind: 'tool',
+						key: `t${toolSeq++}`,
+						name,
+						state: 'input-available',
+						input: rec?.input ?? rec?.arguments,
+						output: undefined,
+					});
+				}
+			} else if (ev.type === 'action.result') {
+				const r = (d?.result ?? {}) as Record<string, unknown>;
+				const name = String(r?.toolName ?? r?.name ?? '');
+				for (let i = out.length - 1; i >= 0; i--) {
+					const it = out[i];
+					if (
+						it.kind === 'tool' &&
+						it.name === name &&
+						(it.state === 'input-available' || it.state === 'input-streaming')
+					) {
+						const output = r?.output;
+						const isError = !!r?.isError;
+						it.output = output;
+						// DAB/MCP devuelven los errores como resultado "exitoso" con
+						// `{ error: … }` embebido (isError=false). detectMcpError lo detecta.
+						const errText = detectMcpError(output);
+						if (isError || errText) {
+							it.state = 'output-error';
+							it.errorText = errText ?? (typeof output === 'string' ? output : JSON.stringify(output ?? {}));
+						} else {
+							it.state = 'output-available';
+						}
+						break;
+					}
+				}
+			}
+		}
+		return out;
+	});
+
+	// Autoscroll del viewport: al crecer el feed (nuevo bloque/tool o razonamiento
+	// en vivo), baja el scroll para ir viendo lo que se va escribiendo. Reacciona
+	// al feed vía `watch` (runed) con deps explícitas — sin `$effect`.
+	let prevActCount = 0;
+	watch([() => activities], () => {
+		const count = activities.length;
+		const live = activities.some((a) => a.kind === 'reasoning' && a.streaming);
+		if (count !== prevActCount || live) {
+			const viewport = document.querySelector(
+				'[data-slot="message-scroller-viewport"]',
+			) as HTMLElement | null;
+			if (viewport) viewport.scrollTop = viewport.scrollHeight;
+		}
+		prevActCount = count;
+	});
+
+	watch([() => isBusy], ([busy]) => {
+		if (!busy) {
 			elapsedMs = 0;
 			return;
 		}
@@ -44,7 +166,7 @@
 	// Los eventos del stream no traen timestamp fiable; sin este sellado, el timing
 	// del DevTools quedaba en ~0 (todos calculados en el mismo render).
 	let eventTimings = $state<number[]>([]);
-	$effect(() => {
+	watch([() => agent.events.length], () => {
 		const n = agent.events.length;
 		if (n < eventTimings.length) {
 			eventTimings = agent.events.map(() => Date.now());
@@ -180,8 +302,9 @@
 					const r = d.result;
 					if (!r) { lines.push('[tool.result] (sin datos)'); break; }
 					const name = r.toolName || r.name || 'tool';
+					const errText = detectMcpError(r.output);
 					if (d.status === 'rejected') lines.push(`[tool.result] ${name} → RECHAZADO`);
-					else if (d.error || r.isError) lines.push(`[tool.result] ${name} → ERROR\n${indentBlock(unwrapMcpOutput(d.error ?? r.output))}`);
+					else if (d.error || r.isError || errText) lines.push(`[tool.result] ${name} → ERROR\n${indentBlock(errText ?? unwrapMcpOutput(d.error ?? r.output))}`);
 					else lines.push(`[tool.result] ${name} → ${indentBlock(unwrapMcpOutput(r.output))}`);
 					break;
 				}
@@ -335,7 +458,32 @@
 				<MessageScroller.Root class="flex-1">
 					<MessageScroller.Viewport>
 						<MessageScroller.Content aria-busy={isBusy} class="p-4">
-							{#each messages as message (message.id)}
+							{#each messages as message, i (message.id)}
+								{#if message.role === 'assistant' && i === messages.length - 1 && activities.length > 0}
+									<div class="space-y-2 pb-2">
+										{#each activities as act (act.key)}
+											{#if act.kind === 'tool'}
+												<Tool.Tool status={act.state}>
+													<Tool.ToolHeader type={friendlyToolLabel(act.name, act.input as Record<string, unknown>)} state={act.state} />
+													<Tool.ToolContent>
+														<Tool.ToolInput input={act.input} />
+														{#if act.state === 'output-available'}
+															<Tool.ToolOutput output={redactSensitiveData(act.output)} />
+														{/if}
+														{#if act.state === 'output-error' && act.errorText}
+															<Tool.ToolOutput errorText={act.errorText} />
+														{/if}
+													</Tool.ToolContent>
+												</Tool.Tool>
+											{:else}
+												<Reasoning.Reasoning class="w-full" isStreaming={act.streaming}>
+													<Reasoning.ReasoningTrigger isStreaming={act.streaming} />
+													<Reasoning.ReasoningContent content={act.text} isStreaming={act.streaming} />
+												</Reasoning.Reasoning>
+											{/if}
+										{/each}
+									</div>
+								{/if}
 								<MessageAnimated {message} scrollAnchor={message.role === 'user'} />
 							{/each}
 						</MessageScroller.Content>

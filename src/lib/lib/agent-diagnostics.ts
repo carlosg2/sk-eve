@@ -91,6 +91,52 @@ export function unwrapMcpOutput(output: unknown): string {
 	}
 }
 
+/** JSON bonito, parseando strings anidados cuando sea posible. */
+function prettyJson(value: unknown): string {
+	if (typeof value === "string") {
+		try {
+			return JSON.stringify(JSON.parse(value), null, 2);
+		} catch {
+			return value;
+		}
+	}
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
+	}
+}
+
+/**
+ * Detecta si un `output` de tool es en realidad un ERROR embebido.
+ * DAB/MCP devuelven los fallos como un resultado "exitoso" del RPC con
+ * `{ error: "…" }`, `{ status: "error", … }` o `{ content: [{ text: "…" }] }`
+ * en lugar de marcar `isError` en el evento. Devuelve el texto legible del
+ * error, o null si el output no parece un error.
+ */
+export function detectMcpError(output: unknown): string | null {
+	let value: unknown = output;
+	if (typeof value === "string") {
+		try {
+			value = JSON.parse(value);
+		} catch {
+			return null;
+		}
+	}
+	if (!value || typeof value !== "object") return null;
+	const obj = value as Record<string, unknown>;
+	// Envoltorio MCP `{ content: [{ type: "text", text }] }` → analizar el texto.
+	if (Array.isArray(obj.content)) {
+		const texts = obj.content
+			.filter((c) => c?.type === "text" && typeof c.text === "string")
+			.map((c) => c.text as string);
+		if (texts.length) return detectMcpError(texts.join("\n"));
+	}
+	if (obj.error !== undefined) return prettyJson(obj.error);
+	if (obj.status === "error") return prettyJson(obj);
+	return null;
+}
+
 /** Etiqueta amigable para el usuario a partir de un tool name (indicador live). */
 export function friendlyToolLabel(name: string, input: Record<string, unknown> = {}): string {
 	const entity = String(input.entidad ?? input.entity ?? "");
@@ -176,12 +222,13 @@ export function computeDiagnostics(
 				const r = d.result;
 				if (r) {
 					const name = r.toolName || r.name || "tool";
+					const errText = detectMcpError(r.output);
 					if (d.status === "rejected") {
 						warnings.push({ level: "info", msg: `${name} rechazado en gate HITL` });
-					} else if (d.error || r.isError) {
+					} else if (d.error || r.isError || errText) {
 						warnings.push({
 							level: "error",
-							msg: `Error en ${name}: ${unwrapMcpOutput(d.error ?? r.output).replace(/\s+/g, " ").slice(0, 90)}`,
+							msg: `Error en ${name}: ${(errText ?? unwrapMcpOutput(d.error ?? r.output)).replace(/\s+/g, " ").slice(0, 90)}`,
 						});
 					} else {
 						const out = unwrapMcpOutput(r.output);
