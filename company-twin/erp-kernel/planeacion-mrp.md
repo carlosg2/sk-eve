@@ -6,7 +6,7 @@ resource: dbo.spPlanArt
 layer: erp-kernel
 tenant: null
 tags: [mrp, planeacion, sugerido-compra, spplanart]
-timestamp: 2026-08-03T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-03T00:00:00Z }
 mcp_tools: [planeacion_mrp]
 ---
 
@@ -23,7 +23,8 @@ aproximación propia si el store está disponible.
 
 - **Tool MCP:** `planeacion_mrp` (custom-tool, solo lectura/ejecución — no es `execute_entity`).
   Verificar el nombre exacto con `tools/list` la primera vez que se use contra un tenant nuevo;
-  el DAB normaliza el nombre de la entidad `PlaneacionMRP` a snake_case.
+  el DAB normaliza el nombre de la entidad `PlaneacionMRP` a snake_case. Modelado como cómputo
+  sancionado en [sp-planart](sp-planart.md) (`type: Attested Computation`).
 
 # Parámetros
 

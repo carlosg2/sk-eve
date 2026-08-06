@@ -6,7 +6,7 @@ resource: dbo.Inv
 layer: erp-kernel
 tenant: null
 tags: [inv, inventario, traspasos, movtipo]
-timestamp: 2026-08-03T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-03T00:00:00Z }
 mcp_tools: [read_records, aggregate_records]
 ---
 

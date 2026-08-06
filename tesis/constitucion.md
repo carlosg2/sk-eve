@@ -112,10 +112,19 @@ Implementado por el skill de fábrica
 [promote-learnings](../.github/skills/promote-learnings/SKILL.md) (disparable con
 `/promote-learnings`). Compila cada entrada del buffer `state/learnings.md` a **una** de las
 cuatro capas de capacidad (declarativa / procedural / ejecución / ruteo). Las escrituras al
-Company Twin y al ERP Kernel deben ser **conformes a OKF** (Open Knowledge Format):
-`type` requerido en frontmatter, links bundle-relativos, `index.md` para progressive
-disclosure, `log.md` para historial, `# Citations` para la fuente. Spec:
+Company Twin y al ERP Kernel deben ser **conformes a OKF v0.2** (Open Knowledge Format):
+`type` requerido en frontmatter, provenance/trust en `generated`/`verified`/`sources`,
+lifecycle en `status`/`stale_after`, links bundle-relativos, `index.md` para progressive
+disclosure, `log.md` para historial, y `okf_version: "0.2"` en el index raíz. Los cómputos
+sancionados se modelan como `type: Attested Computation` (ver [sp-planart](erp-kernel/sp-planart.md)).
+Spec:
 <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>.
+
+**Convención de actor (OKF §7):** `copilot/sigma-meta-fabrica` para la fábrica, `human:<id>`
+para confirmación humana, `process:<id>` para procesos automáticos. Trust tiers derivados de
+`verified`: sin `verified` ⇒ *unverified*; solo `process:`/agente ⇒ *machine-confirmed*;
+con `human:` ⇒ *human-reviewed*. La separación Fábrica/Runtime de esta constitución se
+expresa como metadata OKF legible.
 
 Resumen del protocolo (detalle completo en el skill §4):
 

@@ -5,7 +5,7 @@ description: Límites de aprobación y aprobadores para Cuentas por Pagar en Joy
 layer: company
 tenant: joyarock-300326
 tags: [cxp, aprobacion, tesoreria, gobierno]
-timestamp: 2026-07-01T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-01T00:00:00Z }
 applies_to: [/erp-kernel/cxp.md]
 ---
 

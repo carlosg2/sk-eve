@@ -5,7 +5,7 @@ description: Pronóstico de venta y arribos proyectados a 12 semanas, calendario
 layer: company
 tenant: icf
 tags: [mrp, forecast, fc, arribos, calendario]
-timestamp: 2026-07-31T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-31T00:00:00Z }
 mcp_tools: [read_records, aggregate_records]
 ---
 

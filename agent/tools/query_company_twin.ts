@@ -8,6 +8,17 @@ const BUNDLE_ROOT = resolveCompanyTwinRoot();
 
 const RESERVED = new Set(["index.md", "log.md"]);
 
+type Actor = { by: string; at: string };
+type Source = {
+  id?: string;
+  resource: string;
+  title?: string;
+  author?: string;
+  last_modified?: string;
+  usage_count?: number;
+};
+type Trust = "unverified" | "machine-confirmed" | "human-reviewed";
+
 type Concept = {
   id: string; // path relativo sin .md (concept id OKF)
   type: string;
@@ -16,11 +27,44 @@ type Concept = {
   layer?: string;
   tenant?: string | null;
   tags: string[];
+  // OKF v0.2: lifecycle + trust + provenance
+  status?: string; // draft | stable | deprecated (ausente ⇒ stable)
+  staleAfter?: string; // fecha absoluta YYYY-MM-DD
+  generated?: Actor;
+  verified?: Actor[];
+  sources?: Source[];
+  stale: boolean; // hoy >= stale_after
+  trust: Trust; // derivado de verified (human: ⇒ human-reviewed)
   body: string;
 };
 
-// Parser mínimo de frontmatter YAML plano (sin dependencias). Soporta los
-// campos escalares y listas inline (`[a, b]`) que usa este bundle.
+// Parseador de flow mappings YAML inline: `{ by: x, at: 2026-01-01 }` → { by, at }.
+function parseFlowMap(s: string): Record<string, string> {
+  const inner = s.replace(/^\{\s*/, "").replace(/\s*\}$/, "");
+  const out: Record<string, string> = {};
+  let depth = 0;
+  let cur = "";
+  const parts: string[] = [];
+  for (const ch of inner) {
+    if (ch === "{" || ch === "[") depth++;
+    else if (ch === "}" || ch === "]") depth--;
+    if (ch === "," && depth === 0) {
+      parts.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  if (cur.trim()) parts.push(cur);
+  for (const p of parts) {
+    const i = p.indexOf(":");
+    if (i < 0) continue;
+    out[p.slice(0, i).trim()] = p.slice(i + 1).trim().replace(/^["']|["']$/g, "");
+  }
+  return out;
+}
+
+// Parser mínimo de frontmatter YAML plano (sin dependencias). Soporta escalares,
+// listas inline (`[a, b]`), flow mappings (`{ by, at }`) y secuencias de mappings
+// en bloque (`sources:`, `verified:`) de OKF v0.2.
 function parseFrontmatter(raw: string): { fm: Record<string, unknown>; body: string } {
   if (!raw.startsWith("---")) return { fm: {}, body: raw };
   const end = raw.indexOf("\n---", 3);
@@ -28,24 +72,74 @@ function parseFrontmatter(raw: string): { fm: Record<string, unknown>; body: str
   const fmBlock = raw.slice(3, end).trim();
   const body = raw.slice(end + 4).replace(/^\s*\n/, "");
   const fm: Record<string, unknown> = {};
-  for (const line of fmBlock.split("\n")) {
-    const m = line.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
+  const lines = fmBlock.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^([A-Za-z0-9_]+):\s*(.*)$/);
     if (!m) continue;
     const key = m[1];
-    let val = m[2].trim();
+    const val = m[2].trim();
     if (val.startsWith("[") && val.endsWith("]")) {
       fm[key] = val
         .slice(1, -1)
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-    } else if (val === "null") {
+    } else if (val === "null" || val === "") {
       fm[key] = null;
+    } else if (val.startsWith("{") && val.endsWith("}")) {
+      // Flow mapping inline: `generated: { by: x, at: ... }`
+      fm[key] = parseFlowMap(val);
     } else {
       fm[key] = val.replace(/^["']|["']$/g, "");
     }
+
+    // Secuencia en bloque tras una clave vacía: `verified:`, `sources:`, `parameters:`
+    if (fm[key] === null && i + 1 < lines.length && /^\s*-\s*/.test(lines[i + 1])) {
+      const items: Record<string, string>[] = [];
+      let j = i + 1;
+      // Forma flow map: `- { by: x, at: ... }` / `- { name: ..., type: ... }`
+      while (j < lines.length && /^\s*-\s*\{.*\}\s*$/.test(lines[j])) {
+        const flow = lines[j].match(/^\s*-\s*(\{.*\})\s*$/);
+        if (flow) items.push(parseFlowMap(flow[1]));
+        j++;
+      }
+      // Forma mappings: `- id: foo` + líneas indentadas
+      while (j < lines.length && /^\s*-\s*\S/.test(lines[j])) {
+        const first = lines[j].match(/^\s*-\s*([A-Za-z0-9_]+):\s*(.*)$/);
+        if (!first) break;
+        const item: Record<string, string> = {};
+        let k = first[1];
+        let v = first[2].trim();
+        j++;
+        while (j < lines.length && /^\s+[A-Za-z0-9_]+:/.test(lines[j])) {
+          const next = lines[j].match(/^\s+([A-Za-z0-9_]+):\s*(.*)$/);
+          if (!next) break;
+          item[k] = v.replace(/^["']|["']$/g, "");
+          k = next[1];
+          v = next[2].trim();
+          j++;
+        }
+        item[k] = v.replace(/^["']|["']$/g, "");
+        items.push(item);
+      }
+      fm[key] = items;
+      i = j - 1;
+    }
   }
   return { fm, body };
+}
+
+function trustOf(verified: Actor[] | undefined): Trust {
+  if (!verified || verified.length === 0) return "unverified";
+  return verified.some((v) => String(v.by ?? "").startsWith("human:"))
+    ? "human-reviewed"
+    : "machine-confirmed";
+}
+
+function isStale(staleAfter: string | undefined): boolean {
+  if (!staleAfter) return false;
+  const d = new Date(`${staleAfter}T23:59:59`);
+  return !Number.isNaN(d.getTime()) && new Date() >= d;
 }
 
 async function walk(dir: string): Promise<string[]> {
@@ -65,6 +159,12 @@ async function loadConcepts(): Promise<Concept[]> {
     const raw = await readFile(file, "utf8");
     const { fm, body } = parseFrontmatter(raw);
     if (!fm.type) continue; // OKF: sin `type` no es un concepto conformante
+    const verifiedRaw = fm.verified as Actor[] | Actor | undefined;
+    const verifiedList: Actor[] | undefined = Array.isArray(verifiedRaw)
+      ? verifiedRaw
+      : verifiedRaw && typeof verifiedRaw === "object"
+        ? [verifiedRaw]
+        : undefined;
     concepts.push({
       id: relative(BUNDLE_ROOT, file).replace(/\.md$/, ""),
       type: String(fm.type),
@@ -73,6 +173,13 @@ async function loadConcepts(): Promise<Concept[]> {
       layer: fm.layer as string | undefined,
       tenant: (fm.tenant ?? null) as string | null,
       tags: (fm.tags as string[]) ?? [],
+      status: (fm.status as string | undefined) ?? "stable",
+      staleAfter: fm.stale_after as string | undefined,
+      generated: fm.generated as Actor | undefined,
+      verified: verifiedList,
+      sources: fm.sources as Source[] | undefined,
+      stale: isStale(fm.stale_after as string | undefined),
+      trust: trustOf(verifiedList),
       body,
     });
   }
@@ -90,7 +197,9 @@ export default defineTool({
   description:
     "Consulta el Company Twin (bundle OKF con conocimiento en capas: erp-kernel, company). " +
     "Sin `concept` hace búsqueda con progressive disclosure y devuelve solo metadata (id, tipo, capa, descripción). " +
-    "Con `concept` devuelve el cuerpo completo de ese concepto. Filtra por `layer` y `tenant` para respetar el Context Stack.",
+    "Con `concept` devuelve el cuerpo completo de ese concepto. Filtra por `layer` y `tenant` para respetar el Context Stack. " +
+    "OKF v0.2: cada concepto trae `status` (draft/stable/deprecated), `stale` (bool) y `trust` (unverified/machine-confirmed/human-reviewed). " +
+    "Prefiere conceptos no-stale; avisa si un dato viene de un concepto deprecated o sin verificar humano.",
   inputSchema: z.object({
     query: z.string().optional().describe("Búsqueda en lenguaje natural (ej: 'límite de aprobación CXP')"),
     concept: z.string().optional().describe("ID de concepto OKF para leer su cuerpo completo (ej: 'erp-kernel/cxp')"),
@@ -128,6 +237,12 @@ export default defineTool({
         layer: found.layer,
         tenant: found.tenant,
         tags: found.tags,
+        status: found.status,
+        stale: found.stale,
+        trust: found.trust,
+        generated: found.generated,
+        verified: found.verified,
+        sources: found.sources,
         body: found.body,
       };
     }
@@ -155,6 +270,9 @@ export default defineTool({
         tenant: c.tenant,
         description: c.description,
         tags: c.tags,
+        status: c.status,
+        stale: c.stale,
+        trust: c.trust,
       })),
       hint: "Usa `concept` con un id para leer el cuerpo completo.",
     };

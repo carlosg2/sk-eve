@@ -6,7 +6,7 @@ resource: dbo.Venta
 layer: erp-kernel
 tenant: null
 tags: [venta, vtas, clientes, facturacion]
-timestamp: 2026-07-30T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-30T00:00:00Z }
 mcp_tools: [read_records, aggregate_records, create_record, update_record]
 ---
 

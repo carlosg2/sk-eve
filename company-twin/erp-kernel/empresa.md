@@ -6,7 +6,7 @@ resource: dbo.Empresa
 layer: erp-kernel
 tenant: null
 tags: [empresa, maestro, multiempresa, mrp]
-timestamp: 2026-08-03T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-03T00:00:00Z }
 mcp_tools: [read_records]
 ---
 

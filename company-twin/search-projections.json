@@ -8,5 +8,12 @@
   "Venta": ["ID", "Mov", "MovID", "FechaEmision", "Cliente", "Importe", "Estatus", "Almacen", "Condicion"],
   "Inv": ["ID", "Mov", "MovID", "FechaEmision", "Estatus", "Almacen"],
   "GastoT": ["ID", "Mov", "MovID", "FechaEmision", "Acreedor", "Importe", "Estatus"],
-  "MovTipo": ["Modulo", "Mov", "Clave", "Estatus"]
+  "MovTipo": ["Modulo", "Mov", "Clave", "Estatus"],
+  "VentaD": ["ID", "Venta", "Articulo", "Cantidad", "CantidadPendiente", "FechaRequerida", "Almacen"],
+  "CompraD": ["ID", "Compra", "Articulo", "Cantidad", "FechaRequerida", "Almacen"],
+  "ResumenPlaneacionCF": ["Articulo", "Descripcion", "VariedadCF", "FamiliaCF", "Venta", "Stock", "Producir", "InvEmp", "InvGra", "TotalInv", "Gramaje", "Kg"],
+  "ArtFamFC": ["Familia", "StockMinimo", "StockMaximo", "TiempoEntrega"],
+  "PlanArtOP": ["ID", "Empresa", "Articulo", "Almacen", "FechaRequerida", "Cantidad", "Estado", "Accion", "LiberacionID"],
+  "ForecastPlanProduccion": ["EJERCICIO", "SEMANA", "SITUACION", "PORPRODUCIR", "KILOS", "FAMILIA", "CENTROTRABAJO"],
+  "UV_QV_PPTOCOMPRA": ["NIVELAGRUPAMIENTO", "TIPO", "FAMILIA", "LINEA", "ARTICULO", "DESCRIPCION", "TIPOCATALOGO", "INVMINIMOKG", "INVMAXIMOKG", "MAXCOMPRAKG"]
 }

@@ -1,5 +1,5 @@
 ---
-okf_version: "0.1"
+okf_version: "0.2"
 type: Tenant Index
 tenant: marmoles
 layer: company

@@ -5,8 +5,17 @@ description: Cobertura del MCP de ICF: qué módulos expone y cuáles NO (CXP/te
 layer: company
 tenant: icf
 tags: [icf, mcp, cobertura, modulos, restriccion]
-timestamp: 2026-08-05T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-05T00:00:00Z }
 mcp_tools: [read_records, aggregate_records]
+sources:
+  - id: learnings-icf
+    resource: /companies/icf/state/learnings.md
+    title: Trazas de runtime del hook de memoria (keys ent-inexistente-*)
+    last_modified: 2026-08-05
+  - id: lint-knowledge
+    resource: scripts/check-knowledge.ts
+    title: Linter de conocimiento — read_records(first:1) contra el MCP ICF
+    last_modified: 2026-08-05
 ---
 
 # MCP de ICF — módulos disponibles
@@ -43,10 +52,3 @@ la entidad no existe en la configuración del DAB de ICF.
   (ej. `UV_QV_PPTOCOMPRA` no aparece y sí funciona en `read_records`). La disponibilidad real
   se valida con `read_records(entity, first: 1)` (regla del linter `npm run lint:knowledge`).
 - Un `EntityNotFound` significa "no está publicado en el MCP de ICF", no que el dato sea cero.
-
-## Citations
-
-- Trazas de runtime del hook de memoria, keys `ent-inexistente-*` en
-  [state/learnings.md](/companies/icf/state/learnings.md) (2026-08-05).
-- Linter de conocimiento `scripts/check-knowledge.ts`: `read_records(first:1)` →
-  `EntityNotFound` para estas entidades contra el MCP ICF.

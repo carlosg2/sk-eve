@@ -5,7 +5,7 @@ description: Entidades de soporte del módulo Forecast/Planeación (FC) — conf
 layer: company
 tenant: icf
 tags: [mrp, forecast, fc, portal, soporte]
-timestamp: 2026-07-31T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-31T00:00:00Z }
 mcp_tools: [read_records, aggregate_records]
 ---
 

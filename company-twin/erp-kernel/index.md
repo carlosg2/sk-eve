@@ -47,6 +47,10 @@ Las transiciones se ejecutan con el SP [Afectar](afectar.md), no con `update_rec
 * [Afectar](afectar.md) - Transiciones de estatus (AFECTAR/CANCELAR/AUTORIZAR).
 * [CambiarSituacion](cambiar-situacion.md) - Cambio de sub-estado dentro del Estatus.
 
+# Cómputos sancionados (Attested Computation — OKF v0.2)
+
+* [spPlanArt](sp-planart.md) - Explosión MRP oficial (sugerido de compra). `type: Attested Computation` con `runtime`, `parameters`, `executor` y `attester`: el agente puede atestiguar que corrió el cómputo sancionado, no uno improvisado.
+
 # Contrato de ejecución (MCP)
 
 * [Contrato de MCP tools](mcp-tools.md) - Parámetros y formas de respuesta reales de los 7 DML tools + tools custom (verificado contra el DAB fork).

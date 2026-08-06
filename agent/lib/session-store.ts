@@ -39,6 +39,10 @@ function resolveRoot(): string {
 
 const DB_PATH = join(resolveRoot(), ".data", "sessions.sqlite3");
 const MAX_SESSIONS = 500; // tope duro: descarta las más viejas por updatedAt
+// Un turno real refresca `updatedAt` al iniciar/cerrar; si `active=1` lleva
+// más de 1h sin tocar nada, es un turno huérfano (proceso muerto a mitad de
+// turno — ver gotcha "sesiones huérfanas") y se trata como inactivo.
+const ACTIVE_STALE_MS = 60 * 60 * 1000;
 
 export interface SessionRecord {
   readonly id: string;
@@ -85,6 +89,10 @@ function getDb(): DatabaseSync {
   if (!cols.some((c) => c.name === "archived")) {
     db.exec("ALTER TABLE sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
   }
+  // Arranque del proceso: ningún turno puede estar corriendo en un proceso
+  // recién creado, así que limpiar flags `active` huérfanos (un kill del dev
+  // server a mitad de turno deja active=1 sin evento de cierre).
+  db.exec("UPDATE sessions SET active = 0");
   return db;
 }
 
@@ -158,9 +166,15 @@ export async function markSessionIdle(id: string): Promise<void> {
 
 /** Lista más recientes primero (por updatedAt). Por defecto excluye archivadas. */
 export async function listSessions(opts: { archived?: boolean } = {}): Promise<SessionRecord[]> {
+  // Solo se reporta `active` si la última actividad es reciente; una sesión
+  // "activa" sin tocar `updatedAt` en >1h es un turno huérfano y se lista
+  // como inactiva (auto-curado si el proceso sigue vivo tras un crash).
+  const cutoff = new Date(Date.now() - ACTIVE_STALE_MS).toISOString();
   const rows = getDb()
-    .prepare("SELECT * FROM sessions WHERE archived = ? ORDER BY updatedAt DESC")
-    .all(opts.archived ? 1 : 0) as unknown as SessionRow[];
+    .prepare(
+      "SELECT * FROM sessions WHERE archived = ? AND (active = 0 OR updatedAt > ?) ORDER BY updatedAt DESC",
+    )
+    .all(opts.archived ? 1 : 0, cutoff) as unknown as SessionRow[];
   return rows.map(toRecord);
 }
 

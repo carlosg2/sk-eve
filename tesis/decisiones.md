@@ -121,6 +121,38 @@ Generar superficies dinámicas completas es enormemente ambicioso y es **el prim
 
 ---
 
+## ADR-006 — Adoptamos OKF v0.2 en el Company Twin y el ERP Kernel.
+
+**Estado:** Aceptada (2026-08-05)
+
+### Contexto
+La spec OKF subió a **v0.2** (GoogleCloudPlatform/knowledge-catalog, commit 3fcbb9f,
+~2026-07). Introduce dos breaking changes con fallback explícito (`timestamp` →
+`generated: { by, at }`; body `# Citations` → frontmatter `sources`) y familias aditivas de
+provenance/trust/lifecycle (`verified`, `status`, `stale_after`, `usage_window`) más el tipo
+`Attested Computation` (cómputo sancionado con `runtime`/`parameters`/`executor`/`attester`).
+
+### Decisión
+- El Company Twin y el ERP Kernel declaran `okf_version: "0.2"` (index raíz).
+- Migración de metadata legacy: `timestamp` → `generated` con actor `copilot/sigma-meta-fabrica`
+  en los 38 conceptos que lo usaban; `# Citations` → `sources` en los 3 conceptos que lo usaban.
+- El consumidor runtime (`agent/tools/query_company_twin.ts`) expone `status`/`stale`/`trust`
+  derivados de `verified` — el agente prefiere conceptos no-stale y human-reviewed.
+- `Attested Computation` se adopta como mecanismo de Governance para cómputos sancionados
+  (primer caso: `spPlanArt` en `erp-kernel/sp-planart.md`).
+
+### Consecuencias
+- (+) Provenance/trust/freshness son metadata legible: la separación Fábrica/Runtime de la
+  constitución se expresa como trust tiers (`human:` ⇒ human-reviewed).
+- (+) El gate de Governance del `act` ("¿este número se produjo como se dijo?") tiene
+  representación formal (attestation).
+- (−) Los parsers planos deben tolerar YAML anidado (flow mappings, secuencias de mappings).
+  OKF §11 exige no rechazar claves desconocidas; los consumidores que necesiten las familias
+  nuevas las parsean explícitamente.
+- v0.1 sigue siendo consumible por consumidores v0.2 (fallbacks de la spec §13).
+
+---
+
 ## Decisiones pendientes (por resolver)
 
 | # | Pregunta abierta | Bloquea |

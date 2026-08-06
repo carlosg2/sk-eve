@@ -5,7 +5,7 @@ description: Reglas de aprobación y autonomía del agente para Industrias Campo
 layer: company
 tenant: icf
 tags: [compras, ventas, aprobacion, gobierno]
-timestamp: 2026-07-30T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-30T00:00:00Z }
 applies_to: [/erp-kernel/compra.md, /erp-kernel/venta.md]
 ---
 

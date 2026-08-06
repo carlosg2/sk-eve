@@ -6,7 +6,7 @@ resource: dbo.ArtMaterial
 layer: erp-kernel
 tenant: null
 tags: [bom, lista-materiales, materiales, produccion, insumos]
-timestamp: 2026-08-05T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-05T00:00:00Z }
 mcp_tools: [read_records]
 ---
 

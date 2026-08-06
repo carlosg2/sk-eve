@@ -9,3 +9,5 @@ Historial de promociones del Company Twin de ICF. Más nuevo primero.
   `state/learnings.md` (keys `ent-inexistente-*`, observadas en runtime 2026-08-05) vía
   el protocolo de la meta-fábrica (promote-learnings). Fuente: trazas del hook + linter
   `lint:knowledge`.
+- **Update** `modulos.md` — migración de metadata a OKF v0.2 (`timestamp` → `generated`,
+  `# Citations` → `sources`; ADR-006).

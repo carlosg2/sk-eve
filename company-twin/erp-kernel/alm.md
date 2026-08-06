@@ -6,7 +6,7 @@ resource: dbo.Alm
 layer: erp-kernel
 tenant: null
 tags: [alm, almacenes, inventario, maestro]
-timestamp: 2026-07-30T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-30T00:00:00Z }
 mcp_tools: [read_records]
 ---
 

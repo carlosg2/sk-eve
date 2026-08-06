@@ -6,7 +6,7 @@ resource: dbo.ArtFamFC
 layer: erp-kernel
 tenant: null
 tags: [familias, forecast, mrp, campo-fresco, clasificacion]
-timestamp: 2026-08-05T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-05T00:00:00Z }
 mcp_tools: [read_records]
 ---
 

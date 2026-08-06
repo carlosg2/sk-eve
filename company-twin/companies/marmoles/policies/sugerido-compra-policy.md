@@ -5,7 +5,12 @@ description: Reglas de gobierno para el agente de sugerido de compra y generaci�
 layer: company
 tenant: marmoles
 tags: [politica, mrp, sugerido-compra, hitl, gobierno]
-timestamp: 2026-08-03T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-03T00:00:00Z }
+sources:
+  - id: guias-planeacion
+    resource: Dani/AGENTE_PLANEACION_SUGERIDO_COMPRA.md
+    title: Guías de negocio del equipo de planeación (AGENTE_PLANEACION_SUGERIDO_COMPRA, _LIGERO, MRP.agent.md)
+    last_modified: 2026-08-03
 ---
 
 # Resumen
@@ -46,8 +51,3 @@ las siguientes reglas de negocio.
 Si el cálculo manual (sobre tablas base) difiere del resultado de
 [`PlaneacionMRP`](/erp-kernel/planeacion-mrp.md) (`spPlanArt`), **prevalece siempre** el
 resultado del store oficial.
-
-# Citations
-
-[1] Guías de negocio entregadas por el equipo de planeación (`Dani/AGENTE_PLANEACION_SUGERIDO_COMPRA.md`,
-`Dani/AGENTE_PLANEACION_SUGERIDO_COMPRA_LIGERO.md`, `Dani/MRP.agent.md`), compiladas 2026-08-03.

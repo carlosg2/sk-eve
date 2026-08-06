@@ -73,21 +73,28 @@ por conveniencia. Cada hecho termina en **uno** solo.
 
 ## 3. Autoría OKF (para escribir en Company Twin / ERP Kernel)
 
-El Company Twin y el ERP Kernel son bundles **Open Knowledge Format (OKF)**. Al compilar
-conocimiento declarativo, produce documentos conformes. Referencias canónicas:
+El Company Twin y el ERP Kernel son bundles **Open Knowledge Format (OKF) v0.2** (los index
+raíz declaran `okf_version: "0.2"`). Al compilar conocimiento declarativo, produce
+documentos conformes. Referencias canónicas:
 
 - Spec: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>
 - Guía de enrichment agent: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/src/reference_agent/prompts/reference_instruction.md>
 
-Reglas OKF que debes cumplir (resumen operativo de la spec):
+Reglas OKF v0.2 que debes cumplir (resumen operativo de la spec):
 
 - **Concepto = 1 archivo markdown.** Concept ID = ruta sin `.md`.
 - **Frontmatter:** `type` es **lo único REQUERIDO**. Recomendados: `title`, `description`
   (una sola frase — se usa verbatim en `index.md`), `resource` (URI del asset, ej. `dbo.CXP`),
-  `tags`, `timestamp` (ISO 8601). Extensión Sigma: `layer` (`erp-kernel|vertical|company|skill`)
+  `tags`, `generated: { by, at }` (reemplaza a `timestamp`; actor según §7: `<prod>/<ver>`,
+  `human:<id>`, `process:<id>`). Extensión Sigma: `layer` (`erp-kernel|vertical|company|skill`)
   y `tenant` (`null` = universal). Preserva claves desconocidas; no rechaces por campos extra.
+- **Provenance/trust/lifecycle:** `sources` (lista con `resource` requerido + señales
+  `author`/`usage_count`/`last_modified`) reemplaza al body `# Citations`; `verified`
+  (lista de `{ by, at }`; un mapping bare = lista de 1); `status: draft|stable|deprecated`
+  (ausente ⇒ `stable`); `stale_after: YYYY-MM-DD` (fecha absoluta).
 - **Body:** favorece estructura (headings, tablas, code fences) sobre prosa. Headings
-  convencionales: `# Schema`, `# Examples`, `# Citations`. Sin preámbulo ni narración.
+  convencionales: `# Schema`, `# Examples`, `# Computation` (solo en Attested Computation).
+  La atribución por claim usa footnotes keyed a `sources[].id` (§5.1).
 - **Cross-linking:** enlaces markdown **bundle-relativos** empezando con `/`
   (ej. `[Prov](/erp-kernel/prov.md)`) — estables al mover archivos. Un link = una relación
   (el tipo lo da la prosa). Los links rotos se toleran (conocimiento aún no escrito).
@@ -97,8 +104,11 @@ Reglas OKF que debes cumplir (resumen operativo de la spec):
 - **`log.md`:** historial por scope, más nuevo primero, headings `## YYYY-MM-DD`, entradas
   con palabra en negrita (`**Update**`, `**Creation**`, `**Deprecation**`). Registra aquí la
   promoción cuando toques el bundle del Twin/Kernel.
-- **`# Citations`:** cita la fuente (el `resource`, la traza, o el learning original). **No
-  inventes** campos, valores, URIs ni fuentes — compila solo lo que la evidencia respalda.
+- **Cómputos sancionados:** un cómputo oficial (SP, query canónica) es su propio concepto
+  `type: Attested Computation` con `runtime`, `parameters`, `executor` (con `receipt`) y
+  `attester` (código determinista). El agente puede atestiguar que corrió el cómputo
+  sancionado, no uno improvisado (patrón: `erp-kernel/sp-planart.md`).
+- **No inventes** campos, valores, URIs ni fuentes que la evidencia no respalde.
 - **Consumo permisivo:** el consumidor tolera types desconocidos y campos faltantes; no
   sobre-estructures.
 

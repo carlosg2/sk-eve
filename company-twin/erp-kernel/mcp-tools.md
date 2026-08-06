@@ -6,8 +6,16 @@ resource: http://localhost:5050/mcp
 layer: erp-kernel
 tenant: null
 tags: [mcp, dab, tools, contrato, ejecucion]
-timestamp: 2026-07-01T00:00:00Z
+generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-01T00:00:00Z }
 mcp_tools: [describe_entities, read_records, aggregate_records, create_record, update_record, delete_record, execute_entity]
+sources:
+  - id: verificacion-dab
+    resource: http://localhost:5050/mcp
+    title: Verificación local vía tools/list + llamadas read-only al sigma-dab .NET 10
+    last_modified: 2026-07-01
+  - id: dab-dml-docs
+    resource: https://learn.microsoft.com/en-us/azure/data-api-builder/mcp/data-manipulation-language-tools
+    title: DAB DML tools (referencia oficial)
 ---
 
 # Resumen
@@ -105,8 +113,3 @@ El fork sigma-dab expone stored procedures y table-valued functions de Intelisis
 - **`tipo_impuesto_tasa`**: requiere la clave exacta del catálogo `TipoImpuesto1`. `"IVA"` devuelve `null`; usar la clave real de la empresa (ej. `"IVA16"` o consultar `read_records(TipoImpuesto1)`).
 - **`gasto_concepto_prov`**: el schema del DAB dice sin params pero el SP requiere `@Acreedor`. Usar `execute_entity(GastoConceptoProv, parameters:{Acreedor:'...'})` como workaround hasta que el config se corrija.
 - **`borrar_ver_cfdi`, `busca_rfcdocumentos_gasto`, `ver_prov_cfdi`, `ver_prov_cfdejecutar`**: misma situación — params no declarados en config. Usar con `execute_entity`.
-
-# Citations
-
-[1] Verificación local vía `tools/list` + llamadas read-only al sigma-dab .NET 10 (2026-07-01).
-[2] [DAB DML tools (referencia oficial)](https://learn.microsoft.com/en-us/azure/data-api-builder/mcp/data-manipulation-language-tools)
