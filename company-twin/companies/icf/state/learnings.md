@@ -30,3 +30,11 @@ aquí cuando una tool falla; el agente las lee al inicio de sesión para no repe
 - [fld-read_records-apartado] El campo 'Apartado' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'APARTADO', no 'Apartado'. _(2026-08-06T07:35:40.182Z)_
 - [ent-inexistente-DimTiempoSemana] La entidad 'DimTiempoSemana' NO existe en el MCP del tenant activo (EntityNotFound). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada. _(2026-08-06T07:52:57.637Z)_
 - [fld-read_records-familiacf] El campo 'FAMILIACF' no existe en 'read_records' (BadRequest). Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1). _(2026-08-06T07:55:16.771Z)_
+- [fld-read_records-ano] El campo 'ANO' no existe en 'read_records' (BadRequest). Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1). _(2026-08-06T09:17:46.126Z)_
+
+> **Promovido el 2026-08-06 (E2E plan S31):** `fld-read_records-ano` (CalendarioFC) →
+> `mrp/mrp-forecast-arribos.md` (nota: CalendarioFC es camelCase `Ano`/`Semana`/`FechaD`/`FechaA`,
+> NO UPPERCASE) + notas matizadas en `mrp/mrp-plan-produccion.md` y `mrp-inicio` (el UPPERCASE es
+> ESPECÍFICO de `ForecastPlanProduccion`, no generalizar). `ForecastPlanProduccion` UPPERCASE
+> promovido al mismo doc + skills `mrp-concentrado`/`mrp-inicio`. Hook `deriveLearning` ampliado
+> (shape "Could not find a property named X").
