@@ -139,15 +139,57 @@ export async function mcpListTools(url: string): Promise<McpTool[]> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Hardening defensivo de parámetros (2026-08-06):
+// El DAB NO limita filas si `first`/`primero` llega como STRING (visto en vivo:
+// el modelo pasó "30" en vez de 30 y el tool devolvió ~524k chars en el turno
+// frijol negro). Aquí se coacciona a número y se topa ANTES de ejecutar, en la
+// fuente de verdad de todas las llamadas MCP (tools dinámicos, debug, evals).
+// `select` también se acota a un número razonable de campos.
+// ═══════════════════════════════════════════════════════════════════════════
+const READ_LIMIT_TOOLS = /read_records|aggregate_records|buscar_registro/;
+const MAX_LIMIT = 500;
+const MAX_SELECT_FIELDS = 24;
+
+/** Normaliza los args de tools de lectura antes de ejecutarlos. Nunca lanza. */
+export function normalizeMcpArgs(name: string, args: Record<string, unknown>): Record<string, unknown> {
+  try {
+    if (!READ_LIMIT_TOOLS.test(name) || !args || typeof args !== "object") return args ?? {};
+    const out: Record<string, unknown> = { ...args };
+    for (const key of ["first", "primero"]) {
+      if (!(key in out) || out[key] === undefined || out[key] === null) continue;
+      const n = typeof out[key] === "number" ? (out[key] as number) : Number(out[key]);
+      if (Number.isFinite(n)) {
+        out[key] = Math.max(1, Math.min(Math.floor(n), MAX_LIMIT));
+      } else {
+        // Valor no numérico: nunca dejar sin límite (sería el bug original).
+        out[key] = name.includes("buscar_registro") ? 50 : 100;
+      }
+    }
+    if (typeof out.select === "string" && out.select.trim()) {
+      const fields = out.select
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, MAX_SELECT_FIELDS);
+      out.select = fields.join(",");
+    }
+    return out;
+  } catch {
+    return args ?? {};
+  }
+}
+
 /** Ejecuta un tool del MCP. Reintenta una vez re-inicializando si la sesión caducó. */
 export async function mcpCallTool(
   url: string,
   name: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
+  const safeArgs = normalizeMcpArgs(name, args ?? {});
   const call = async () => {
     const sid = await ensureSession(url);
-    return rpc(url, "tools/call", { name, arguments: args ?? {} }, Math.floor(Math.random() * 1e6) + 3, sid);
+    return rpc(url, "tools/call", { name, arguments: safeArgs ?? {} }, Math.floor(Math.random() * 1e6) + 3, sid);
   };
   let { msg } = await call();
   if (!msg || (msg.error && /session|not.?initialized/i.test(JSON.stringify(msg.error)))) {
