@@ -45,8 +45,9 @@ curl -s 'http://localhost:5173/api/audit/turn?sessionId=<id>&turnId=turn_0'
 
 # Página navegable de auditoría (la forma holística de VERLO todo):
 #   http://localhost:5173/audit
-#   → elige sesión → lista de turnos (métricas) → clic: razonamiento completo
-#   reconstruido (expandible), tools con input/output, HITL, errores, tokens.
+#   → elige sesión → lista de turnos (métricas) → clic: TRAYECTORIA SECUENCIAL
+#   (timeline) con razonamiento por paso, tool calls con input/output y duración,
+#   tokens por step, mensajes y HITL, ordenados con tiempo relativo (t+).
 
 # Resúmenes + tendencia (inspector / DevTools)
 curl -s 'http://localhost:5173/api/traces?limit=50'

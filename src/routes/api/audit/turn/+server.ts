@@ -107,6 +107,85 @@ export async function GET({ url }) {
       // opcional
     }
 
+    // ── Trayectoria secuencial (timeline) ──────────────────────────────────
+    // Cada evento significativo del turno, en orden, con `t` (ms desde el
+    // inicio), razonamiento agrupado por step, tool calls con su duración y
+    // tokens por step. Esto es lo que permite ver CÓMO se desarrolló el turno.
+    type TlItem = {
+      kind: string; stepIndex: number; at: string; t: number;
+      label?: string; name?: string; input?: unknown; output?: unknown;
+      state?: string; text?: string; meta?: Record<string, unknown>;
+    };
+    const MAX_OUTPUT_CHARS = 4000;
+    const t0 = turnEvents.length ? Date.parse(turnEvents[0].meta.at) : Date.now();
+    const tl: TlItem[] = [];
+    const reasoningByStep = new Map<number, string>();
+    const stepStartAt = new Map<number, number>();
+    const callsAt = new Map<string, { name: string; input: unknown; at: number }>();
+    for (const e of turnEvents) {
+      const dd = d(e as Ev);
+      const stepIndex = Number(dd.stepIndex ?? -1);
+      const atMs = Date.parse(e.meta.at);
+      const t = atMs - t0;
+      if (e.type === "step.started") {
+        stepStartAt.set(stepIndex, atMs);
+        tl.push({ kind: "step", stepIndex, at: e.meta.at, t, label: `Paso ${stepIndex + 1}` });
+      } else if (e.type === "reasoning.appended") {
+        const prev = reasoningByStep.get(stepIndex) ?? "";
+        reasoningByStep.set(stepIndex, prev + String(dd.reasoningDelta ?? ""));
+      } else if (e.type === "actions.requested") {
+        const acts = (dd.actions ?? []) as Array<{ callId?: string; toolName?: string; input?: unknown; arguments?: unknown }>;
+        for (const a of acts) {
+          const callId = String(a.callId ?? "");
+          const name = String(a.toolName ?? "");
+          const input = a.input ?? a.arguments ?? null;
+          callsAt.set(callId, { name, input, at: atMs });
+          tl.push({ kind: "tool-call", stepIndex, at: e.meta.at, t, name, input });
+        }
+      } else if (e.type === "action.result") {
+        const rd = dd as { result?: { callId?: string; isError?: boolean; output?: unknown } };
+        const call = callsAt.get(String(rd?.result?.callId ?? ""));
+        const out = rd?.result?.output ?? null;
+        const outText = typeof out === "string" ? out : JSON.stringify(out ?? null);
+        const outTrunc = outText.length > MAX_OUTPUT_CHARS ? outText.slice(0, MAX_OUTPUT_CHARS) + `\n… [truncado: ${outText.length} chars]` : outText;
+        tl.push({
+          kind: "tool-result", stepIndex, at: e.meta.at, t,
+          name: call?.name ?? "", input: call?.input ?? null,
+          output: outTrunc,
+          state: rd?.result?.isError ? "error" : "ok",
+          meta: { durMs: call ? atMs - call.at : null },
+        });
+      } else if (e.type === "message.received") {
+        tl.push({ kind: "message", stepIndex, at: e.meta.at, t, label: "Pregunta del usuario", text: String(dd.message ?? "") });
+      } else if (e.type === "message.completed") {
+        tl.push({ kind: "message", stepIndex, at: e.meta.at, t, label: "Respuesta", text: String(dd.message ?? "") });
+      } else if (e.type === "input.requested") {
+        const prompts = ((dd.requests ?? []) as Array<{ prompt?: string }>).map((r) => r.prompt ?? "");
+        tl.push({ kind: "hitl", stepIndex, at: e.meta.at, t, text: prompts.join("\n") });
+      } else if (e.type === "step.completed") {
+        const u = (dd as { usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number } }).usage;
+        const start = stepStartAt.get(stepIndex);
+        tl.push({
+          kind: "step-done", stepIndex, at: e.meta.at, t,
+          meta: {
+            inputTok: u?.inputTokens ?? 0,
+            outputTok: u?.outputTokens ?? 0,
+            cacheRead: u?.cacheReadTokens ?? 0,
+            durMs: start ? atMs - start : null,
+          },
+        });
+      }
+    }
+    // Insertar el razonamiento agrupado justo después del step que lo produjo.
+    const timeline: TlItem[] = [];
+    for (const item of tl) {
+      timeline.push(item);
+      if (item.kind === "step" && reasoningByStep.has(item.stepIndex)) {
+        const text = reasoningByStep.get(item.stepIndex) ?? "";
+        timeline.push({ kind: "reasoning", stepIndex: item.stepIndex, at: item.at, t: item.t, text, meta: { chars: text.length } });
+      }
+    }
+
     return json({
       sessionId,
       turnId,
@@ -127,6 +206,7 @@ export async function GET({ url }) {
       planTag,
       tools,
       hitl,
+      timeline,
     });
   } catch (err) {
     return json({ error: (err as Error).message }, { status: 500 });

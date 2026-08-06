@@ -230,7 +230,7 @@ Documento canónico completo: **`tesis/protocolo-pruebas.md`** (fuentes de evide
 ### Radiografía durable (toda la evidencia que recopila el runtime)
 - SQLite `.data/sessions.sqlite3` (sobrevive al purge de `.eve/`): tablas `events` (espejo completo del stream: mensajes, reasoning, tool calls, errores, HITL), `llm_inputs` (input real al LLM por step), `turn_summaries` (tokens/cache/errors/steps/calls por turno), `sessions`.
 - Endpoints: `GET /api/audit/turns` (turnos por sesión, derivados del espejo — toda sesión es explorable), `GET /api/audit/turn` (vista holística de un turno: question/answer/reasoning/tools/hitl/métricas), `GET /api/audit/llm` (inputs), `GET /api/audit/reasoning` (razonamiento reconstruido por turno, fidelidad 1:1), `GET /api/traces` (resúmenes + tendencia), `GET /api/sessions`.
-- **Página `/audit`** (holística): elige sesión → turnos con métricas → clic: razonamiento completo reconstruido + tools con input/output + respuesta + errores + HITL. La forma de diagnosticar qué pensó el agente y en qué se equivocó.
+- **Página `/audit`** (holística): elige sesión → turnos con métricas → clic: **trayectoria secuencial** (timeline con razonamiento por paso, tool calls con input/output y duración, tokens por step, mensajes, HITL). La forma de diagnosticar qué pensó el agente y en qué se equivocó.
 - Evals: `node_modules/.bin/eve eval --list` + `eve eval --url http://127.0.0.1:62803/ --timeout 360000` → **4/4 verdes**.
 - Linter: `node scripts/check-knowledge.ts` → **0 críticos** (WARN CONOCIDO/KERNEL esperados).
 - Learnings buffer: `company-twin/companies/<tenant>/state/learnings.md` (errores por promover).
