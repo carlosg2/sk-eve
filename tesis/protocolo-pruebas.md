@@ -40,6 +40,14 @@ curl -s 'http://localhost:5173/api/audit/llm?limit=50&sessionId=<id>'
 # Razonamiento reconstruido de una sesión (concatenación de reasoningDelta por turno)
 curl -s 'http://localhost:5173/api/audit/reasoning?sessionId=<id>'
 
+# Vista HOLÍSTICA de un turno (todo en una llamada): question/answer/reasoning/tools/hitl/métricas
+curl -s 'http://localhost:5173/api/audit/turn?sessionId=<id>&turnId=turn_0'
+
+# Página navegable de auditoría (la forma holística de VERLO todo):
+#   http://localhost:5173/audit
+#   → elige sesión → lista de turnos (métricas) → clic: razonamiento completo
+#   reconstruido (expandible), tools con input/output, HITL, errores, tokens.
+
 # Resúmenes + tendencia (inspector / DevTools)
 curl -s 'http://localhost:5173/api/traces?limit=50'
 
@@ -132,6 +140,16 @@ resultados grandes, modelo lento) antes de concluir.
 
 - **Sesión = snapshot**: los cambios en skills/kernel/middleware NO se ven en la sesión
   activa. Reiniciar conversación (o purge completo si el runtime sirve código stale).
+- **Cobertura del razonamiento = desde el alta del espejo (2026-08-06 06:43)**: las sesiones
+  anteriores a esa fecha no tienen eventos espejados (se perdieron con purges previos).
+  A partir de ahí TODO queda: razonamiento (fidelidad 1:1 con `reasoning.completed`),
+  mensajes, tools, errores, HITL.
+- **Subagentes espejados** (2026-08-06): el hook `*` guarda TAMBIÉN los eventos de
+  subagentes (su razonamiento es evidencia para diagnosticar). El índice del sidebar
+  (`sessions`) los sigue filtrando — están en `events` pero no en el sidebar.
+- **Razonamiento + narración**: DeepSeek a veces narra en texto normal entre tools (va a
+  `message.appended`, no a `reasoning`). El razonamiento *formal* está completo en
+  `reasoning.*`; el cuadro completo = reasoning + messages juntos.
 - **llm-io captura PRE-middleware**: el `planTag` del lóbulo frontal sale `null` en
   `/api/audit/turns` (el input se captura en `step.started`, antes del middleware que lo
   inyecta). El plan es determinista del mensaje (`planContextSync`) — derivable, no lo tomes
