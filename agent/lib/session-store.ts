@@ -148,6 +148,22 @@ function getDb(): DatabaseSync {
   if (!cols.some((c) => c.name === "archived")) {
     db.exec("ALTER TABLE sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
   }
+  // Migración de `evaluaciones` (v2 del evaluador de calidad 2026-08-06):
+  // columnas de métricas completas + hallazgos de minería.
+  const ecols = db.prepare("PRAGMA table_info(evaluaciones)").all() as unknown as { name: string }[];
+  const evalMigrations: Array<[string, string]> = [
+    ["steps", "INTEGER NOT NULL DEFAULT 0"],
+    ["toolCalls", "INTEGER NOT NULL DEFAULT 0"],
+    ["outputTok", "INTEGER NOT NULL DEFAULT 0"],
+    ["cacheHit", "REAL NOT NULL DEFAULT 0"],
+    ["warnings", "INTEGER NOT NULL DEFAULT 0"],
+    ["hallazgos", "TEXT"],
+  ];
+  for (const [name, def] of evalMigrations) {
+    if (!ecols.some((c) => c.name === name)) {
+      db.exec(`ALTER TABLE evaluaciones ADD COLUMN ${name} ${def}`);
+    }
+  }
   // Arranque del proceso: ningún turno puede estar corriendo en un proceso
   // recién creado, así que limpiar flags `active` huérfanos (un kill del dev
   // server a mitad de turno deja active=1 sin evento de cierre).
@@ -422,7 +438,33 @@ export async function listTurnSummaries(
   }));
 }
 
-// ── Evaluaciones de calidad (fábrica, para graduación) ─────────────────────
+// ── Evaluaciones de calidad (fábrica, para graduación) — v2 (2026-08-06) ──
+// v2: invariantes con valor REAL esperado (probe MCP en vivo), valor hallado
+// (extraído de la respuesta), acierto vs la verdad (no solo presencia), y
+// hallazgos de minería (qué conocimiento falta → promote-learnings).
+
+export interface EvaluacionInvariante {
+  /** clave corta única (ej. "frijol-negro-piezas"). */
+  clave: string;
+  /** etiqueta humana (ej. "Frijol Negro · piezas"). */
+  etiqueta: string;
+  /** valor REAL esperado (del probe MCP del snapshot actual). */
+  esperado: string | number | null;
+  /** valor que el modelo reportó (extraído de la respuesta) o null. */
+  hallado: string | number | null;
+  /** ¿el valor reportado coincide con el esperado (tolerancia 2%)? */
+  acierto: boolean;
+  /** ¿la etiqueta/familia fue mencionada en la respuesta? */
+  cobertura: boolean;
+}
+
+export interface EvaluacionHallazgo {
+  tipo: "dato-faltante" | "dato-incorrecto" | "formato" | "skill";
+  invariante: string;
+  esperado: string | number | null;
+  hallado: string | number | null;
+  detalle: string;
+}
 
 export interface EvaluacionRecord {
   id?: number;
@@ -434,14 +476,19 @@ export interface EvaluacionRecord {
   turnId: string;
   status: string;
   errors: number;
+  steps: number;
+  toolCalls: number;
   inputTok: number;
+  outputTok: number;
+  cacheHit: number;
+  warnings: number;
   turnMs: number;
-  /** [{ label, valor, hallado }] — invariantes evaluados en la respuesta. */
-  invariantes: Array<{ label: string; valor: string; hallado: boolean }>;
-  /** Fracción de invariantes hallados (0..1). */
+  invariantes: EvaluacionInvariante[];
+  /** Fracción de invariantes ACERTADOS vs la verdad (0..1). */
   exactitud: number;
-  /** 1 si el set de valores de los invariantes coincide con el de otras corridas del mismo caso (null si sin referencia). */
+  /** 1 si el set de valores EXTRAÍDOS coincide con el de otras corridas del mismo caso (null si sin referencia). */
   congruencia: number | null;
+  hallazgos: EvaluacionHallazgo[];
   respuesta: string;
 }
 
@@ -450,8 +497,8 @@ export async function appendEvaluacion(rec: EvaluacionRecord): Promise<void> {
   getDb()
     .prepare(
       `INSERT INTO evaluaciones
-        (at, caso, skill, pregunta, sessionId, turnId, status, errors, inputTok, turnMs, invariantes, exactitud, congruencia, respuesta)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (at, caso, skill, pregunta, sessionId, turnId, status, errors, steps, toolCalls, inputTok, outputTok, cacheHit, warnings, turnMs, invariantes, exactitud, congruencia, hallazgos, respuesta)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       rec.at,
@@ -462,11 +509,17 @@ export async function appendEvaluacion(rec: EvaluacionRecord): Promise<void> {
       rec.turnId,
       rec.status,
       rec.errors,
+      rec.steps,
+      rec.toolCalls,
       rec.inputTok,
+      rec.outputTok,
+      rec.cacheHit,
+      rec.warnings,
       rec.turnMs,
       JSON.stringify(rec.invariantes),
       rec.exactitud,
       rec.congruencia ?? null,
+      JSON.stringify(rec.hallazgos ?? []),
       rec.respuesta,
     );
 }
@@ -488,12 +541,18 @@ export async function listEvaluaciones(opts: { caso?: string; limit?: number } =
     sessionId: String(r.sessionId),
     turnId: String(r.turnId),
     status: String(r.status),
-    errors: Number(r.errors),
-    inputTok: Number(r.inputTok),
-    turnMs: Number(r.turnMs),
+    errors: Number(r.errors ?? 0),
+    steps: Number(r.steps ?? 0),
+    toolCalls: Number(r.toolCalls ?? 0),
+    inputTok: Number(r.inputTok ?? 0),
+    outputTok: Number(r.outputTok ?? 0),
+    cacheHit: Number(r.cacheHit ?? 0),
+    warnings: Number(r.warnings ?? 0),
+    turnMs: Number(r.turnMs ?? 0),
     invariantes: r.invariantes ? JSON.parse(String(r.invariantes)) : [],
-    exactitud: Number(r.exactitud),
-    congruencia: r.congruencia === null ? null : Number(r.congruencia),
-    respuesta: String(r.respuesta),
+    exactitud: Number(r.exactitud ?? 0),
+    congruencia: r.congruencia === null || r.congruencia === undefined ? null : Number(r.congruencia),
+    hallazgos: r.hallazgos ? JSON.parse(String(r.hallazgos)) : [],
+    respuesta: String(r.respuesta ?? ""),
   }));
 }

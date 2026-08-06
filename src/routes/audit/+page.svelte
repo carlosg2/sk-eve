@@ -28,12 +28,25 @@
   type Evaluacion = {
     id: number; at: string; caso: string; skill: string; pregunta: string;
     sessionId: string; turnId: string; status: string; errors: number;
-    inputTok: number; turnMs: number; exactitud: number; congruencia: number | null;
-    invariantes: Array<{ label: string; valor: string; hallado: boolean }>;
+    steps: number; toolCalls: number; inputTok: number; outputTok: number;
+    cacheHit: number; warnings: number; turnMs: number;
+    exactitud: number; congruencia: number | null;
+    invariantes: Array<{
+      clave: string; etiqueta: string;
+      esperado: string | number | null; hallado: string | number | null;
+      acierto: boolean; cobertura: boolean;
+    }>;
+    hallazgos: Array<{
+      tipo: string; invariante: string;
+      esperado: string | number | null; hallado: string | number | null;
+      detalle: string;
+    }>;
     respuesta: string;
   };
   type Tendencia = {
     caso: string; n: number; exactitudMedia: number; congruenciaPct: number | null;
+    pasosProm: number; callsProm: number; tokInProm: number; tokOutProm: number;
+    errProm: number; duracionPromMs: number; hallazgosTotal: number;
   };
 
   let sessions = $state<Session[]>([]);
@@ -405,13 +418,19 @@
                 </div>
                 <div class="mt-3 grid grid-cols-2 gap-2">
                   <div class="rounded-lg border border-zinc-800 bg-black/40 p-2.5 text-center">
-                    <div class="text-[10px] uppercase tracking-wider text-zinc-500">Exactitud</div>
+                    <div class="text-[10px] uppercase tracking-wider text-zinc-500">Exactitud <span title="% de invariantes cuyo valor coincide con la verdad del MCP">(verdad)</span></div>
                     <div class="text-lg font-bold ${t.exactitudMedia >= 80 ? 'text-emerald-400' : t.exactitudMedia >= 60 ? 'text-amber-400' : 'text-red-400'}">{t.exactitudMedia}%</div>
                   </div>
                   <div class="rounded-lg border border-zinc-800 bg-black/40 p-2.5 text-center">
                     <div class="text-[10px] uppercase tracking-wider text-zinc-500">Congruencia</div>
                     <div class="text-lg font-bold ${t.congruenciaPct == null ? 'text-zinc-500' : t.congruenciaPct >= 80 ? 'text-emerald-400' : t.congruenciaPct >= 60 ? 'text-amber-400' : 'text-red-400'}">{t.congruenciaPct == null ? "—" : t.congruenciaPct + "%"}</div>
                   </div>
+                </div>
+                <div class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-zinc-500">
+                  <span>{t.pasosProm} pasos / {t.callsProm} calls prom.</span>
+                  <span>{fmtK(t.tokInProm)} in / {fmtK(t.tokOutProm)} out</span>
+                  <span>{t.errProm} err prom. · {fmt(t.duracionPromMs)}</span>
+                  <span class="${t.hallazgosTotal ? 'text-amber-400' : 'text-zinc-600'}">{t.hallazgosTotal} hallazgo(s) de minería</span>
                 </div>
               </div>
             {/each}
@@ -425,24 +444,39 @@
             <ul class="divide-y divide-zinc-800/70">
               {#each evaluaciones as e, i (e.id ?? i)}
                 <li class="px-4 py-3">
-                  <div class="flex flex-wrap items-center gap-2">
+                  <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                     <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold text-zinc-300">{e.caso}</span>
                     <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">{e.skill}</span>
                     <span class="text-xs text-zinc-300">exactitud <b class="${e.exactitud * 100 >= 80 ? 'text-emerald-400' : e.exactitud * 100 >= 60 ? 'text-amber-400' : 'text-red-400'}">{Math.round(e.exactitud * 100)}%</b></span>
                     <span class="text-xs text-zinc-300">congruencia <b class="text-cyan-300">{e.congruencia == null ? "—" : Math.round(e.congruencia * 100) + "%"}</b></span>
+                    <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">{e.steps} pasos</span>
+                    <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">{e.toolCalls} calls</span>
+                    <span class="text-[10px] text-zinc-500">{fmtK(e.inputTok)} in / {fmtK(e.outputTok)} out</span>
+                    <span class="text-[10px] text-zinc-500">cache {e.cacheHit}%</span>
                     <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] ${e.errors ? 'text-red-400' : 'text-emerald-400'}">{e.errors} err</span>
-                    <span class="text-[10px] text-zinc-500">{fmtK(e.inputTok)} tok</span>
                     <span class="text-[10px] text-zinc-500">{fmt(e.turnMs)}</span>
                     <span class="ml-auto text-[10px] text-zinc-600">{new Date(e.at).toLocaleString()}</span>
                   </div>
                   <p class="mt-1.5 text-[13px] text-zinc-200">{e.pregunta}</p>
-                  <div class="mt-1 flex flex-wrap gap-1.5">
+                  <div class="mt-1.5 flex flex-wrap gap-1.5">
                     {#each e.invariantes as inv}
-                      <span class="rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${inv.hallado ? 'border-emerald-800 bg-emerald-950/60 text-emerald-300' : 'border-red-800 bg-red-950/60 text-red-300'}">
-                        {inv.hallado ? "✓" : "✗"} {inv.label} = {inv.valor}
+                      <span
+                        class="rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${inv.acierto ? 'border-emerald-800 bg-emerald-950/60 text-emerald-300' : inv.cobertura ? 'border-red-800 bg-red-950/60 text-red-300' : 'border-amber-800 bg-amber-950/60 text-amber-300'}"
+                        title="esperado: {inv.esperado ?? '—'} · reportado: {inv.hallado ?? '—'}"
+                      >
+                        {inv.acierto ? "✓" : "✗"} {inv.etiqueta}: {inv.hallado ?? "(no reportado)"} / {inv.esperado}
                       </span>
                     {/each}
                   </div>
+                  {#if e.hallazgos.length}
+                    <div class="mt-2 space-y-1">
+                      {#each e.hallazgos as h}
+                        <div class="rounded-lg border border-amber-900/50 bg-amber-950/20 px-2.5 py-1.5 text-[11px] text-amber-100/90">
+                          <b class="uppercase text-[9px] text-amber-400">{h.tipo}</b> — {h.detalle}
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
                   <div class="mt-2">
                     <button class="text-[11px] text-cyan-400 hover:underline" onclick={() => toggleEval(i)}>
                       {expandedEval.has(i) ? "▾ ocultar respuesta" : "▸ ver respuesta"}

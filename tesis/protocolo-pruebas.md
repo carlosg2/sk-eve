@@ -196,18 +196,30 @@ CALIDAD del contenido. Para "graduar" un skill (tesis: los evals deciden cuándo
 sube de etapa) hace falta medir la respuesta: ¿contiene los datos correctos? y
 ¿es reproducible?
 
-**`scripts/eval-calidad.ts`** — evaluador de la fábrica que:
+**`scripts/eval-calidad.ts`** — evaluador de la fábrica (v2, refactor 2026-08-06)
+que:
 - Lanza N repeticiones de una pregunta EN PARALELO (vía `POST /eve/v1/session`,
   sin esperar entre corridas — las sesiones son independientes; no saturar con
   >3-4 a la vez por DeepSeek). O reutiliza sesiones ya hechas con `SKIP_LANZAR=1`
   (mismo título en el índice) para no gastar LLM al re-evaluar.
-- Espera a que terminen leyendo `/api/audit/turns` (status `/completed/`), y
-  evalúa CADA respuesta contra **invariantes** (valores clave esperados).
-- Calcula **exactitud** (% de invariantes presentes en la respuesta) y
-  **congruencia** (% de corridas que dan los mismos datos — reproducibilidad).
+- **Probe de VERDAD EN VIVO**: cada caso consulta el MCP real (aggregate/read)
+  y calcula los valores esperados del snapshot ACTUAL — NADA hardcodeado. Si el
+  snapshot cambia (ej. re-planean la semana 31), el evaluador lo detecta solo.
+- **EXACTITUD REAL**: por invariante se EXTRAE el valor que el modelo reportó
+  (números cerca de la etiqueta/familia en la respuesta) y se compara contra la
+  verdad del probe (tolerancia ±2%). No es "menciona la palabra", es "el dato
+  es correcto".
+- **CONGRUENCIA REAL**: fingerprint de los valores EXTRAÍDOS por corrida (no de
+  booleanos). A=697000 vs B=700000 → fingerprints distintos → congruencia baja.
+- **MÉTRICAS COMPLETAS**: steps, calls, tokIn, tokOut, cache, err, warnings,
+  duración (de la radiografía durable).
+- **MINERÍA DE CONOCIMIENTO**: por invariante fallido se persiste un HALLAZGO
+  (dato-faltante / dato-incorrecto / skill) → insumo directo para
+  promote-learnings y para "graduar" skills.
 - Persiste cada corrida en la tabla `evaluaciones` (`.data/sessions.sqlite3`,
   auditable, sobrevive al purge) y expone la tendencia en
-  `GET /api/audit/evaluaciones` (exactitud media + congruencia por caso).
+  `GET /api/audit/evaluaciones` (exactitud media, congruencia, eficiencia y
+  hallazgos por caso).
 
 Uso:
 ```bash
@@ -216,17 +228,52 @@ N=3 node ...  scripts/eval-calidad.ts          # repeticiones por caso
 CASO=plan-s31-familias node ...                # un solo caso
 SKIP_LANZAR=1 node ...                          # reutiliza sesiones ya hechas
 BASE=http://localhost:5173 node ...             # el server escucha en ::1 → usar localhost
+MCP_URL=<url> node ...                          # override del MCP del tenant activo
 ```
+
+⚠️ **Por qué v1 daba "100%/100%" falso (lección validada 2026-08-06)**: el
+usuario detectó que era "demasiado bello". Causas reales: (1) la exactitud solo
+verificaba que la respuesta CONTENÍA el substring (un modelo que mencionaba las
+familias/números pasaba aunque reportara datos INCORRECTOS); (2) la congruencia
+media el acuerdo con la MODA de booleanos — si todas las corridas fallaban igual,
+daba 100% aunque TODAS estuvieran mal; (3) los valores esperados eran
+hardcodeados y no se re-verificaban contra el snapshot real (cuando re-planearon
+la semana 31, la verdad pasó de 697k a 1,045k pz y el v1 seguía "acertando" con
+el substring viejo). La v2 mide contra la VERDAD (probe MCP) y por VALORES
+extraídos, no por presencia.
+
+⚠️ **Bugs de runtime encontrados al construir v2** (todos corregidos):
+1. **Shape del MCP ICF**: `aggregate_records` devuelve `{ result: { items: [] } }`
+   (NO `{ items }` directo) — el probe inicial no leía nada y no evaluaba (el
+   auto-calibrado se negó a evaluar sin verdad, correcto).
+2. **Parseo de números**: `replace(",", ".")` solo reemplazaba la PRIMERA coma →
+   `"3,154,344.99"` daba `[]` y `"70,435.91"` daba `70.43591` (3 órdenes menor).
+   Fix: si hay coma Y punto, el decimal es el separador más cercano al final;
+   con un solo separador, decimal si hay exactamente uno con ≤2 dígitos.
+3. **Congruencia inflada**: con todas las corridas en fingerprints DISTINTOS
+   (`mejor=1`), el edge case `count===mejor` marcaba TODAS como congruentes →
+   100%. Fix: congruencia=1 solo si `mejor > 1 && count === mejor` (acuerdo real).
+4. **esperarTurno prematuro**: `/api/audit/turns` deriva `status:"completed"` por
+   DEFAULT aunque el turno siga EN CURSO (sin turn_summary, `turnMs=null`). El
+   evaluador persistía evaluaciones vacías (0 calls/0 tok) mientras los turnos
+   corrían en background (contenedores Docker del sandbox "Up"). Fix: exigir
+   `turnMs != null` (el turn_summary se escribió = turno CERRADO de verdad).
+5. **Proxy /eve 502**: `.eve/sveltekit-dev-server.json` stale (apunta al runtime
+   Eve interno muerto) → `POST /eve/v1/session` 502. Fix: kill + `rm -f` del
+   archivo + `npm run dev` (el gotcha del package.json).
 
 ⚠️ **Regla de oro de los invariantes (lección validada 2026-08-06)**: los valores
 esperados deben **derivarse de la verdad de runtime** (probe MCP), NO asumirse.
-El primer golden de `faltante-concentrado` usaba "Frijol Negro" y daba 67% falso;
-el faltante real es "Mitades claras"+"Frijol Media Oreja" (aggregate real) → con
-el invariante correcto, 100% exactitud / 100% congruencia. El modelo SÍ es
-reproducible; un golden mal definido mide mal al modelo.
+El primer golden de `faltante-concentrado` asumía "Frijol Negro" y daba 67% falso;
+el faltante real de aquel snapshot era "Mitades claras"+"Frijol Media Oreja". En
+v2 no hay golden: el probe calcula la verdad en vivo y el evaluador mide contra
+ella. Un evaluador que da "100% perfecto" en todo es sospechoso: revisar que no
+esté midiendo presencia de strings hardcodeados en vez de la verdad.
 
-Demo validada (2026-08-06): plan-s31-familias y faltante-concentrado, 3 corridas
-en paralelo cada uno → **100% exactitud / 100% congruencia** en ambos (6
-evaluaciones en SQLite). La tendencia en `/api/audit/evaluaciones` es la base
-para "graduar" un skill (pasar de "no verificado" a "verificado" con calidad
-reproducible).
+Demo validada (2026-08-06, v2): re-evaluar sesiones viejas contra la verdad
+ACTUAL dio **0% de exactitud** (el modelo reportó el snapshot viejo 697k vs la
+verdad nueva 1,045k) — el evaluador ya NO da 100% falso; la minería lista
+"qué conocimiento falta" por invariante para promover. La tendencia en
+`/api/audit/evaluaciones` es la base para "graduar" un skill (pasar de
+"no verificado" a "verificado" con calidad reproducible y datos correctos).
+
