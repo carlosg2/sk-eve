@@ -62,11 +62,12 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
   `CentroFCTemp`, `EstacionTFCTemp`) se sobrescriben (DELETE+INSERT) cada vez que
   alguien "corre" el proceso en el portal. El agente **solo lee** el resultado
   ya calculado — nunca puede disparar el recálculo.
-- **Verificar que el proceso se corrió** antes de reportar "no hay datos":
-  ```
-  read_records(UtLogEjcProMrp, filter: "ORG eq 'CGARZA'",
-    select: "LOG_ID,LOG_FYH,ORG,PRM", orderby: ["LOG_FYH desc"], first: 5)
-  ```
+- **Verificar que el proceso se corrió** antes de reportar "no hay datos".
+  ⚠️ `UtLogEjcProMrp` (log de corridas) NO existe en el MCP de ICF
+  (EntityNotFound verificado 2026-08-06) — no intentes leerla. Usa como
+  proxy que el snapshot esté poblado: `read_records(ResumenPlaneacionCF,
+  filter: "Usuario eq 'CGARZA'", select: "Articulo,Producir", first: 1)`
+  o `CalendarioFC` (si trae filas, el proceso se corrió).
 - **Traducir "semana N" a fechas**: usar `CalendarioFC`/`DimTiempoSemana`, no
   asumir que la semana 1 es la primera del año calendario (depende de cuándo se
   capturó el forecast).

@@ -42,6 +42,13 @@ AUTORIZADO** (`ForecastPlanSemanal.Situacion = 'Autorizado'`), determinando de
 qué lote específico saldría cada material. El resultado queda materializado en
 la tabla `UtMrpPrevioMateriaPrima`.
 
+> ⚠️ **`UtMrpPrevioMateriaPrima` NO existe en el MCP de ICF** (EntityNotFound
+> verificado 2026-08-06). Este patrón es del proyecto sigma-icf (MSSQL
+> MRPCF5000), NO está publicado aquí. Si el usuario pregunta por la asignación
+> PEPS/FIFO de lotes contra el plan, responde la limitación (dato no
+> disponible) y ofrece en su lugar existencias por artículo/almacén vía
+> `ArtDisponibleDesc`.
+
 ```
 read_records(UtMrpPrevioMateriaPrima,
   filter: "SEMANA eq <N> and ARTICULO eq '<A>'",
@@ -53,9 +60,11 @@ asignación), usar `SerieLote` (erp-kernel, solo lectura).
 
 ## Limitaciones
 
-- `UtMrpPrevioMateriaPrima` es una instantánea (staging) generada por batch —
-  solo lectura, no representa el estado actual si el batch no se ha vuelto a
-  correr; verificar `UtLogEjcProMrp` si el dato parece desactualizado.
+- `UtMrpPrevioMateriaPrima` es una instantánea (staging) del proyecto
+  sigma-icf — **no publicada en el MCP de ICF** (EntityNotFound verificado
+  2026-08-06). El agente no puede leerla; ante preguntas de asignación de
+  lotes responde la limitación y ofrece `ArtDisponibleDesc` (existencias) o
+  `ExplocionMatCF` (requerimientos).
 - No confundir el forecast **VACA/ganadero** (esta ruta) con el forecast
   **general del módulo FC** (`mrp-forecast`/`mrp-arribos`) — son procesos y
   tablas distintos aunque ambos hablan de "presupuesto"/"forecast".

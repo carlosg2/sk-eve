@@ -35,21 +35,17 @@ disponible del proyecto) — no se pudo confirmar la lógica de negocio real
 
 ## Qué hacer si el usuario pregunta por esto
 
-1. Intenta descubrimiento de schema antes de descartar la posibilidad de que
-   exista vía DAB:
-   ```
-   read_records(ProgramaTraspaso, first: 1)
-   read_records(TraspasoSemanal, first: 1)
-   read_records(MRPAlmArribos, first: 1)
-   ```
-2. Si nada existe, informa explícitamente al usuario que **el programa de
-   traspasos entre almacenes no está disponible todavía a través de este
-   agente** — no lo confundas con movimientos de inventario genéricos del
-   ERP (que sí podrían existir en erp-kernel bajo otro nombre; verifica con
-   `query_company_twin` antes de descartar).
-3. No hay entidad de traspaso en el Twin — si alguna de las llamadas del
-   paso 1 sí funciona, repórtalo para que se documente, no la documentes tú
-   mismo con datos inventados.
+1. **Estado verificado (2026-08-06, linter contra el MCP real)**: las
+   entidades `ProgramaTraspaso`, `TraspasoSemanal` y `MRPAlmArribos` NO
+   existen en el MCP de ICF (`EntityNotFound` confirmado con
+   `read_records(..., first: 1)`). NO las pruebes una por una.
+2. Responde la limitación directamente: **el programa de traspasos entre
+   almacenes no está disponible a través de este agente** — no lo confundas
+   con movimientos de inventario genéricos del ERP (que sí podrían existir
+   en erp-kernel bajo otro nombre; verifica con `query_company_twin` antes
+   de descartar).
+3. Si el usuario reporta que sí existe una entidad de traspaso, repórtalo
+   para que se documente — no la documentes tú mismo con datos inventados.
 
 ## Limitaciones
 

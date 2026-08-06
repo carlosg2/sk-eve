@@ -116,6 +116,60 @@ function scanMarkdown(text: string): SkillScan {
 	return scan;
 }
 
+// ── scoping por tenant y estados conocidos ────────────────────────────────
+
+// Un skill con `tenant:` explícito en frontmatter solo aplica a esos tenants.
+// `tenant: null` (o ausente) = universal → aplica a todos. Los skills de otros
+// tenants NO deben validarse contra el MCP del tenant activo (ej. sugerido-
+// compra es de marmoles; validarlo contra ICF produce falsos críticos).
+function appliesToTenant(file: string, activeTenant: string): boolean {
+  const text = readFileSync(file, "utf8");
+  const m = text.match(/^tenant\s*:\s*(.+)$/m);
+  if (!m) return true;
+  const raw = m[1].trim();
+  if (raw === "null" || raw === "~") return true;
+  const list = raw.replace(/[[\]"']/g, "").split(",").map((s) => s.trim()).filter(Boolean);
+  return list.includes(activeTenant);
+}
+
+// Entidades documentadas como "No disponible" para un tenant en su twin
+// (companies/<tenant>/modulos.md u otro concepto). Un EntityNotFound de una
+// entidad AQUÍ listada es estado CONOCIDO (el agente responde "Dato no
+// disponible"), no un skill roto.
+function readUnavailableEntities(tenantDir: string): Set<string> {
+  const out = new Set<string>();
+  const files = walkFiles(tenantDir).filter((f) => f.endsWith(".md"));
+  for (const file of files) {
+    const text = readFileSync(file, "utf8");
+    // Solo secciones que hablan de no-disponibilidad/EntityNotFound.
+    const sections = text.split(/\n(?=#{1,4}\s)/);
+    for (const section of sections) {
+      if (!/no disponible|no est[áa]|EntityNotFound|no (se )?publica/i.test(section)) continue;
+      for (const m of section.matchAll(/`([A-Za-z][A-Za-z0-9_]{1,})`/g)) out.add(m[1]);
+    }
+  }
+  return out;
+}
+
+// Un skill puede DECLARAR su propio gap (sección "Limitaciones": "X no existe /
+// no está publicado / no hay ninguna entidad X"). Si la entidad aparece cerca de
+// esa declaración (en CUALQUIER ocurrencia), el EntityNotFound es esperado y
+// documentado → WARN, no CRÍTICO.
+function skillDeclaresGap(text: string, ent: string): boolean {
+  let idx = text.indexOf(ent);
+  while (idx !== -1) {
+    const around = text.slice(Math.max(0, idx - 250), Math.min(text.length, idx + ent.length + 350));
+    if (
+      /no existe|no est[áa]|no disponible|EntityNotFound|no (se )?publica|limitaci[oó]n|no hay (ninguna )?entidad|sin entidad/i.test(
+        around
+      )
+    )
+      return true;
+    idx = text.indexOf(ent, idx + ent.length);
+  }
+  return false;
+}
+
 // ── main ───────────────────────────────────────────────────────────────────
 
 const root = rootDir();
@@ -149,9 +203,10 @@ let critical = 0;
 console.log(`\n=== Linter de conocimiento · tenant ${cfg.tenant} ===`);
 console.log(`Catálogo describe_entities: ${realEntities.size} entidades (incompleto; la verdad es read_records)`);
 
-// Entidades usadas en tool calls por skills + twin.
+// Entidades usadas en tool calls por skills + twin. Solo skills que aplican al
+// tenant activo (scoping por frontmatter `tenant:`).
 const callEntities = new Set<string>();
-for (const scan of skillScans.values()) for (const e of scan.callEntities) callEntities.add(e);
+for (const [file, scan] of skillScans) if (appliesToTenant(file, cfg.tenant)) for (const e of scan.callEntities) callEntities.add(e);
 for (const e of twinScan.callEntities) callEntities.add(e);
 
 const fieldsByEntity = new Map<string, Set<string>>();
@@ -179,6 +234,28 @@ for (const ent of [...callEntities].sort()) {
 
 	const err = extractError(out);
 	if (err) {
+		// Estado CONOCIDO: la entidad está documentada como no disponible en el
+		// twin del tenant, o un skill del tenant activo declara su gap
+		// (Limitaciones). En ambos casos el EntityNotFound es esperado → WARN.
+		const unavailable = readUnavailableEntities(join(root, "company-twin", "companies", cfg.tenant));
+		const fromActiveSkill = [...skillScans.entries()].some(
+			([f, s]) => appliesToTenant(f, cfg.tenant) && s.callEntities.has(ent)
+		);
+		const declaredGap = [...skillScans.entries()].some(
+			([f, s]) => appliesToTenant(f, cfg.tenant) && s.callEntities.has(ent) && skillDeclaresGap(readFileSync(f, "utf8"), ent)
+		);
+		if (unavailable.has(ent) || declaredGap) {
+			console.log(`🟡 CONOCIDO · '${ent}' no disponible en ${cfg.tenant} (documentado en twin/skill) (${sources})`);
+			continue;
+		}
+		// El ERP Kernel es universal (Intelisis Core): documenta el schema de
+		// tablas estándar aunque el MCP del tenant activo publique un subconjunto.
+		// Entidad solo del twin (no usada por skills del tenant) = subconjunto,
+		// no un bug de skill → WARN informativo, no CRÍTICO.
+		if (!fromActiveSkill) {
+			console.log(`🟡 KERNEL · '${ent}' del ERP Kernel universal no publicada en el MCP de ${cfg.tenant} (subconjunto) (${sources})`);
+			continue;
+		}
 		console.log(
 			`🔴 CRÍTICO · '${ent}' NO es usable en read: ${err.type} — ${err.message.slice(0, 90)} (${sources})`
 		);
