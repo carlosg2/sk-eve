@@ -1,6 +1,7 @@
 import { appendFile, readFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { appendLlmInput } from "./session-store.js";
 
 // Puente de observabilidad: la instrumentación (server, agent/instrumentation.ts)
 // captura el INPUT REAL al LLM en cada step.started y lo anexa aquí; un endpoint
@@ -40,6 +41,13 @@ export async function recordModelInput(rec: LlmIoRecord): Promise<void> {
     await appendFile(LOG_PATH, JSON.stringify(rec) + "\n");
   } catch {
     // Nunca romper el turno por un fallo de escritura del log.
+  }
+  // Copia durable en SQLite: .eve/llm-io.jsonl se pierde con `rm -rf .eve`
+  // (purga habitual del repo); la radiografía del input al LLM debe sobrevivir.
+  try {
+    await appendLlmInput(rec);
+  } catch {
+    // nunca romper el turno por un fallo de persistencia
   }
 }
 

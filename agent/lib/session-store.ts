@@ -81,6 +81,40 @@ function getDb(): DatabaseSync {
       data TEXT
     );
     CREATE INDEX IF NOT EXISTS events_session ON events (sessionId, id);
+
+    -- Radiografía durable del self-improvement: el INPUT real al LLM (lo que
+    -- se le mandó en cada step) y el resumen de cada turno. Viven AQUÍ (no en
+    -- .eve/llm-io.jsonl ni .eve/traces.jsonl) para sobrevivir el purge
+    -- habitual de .eve/. Sin tope (minería), como la tabla events.
+    CREATE TABLE IF NOT EXISTS llm_inputs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sessionId TEXT NOT NULL,
+      turn INTEGER NOT NULL,
+      step INTEGER NOT NULL,
+      at TEXT NOT NULL,
+      instructions TEXT,
+      messages TEXT
+    );
+    CREATE INDEX IF NOT EXISTS llm_inputs_session ON llm_inputs (sessionId, id);
+
+    CREATE TABLE IF NOT EXISTS turn_summaries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sessionId TEXT NOT NULL,
+      turn INTEGER NOT NULL,
+      at TEXT NOT NULL,
+      turnMs INTEGER NOT NULL,
+      steps INTEGER NOT NULL,
+      toolCalls INTEGER NOT NULL,
+      inputTok INTEGER NOT NULL,
+      outputTok INTEGER NOT NULL,
+      cacheRead INTEGER NOT NULL,
+      cacheHit REAL NOT NULL,
+      errors INTEGER NOT NULL,
+      warnings INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      tools TEXT
+    );
+    CREATE INDEX IF NOT EXISTS turn_summaries_session ON turn_summaries (sessionId, id);
   `);
   // Migración: `archived` se añadió después de la creación original de la
   // tabla — SQLite no soporta `ADD COLUMN IF NOT EXISTS`, así que se checa
@@ -183,10 +217,12 @@ export async function setSessionArchived(id: string, archived: boolean): Promise
   update(id, (rec) => ({ ...rec, archived }), false);
 }
 
-/** Elimina una sesión y todos sus eventos espejados. Irreversible. */
+/** Elimina una sesión y todos sus eventos/inputs/resúmenes espejados. Irreversible. */
 export async function deleteSession(id: string): Promise<void> {
   const conn = getDb();
   conn.prepare("DELETE FROM events WHERE sessionId = ?").run(id);
+  conn.prepare("DELETE FROM llm_inputs WHERE sessionId = ?").run(id);
+  conn.prepare("DELETE FROM turn_summaries WHERE sessionId = ?").run(id);
   conn.prepare("DELETE FROM sessions WHERE id = ?").run(id);
 }
 
@@ -228,5 +264,135 @@ export async function listEvents(sessionId: string): Promise<StoredEvent[]> {
     type: row.type,
     data: row.data ? JSON.parse(row.data) : undefined,
     meta: { id: row.id, at: row.emittedAt },
+  }));
+}
+
+// ── Radiografía durable (llm_inputs + turn_summaries) ─────────────────────
+// Estas tablas viven en SQLite (`.data/sessions.sqlite3`), NO en `.eve/`, para
+// que el input real al LLM y los resúmenes de turno sobrevivan el purge
+// habitual (`rm -rf .eve`) y se acumulen sin tope como corpus de evaluación.
+
+/** El INPUT real a una llamada del LLM (lo que el modelo recibió en un step). */
+export interface LlmInputRecord {
+  sessionId: string;
+  turn: number;
+  step: number;
+  at: string;
+  instructions: unknown;
+  messages: unknown;
+}
+
+/** Persiste el input al LLM en SQLite (durable; .eve/llm-io.jsonl se pierde en el purge). */
+export async function appendLlmInput(rec: LlmInputRecord): Promise<void> {
+  try {
+    getDb()
+      .prepare(
+        `INSERT INTO llm_inputs (sessionId, turn, step, at, instructions, messages) VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        rec.sessionId,
+        rec.turn,
+        rec.step,
+        rec.at,
+        JSON.stringify(rec.instructions ?? null),
+        JSON.stringify(rec.messages ?? null),
+      );
+  } catch {
+    // nunca romper el turno por un fallo de persistencia
+  }
+}
+
+/** Lee inputs del LLM, más recientes primero. */
+export async function listLlmInputs(
+  opts: { sessionId?: string; limit?: number } = {},
+): Promise<LlmInputRecord[]> {
+  const limit = Math.max(1, Math.min(500, opts.limit ?? 200));
+  const rows = opts.sessionId
+    ? getDb()
+        .prepare("SELECT * FROM llm_inputs WHERE sessionId = ? ORDER BY id DESC LIMIT ?")
+        .all(opts.sessionId, limit)
+    : getDb().prepare("SELECT * FROM llm_inputs ORDER BY id DESC LIMIT ?").all(limit);
+  return (rows as unknown as Array<Record<string, string | number>>).map((r) => ({
+    sessionId: String(r.sessionId),
+    turn: Number(r.turn),
+    step: Number(r.step),
+    at: String(r.at),
+    instructions: r.instructions ? JSON.parse(String(r.instructions)) : null,
+    messages: r.messages ? JSON.parse(String(r.messages)) : null,
+  }));
+}
+
+/** Resumen de un turno terminado (misma forma que TurnTrace de trace-store). */
+export interface TurnSummaryRecord {
+  sessionId: string;
+  turn: number;
+  at: string;
+  turnMs: number;
+  steps: number;
+  toolCalls: number;
+  inputTok: number;
+  outputTok: number;
+  cacheRead: number;
+  cacheHit: number;
+  errors: number;
+  warnings: number;
+  status: string;
+  tools: unknown;
+}
+
+/** Persiste el resumen del turno en SQLite (durable; .eve/traces.jsonl se pierde en el purge). */
+export async function appendTurnSummary(rec: TurnSummaryRecord): Promise<void> {
+  try {
+    getDb()
+      .prepare(
+        `INSERT INTO turn_summaries (sessionId, turn, at, turnMs, steps, toolCalls, inputTok, outputTok, cacheRead, cacheHit, errors, warnings, status, tools)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        rec.sessionId,
+        rec.turn,
+        rec.at,
+        rec.turnMs,
+        rec.steps,
+        rec.toolCalls,
+        rec.inputTok,
+        rec.outputTok,
+        rec.cacheRead,
+        rec.cacheHit,
+        rec.errors,
+        rec.warnings,
+        rec.status,
+        JSON.stringify(rec.tools ?? []),
+      );
+  } catch {
+    // nunca romper
+  }
+}
+
+/** Lee resúmenes de turno, más recientes primero. */
+export async function listTurnSummaries(
+  opts: { sessionId?: string; limit?: number } = {},
+): Promise<TurnSummaryRecord[]> {
+  const limit = Math.max(1, Math.min(500, opts.limit ?? 500));
+  const rows = opts.sessionId
+    ? getDb()
+        .prepare("SELECT * FROM turn_summaries WHERE sessionId = ? ORDER BY id DESC LIMIT ?")
+        .all(opts.sessionId, limit)
+    : getDb().prepare("SELECT * FROM turn_summaries ORDER BY id DESC LIMIT ?").all(limit);
+  return (rows as unknown as Array<Record<string, string | number>>).map((r) => ({
+    sessionId: String(r.sessionId),
+    turn: Number(r.turn),
+    at: String(r.at),
+    turnMs: Number(r.turnMs),
+    steps: Number(r.steps),
+    toolCalls: Number(r.toolCalls),
+    inputTok: Number(r.inputTok),
+    outputTok: Number(r.outputTok),
+    cacheRead: Number(r.cacheRead),
+    cacheHit: Number(r.cacheHit),
+    errors: Number(r.errors),
+    warnings: Number(r.warnings),
+    status: String(r.status),
+    tools: r.tools ? JSON.parse(String(r.tools)) : [],
   }));
 }

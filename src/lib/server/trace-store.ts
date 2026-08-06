@@ -9,6 +9,7 @@
 import { appendFile, readFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { appendTurnSummary, listTurnSummaries } from "../../../agent/lib/session-store.js";
 
 export type TraceTool = {
 	name: string;
@@ -57,7 +58,8 @@ function resolveRoot(): string {
 
 const TRACE_PATH = join(resolveRoot(), ".eve", "traces.jsonl");
 
-/** Anexa un resumen de turno (append-only, una línea JSON por turno). */
+/** Anexa un resumen de turno (append-only). Escribe en el archivo .eve (legacy)
+ *  Y en SQLite (durable — sobrevive el `rm -rf .eve` habitual del repo). */
 export async function appendTrace(rec: TurnTrace): Promise<void> {
 	try {
 		await mkdir(dirname(TRACE_PATH), { recursive: true });
@@ -65,10 +67,22 @@ export async function appendTrace(rec: TurnTrace): Promise<void> {
 	} catch {
 		// Nunca romper el turno por un fallo de escritura del log.
 	}
+	try {
+		await appendTurnSummary(rec);
+	} catch {
+		// nunca romper
+	}
 }
 
-/** Lee los últimos `limit` traces (los más nuevos al final). */
+/** Lee los últimos `limit` traces. Fuente durable: SQLite; el archivo .eve se
+ *  usa como fallback si SQLite aún no tiene registros (migración en caliente). */
 export async function readTraces(limit = 500): Promise<TurnTrace[]> {
+	try {
+		const durable = await listTurnSummaries({ limit: Math.max(1, limit) });
+		if (durable.length) return durable.map((r) => ({ ...r, tools: (r.tools ?? []) as TraceTool[] }));
+	} catch {
+		// caer al archivo legacy
+	}
 	let raw = "";
 	try {
 		raw = await readFile(TRACE_PATH, "utf8");
