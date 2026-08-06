@@ -1,694 +1,314 @@
 <script lang="ts">
-	import { useEveAgent } from 'eve/svelte';
-	import { computeDiagnostics, detectMcpError, formatDiagnosticsSummary, friendlyToolLabel, redactSensitiveData, unwrapMcpOutput } from '$lib/lib/agent-diagnostics';
+	import ChatSession from './ChatSession.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
-	import * as Empty from '$lib/components/ui/empty/index.js';
-	import * as InputGroup from '$lib/components/ui/input-group/index.js';
-	import * as MessageScroller from '$lib/components/ui/message-scroller/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-	import * as Queue from '$lib/components/ai-elements/queue/index.js';
-	import * as Reasoning from '$lib/components/ai-elements/reasoning/index.js';
-	import * as Tool from '$lib/components/ai-elements/tool/index.js';
-	import MessageAnimated from '$lib/components/message-animated.svelte';
-	import { watch } from 'runed';
-	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
-	import MessageSquare from '@lucide/svelte/icons/message-square';
-	import MessageCircleDashedIcon from '@lucide/svelte/icons/message-circle-dashed';
-	import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
-	import SquareIcon from '@lucide/svelte/icons/square';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
-	import ChevronUpIcon from '@lucide/svelte/icons/chevron-up';
-	import CopyIcon from '@lucide/svelte/icons/copy';
+	import * as ScrollArea from '$lib/components/ui/scroll-area/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import PlusIcon from '@lucide/svelte/icons/plus';
+	import MessagesSquareIcon from '@lucide/svelte/icons/messages-square';
+	import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
+	import ArchiveIcon from '@lucide/svelte/icons/archive';
+	import ArchiveRestoreIcon from '@lucide/svelte/icons/archive-restore';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 
-	const agent = useEveAgent();
+	// Índice de sesiones (para el sidebar) — GET /api/sessions, escrito por
+	// agent/hooks/session-log.ts. Se refresca por polling: los eventos que
+	// mueven `active` (turn.started/turn.completed/...) pueden venir de
+	// cualquier canal (WhatsApp/Twilio, no solo esta pestaña), así que un
+	// registro server-side + polling es la única forma honesta de reflejarlos.
+	// `archived` separa dos vistas del mismo índice (nunca mezcladas): la
+	// lista principal (activas) y la de archivadas, alternadas con
+	// `showArchived`.
+	type SessionListItem = {
+		id: string;
+		title: string;
+		createdAt: string;
+		updatedAt: string;
+		active: boolean;
+		turns: number;
+	};
 
-	let text = $state('');
-	let showDebug = $state(false);
-	let devFilter = $state<'all' | 'llm' | 'tool' | 'step' | 'flow'>('all');
-	let expandedRows = $state(new Set<number>());
+	let sessions = $state<SessionListItem[]>([]);
+	let showArchived = $state(false);
+	let selectedId = $state<string | null>(null);
+	let newNonce = $state(0);
+	let currentSessionId = $state<string | null>(null);
+	// Overrides en vivo del estado "respondiendo" de la sesión ABIERTA en esta
+	// pestaña — llega instantáneo por callback, sin esperar el próximo poll.
+	let liveActive = $state<Record<string, boolean>>({});
+	let loadedSession = $state<unknown>(undefined);
+	let loadedEvents = $state<unknown[] | undefined>(undefined);
+	let loadedRecovered = $state(false);
+	let loadingSession = $state(false);
+	let loadError = $state('');
+	// id de la sesión a eliminar mientras el AlertDialog de confirmación está
+	// abierto; null cuando el diálogo está cerrado.
+	let pendingDeleteId = $state<string | null>(null);
 
-	const messages = $derived(agent.data.messages);
-	const isBusy = $derived(agent.status === 'submitted' || agent.status === 'streaming');
-	let elapsedMs = $state(0);
+	const sessionKey = $derived(selectedId ?? `new-${newNonce}`);
 
-	// ── Feed de actividad del turno activo (tool calls + razonamiento) ─────
-	// Se reconstruye desde los eventos del stream (append-only, en orden):
-	//   - `actions.requested`/`action.result` → tool calls con estado.
-	//   - `reasoning.appended`/`reasoning.completed` → bloques de razonamiento
-	//     que se van agregando (uno por segmento) con texto en vivo.
-	// Se resetea en cada `turn.started`.
-	type ActivityToolState = 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
-	type Activity =
-		| { kind: 'reasoning'; key: string; text: string; streaming: boolean }
-		| {
-				kind: 'tool';
-				key: string;
-				name: string;
-				state: ActivityToolState;
-				input: unknown;
-				output: unknown;
-				errorText?: string;
-		  };
-
-	const activities = $derived.by((): Activity[] => {
-		const evs = agent.events as readonly StreamEv[];
-		const out: Activity[] = [];
-		let reasoningSeq = 0;
-		let toolSeq = 0;
-		let openReasoning = -1;
-		for (const ev of evs) {
-			const d = (ev.data ?? {}) as Record<string, unknown>;
-			if (ev.type === 'turn.started') {
-				out.length = 0;
-				reasoningSeq = 0;
-				toolSeq = 0;
-				openReasoning = -1;
-			} else if (ev.type === 'reasoning.appended') {
-				if (openReasoning === -1) {
-					openReasoning = out.length;
-					out.push({ kind: 'reasoning', key: `r${reasoningSeq++}`, text: '', streaming: true });
-				}
-				const cur = out[openReasoning];
-				if (cur.kind === 'reasoning') {
-					const soFar = d?.reasoningSoFar;
-					const delta = d?.reasoningDelta;
-					cur.text =
-						typeof soFar === 'string'
-							? soFar
-							: cur.text + (typeof delta === 'string' ? delta : '');
-					cur.streaming = true;
-				}
-			} else if (ev.type === 'reasoning.completed') {
-				if (openReasoning === -1) {
-					openReasoning = out.length;
-					out.push({ kind: 'reasoning', key: `r${reasoningSeq++}`, text: '', streaming: false });
-				}
-				const cur = out[openReasoning];
-				if (cur.kind === 'reasoning') {
-					const full = d?.reasoning;
-					if (typeof full === 'string') cur.text = full;
-					cur.streaming = false;
-				}
-				openReasoning = -1;
-			} else if (ev.type === 'actions.requested') {
-				const actions = (d?.actions as unknown[]) ?? [];
-				for (const a of actions) {
-					const rec = (a ?? {}) as Record<string, unknown>;
-					const name = String(rec?.name ?? rec?.toolName ?? rec?.tool ?? 'tool');
-					out.push({
-						kind: 'tool',
-						key: `t${toolSeq++}`,
-						name,
-						state: 'input-available',
-						input: rec?.input ?? rec?.arguments,
-						output: undefined,
-					});
-				}
-			} else if (ev.type === 'action.result') {
-				const r = (d?.result ?? {}) as Record<string, unknown>;
-				const name = String(r?.toolName ?? r?.name ?? '');
-				for (let i = out.length - 1; i >= 0; i--) {
-					const it = out[i];
-					if (
-						it.kind === 'tool' &&
-						it.name === name &&
-						(it.state === 'input-available' || it.state === 'input-streaming')
-					) {
-						const output = r?.output;
-						const isError = !!r?.isError;
-						it.output = output;
-						// DAB/MCP devuelven los errores como resultado "exitoso" con
-						// `{ error: … }` embebido (isError=false). detectMcpError lo detecta.
-						const errText = detectMcpError(output);
-						if (isError || errText) {
-							it.state = 'output-error';
-							it.errorText = errText ?? (typeof output === 'string' ? output : JSON.stringify(output ?? {}));
-						} else {
-							it.state = 'output-available';
-						}
-						break;
-					}
-				}
-			}
+	async function refreshSessions() {
+		try {
+			const res = await fetch(`/api/sessions${showArchived ? '?archived=1' : ''}`);
+			if (!res.ok) return;
+			const body = (await res.json()) as { sessions?: SessionListItem[] };
+			sessions = body.sessions ?? [];
+		} catch {
+			// silencioso: el sidebar simplemente no se actualiza este ciclo
 		}
-		return out;
+	}
+	void refreshSessions();
+
+	$effect(() => {
+		// re-consulta de inmediato al alternar activas/archivadas
+		void showArchived;
+		void refreshSessions();
 	});
 
-	// Autoscroll del viewport: al crecer el feed (nuevo bloque/tool o razonamiento
-	// en vivo), baja el scroll para ir viendo lo que se va escribiendo. Reacciona
-	// al feed vía `watch` (runed) con deps explícitas — sin `$effect`.
-	let prevActCount = 0;
-	watch([() => activities], () => {
-		const count = activities.length;
-		const live = activities.some((a) => a.kind === 'reasoning' && a.streaming);
-		if (count !== prevActCount || live) {
-			const viewport = document.querySelector(
-				'[data-slot="message-scroller-viewport"]',
-			) as HTMLElement | null;
-			if (viewport) viewport.scrollTop = viewport.scrollHeight;
-		}
-		prevActCount = count;
-	});
-
-	watch([() => isBusy], ([busy]) => {
-		if (!busy) {
-			elapsedMs = 0;
-			return;
-		}
-		const startedAt = Date.now();
-		elapsedMs = 0;
-		const timer = window.setInterval(() => (elapsedMs = Date.now() - startedAt), 250);
+	$effect(() => {
+		const timer = window.setInterval(refreshSessions, 2500);
 		return () => window.clearInterval(timer);
 	});
 
-	// Hora de llegada por evento (cliente), sellada UNA vez al aparecer el evento.
-	// Los eventos del stream no traen timestamp fiable; sin este sellado, el timing
-	// del DevTools quedaba en ~0 (todos calculados en el mismo render).
-	let eventTimings = $state<number[]>([]);
-	watch([() => agent.events.length], () => {
-		const n = agent.events.length;
-		if (n < eventTimings.length) {
-			eventTimings = agent.events.map(() => Date.now());
-		} else if (n > eventTimings.length) {
-			const now = Date.now();
-			const next = eventTimings.slice();
-			while (next.length < n) next.push(now);
-			eventTimings = next;
+	function toggleArchivedView() {
+		showArchived = !showArchived;
+	}
+
+	async function setArchived(id: string, archived: boolean) {
+		try {
+			const res = await fetch(`/api/sessions/${encodeURIComponent(id)}`, {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ archived })
+			});
+			if (!res.ok) throw new Error('No se pudo actualizar la sesión');
+			// desaparece de la vista actual (activas <-> archivadas)
+			sessions = sessions.filter((s) => s.id !== id);
+		} catch {
+			loadError = archived ? 'No se pudo archivar la conversación.' : 'No se pudo desarchivar la conversación.';
 		}
-	});
-	function eventTs(ev: StreamEv, idx: number): number {
-		const at = (ev as any).meta?.at;
-		if (at) {
-			const p = Date.parse(at);
-			if (!Number.isNaN(p)) return p;
+	}
+
+	function openDeleteConfirm(id: string) {
+		pendingDeleteId = id;
+	}
+
+	async function confirmDeleteSession() {
+		const id = pendingDeleteId;
+		if (!id) return;
+		pendingDeleteId = null;
+		try {
+			const res = await fetch(`/api/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+			if (!res.ok) throw new Error('No se pudo eliminar la sesión');
+			sessions = sessions.filter((s) => s.id !== id);
+			if (selectedId === id) startNewConversation();
+		} catch {
+			loadError = 'No se pudo eliminar la conversación.';
 		}
-		return eventTimings[idx] ?? Date.now();
 	}
 
-	// Diagnóstico agregado (módulo compartido con / ).
-	const diagnostics = $derived(computeDiagnostics(agent.events as readonly StreamEv[], eventTs));
+	function isActive(s: SessionListItem): boolean {
+		if (s.id === currentSessionId && s.id in liveActive) return liveActive[s.id];
+		return s.active;
+	}
 
-	// ── Todo widget (tool framework `todo`) ─────────────────────────────────
-	// Solo puede existir una lista a la vez: el tool siempre reemplaza el
-	// arreglo completo, así que basta con leer el último `action.result`.
-	type TodoItem = { content: string; priority: 'high' | 'medium' | 'low'; status: 'pending' | 'in_progress' | 'completed' | 'cancelled' };
-	type TodoOutput = { counts: { pending: number; in_progress: number; completed: number; cancelled: number; total: number }; todos: TodoItem[] };
-
-	let todoOpen = $state(true);
-
-	const todoState = $derived.by((): TodoOutput | null => {
-		const evs = agent.events as readonly StreamEv[];
-		for (let i = evs.length - 1; i >= 0; i--) {
-			const ev = evs[i];
-			if (ev.type !== 'action.result') continue;
-			const r = (ev.data?.result ?? {}) as any;
-			if ((r.toolName ?? r.name) !== 'todo') continue;
-			let output = r.output;
-			if (typeof output === 'string') {
-				try { output = JSON.parse(output); } catch { return null; }
-			}
-			if (output && Array.isArray(output.todos)) return output as TodoOutput;
-			return null;
+	async function openSession(id: string) {
+		if (id === selectedId || loadingSession) return;
+		loadingSession = true;
+		loadError = '';
+		try {
+			const res = await fetch(`/api/sessions/${encodeURIComponent(id)}`);
+			if (!res.ok) throw new Error('No se pudo cargar la sesión');
+			const body = (await res.json()) as { session: unknown; events: unknown[]; recovered?: boolean };
+			loadedSession = body.session;
+			loadedEvents = body.events;
+			loadedRecovered = body.recovered ?? false;
+			selectedId = id;
+			currentSessionId = id;
+		} catch {
+			loadError = 'No se pudo abrir esa conversación.';
+		} finally {
+			loadingSession = false;
 		}
-		return null;
-	});
-
-	// Se limpia sola cuando ya no quedan tareas pendientes/en curso.
-	const todoActive = $derived(!!todoState && (todoState.counts.pending > 0 || todoState.counts.in_progress > 0));
-
-	// Estado en vivo: qué está haciendo el agente AHORA (mejora la UX percibida
-	// durante los ~segundos de generación/tool en que no hay texto que mostrar).
-	const liveStatus = $derived.by(() => {
-		if (!isBusy) return null;
-		const evs = agent.events as readonly StreamEv[];
-		let step = 0;
-		let label = 'Entendiendo tu consulta…';
-		for (const ev of evs) {
-			if (ev.type === 'step.started') {
-				step++;
-				if (step > 1) label = 'Analizando resultados…';
-			}
-			if (ev.type === 'actions.requested') {
-				const action = ((ev.data?.actions as any[]) ?? [])[0];
-				if (action) {
-					const name = action.name ?? action.toolName ?? action.tool ?? 'tool';
-					label = friendlyToolLabel(name, action.input ?? action.arguments ?? {});
-				}
-			}
-			if (ev.type === 'action.result') label = 'Analizando resultados…';
-			if (ev.type === 'message.appended' || ev.type === 'message.completed') { label = 'Redactando respuesta…'; }
-		}
-		return { step: Math.max(1, step), label };
-	});
-
-	function fmtMs(ms: number): string {
-		return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`;
 	}
 
-	// ── Inspector helpers (mismo contrato que / ) ──────────────────────────
-
-	function fullToolPayload(value: unknown): string {
-		if (value === null || value === undefined) return 'null';
-		if (typeof value === 'string') return value;
-		if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
-		try { return JSON.stringify(redactSensitiveData(value), null, 2); } catch { return String(value); }
+	function startNewConversation() {
+		if (selectedId === null && !currentSessionId) return; // ya estamos en una nueva vacía
+		selectedId = null;
+		loadedSession = undefined;
+		loadedEvents = undefined;
+		loadedRecovered = false;
+		currentSessionId = null;
+		loadError = '';
+		newNonce += 1;
 	}
 
-	function indentBlock(text: string, pad = '  '): string {
-		return text.split('\n').map((l) => pad + l).join('\n');
+	function handleSessionId(id: string) {
+		currentSessionId = id;
+		void refreshSessions();
 	}
 
-	type StreamEv = { type: string; data?: Record<string, unknown> };
-
-	const tokenTotals = $derived.by(() => {
-		let input = 0, output = 0, total = 0;
-		for (const ev of agent.events as readonly StreamEv[]) {
-			if (ev.type !== 'step.completed') continue;
-			const u = ((ev.data?.usage ?? {}) as Record<string, number>);
-			input += u.inputTokens ?? u.promptTokens ?? 0;
-			output += u.outputTokens ?? u.completionTokens ?? 0;
-			total += u.totalTokens ?? 0;
-		}
-		if (!total) total = input + output;
-		return { input, output, total };
-	});
-
-	// Transcripción cronológica: fuente de verdad para read_page (sin screenshots)
-	const traceText = $derived.by(() => {
-		const lines: string[] = [];
-		lines.push('# AGENT INSPECTOR');
-		lines.push(`status: ${agent.status}`);
-		lines.push(`events: ${agent.events.length} · messages: ${agent.data.messages.length}`);
-		lines.push(`tokens: in=${tokenTotals.input} out=${tokenTotals.output} total=${tokenTotals.total}`);
-		lines.push('');
-		lines.push(formatDiagnosticsSummary(diagnostics));
-		lines.push('');
-		lines.push('## TRACE');
-		for (const ev of agent.events as readonly StreamEv[]) {
-			const d = (ev as any).data ?? {};
-			switch (ev.type) {
-				case 'session.started':  lines.push('[session.started]'); break;
-				case 'turn.started':     lines.push('[turn.started]'); break;
-				case 'reasoning.completed': if (d.text) lines.push(`[reasoning] ${d.text}`); break;
-				case 'message.completed':   if (d.content) lines.push(`[assistant] ${d.content}`); break;
-				case 'actions.requested':
-					for (const a of (d.actions ?? [])) {
-						const name = a.name ?? a.toolName ?? a.tool ?? 'tool';
-						lines.push(`[tool.call] ${name} input: ${fullToolPayload(a.input ?? a.arguments ?? {})}`);
-					}
-					break;
-				case 'action.result': {
-					const r = d.result;
-					if (!r) { lines.push('[tool.result] (sin datos)'); break; }
-					const name = r.toolName || r.name || 'tool';
-					const errText = detectMcpError(r.output);
-					if (d.status === 'rejected') lines.push(`[tool.result] ${name} → RECHAZADO`);
-					else if (d.error || r.isError || errText) lines.push(`[tool.result] ${name} → ERROR\n${indentBlock(errText ?? unwrapMcpOutput(d.error ?? r.output))}`);
-					else lines.push(`[tool.result] ${name} → ${indentBlock(unwrapMcpOutput(r.output))}`);
-					break;
-				}
-				case 'step.completed': lines.push(`[step.completed] finish=${d.finishReason}`); break;
-				case 'turn.completed': lines.push('[turn.completed]'); break;
-				case 'turn.failed':    lines.push(`[turn.failed] ${d.message}`); break;
-				case 'input.requested': lines.push('[hitl.request]'); break;
-				default: break;
-			}
-		}
-		return lines.join('\n');
-	});
-
-	// ── DevTools table ──────────────────────────────────────────────────────
-
-	type DevRow = { idx: number; t: number; delta: number; type: string; label: string; detail: string };
-
-	const devRows = $derived.by(() => {
-		const rows: DevRow[] = [];
-		const evs = agent.events as readonly StreamEv[];
-		const t0 = evs.length ? eventTs(evs[0], 0) : 0;
-		let prev = t0;
-		evs.forEach((ev, idx) => {
-			const ts = eventTs(ev, idx);
-			const t = ts - t0;
-			const delta = ts - prev;
-			prev = ts;
-			const d = (ev as any).data ?? {};
-
-			let label = ev.type;
-			let detail = '';
-
-			if (ev.type === 'actions.requested') {
-				const calls = (d.actions ?? []).map((a: any) => {
-					const n = a.name ?? a.toolName ?? 'tool';
-					return `${n}(${fullToolPayload(a.input ?? a.arguments ?? {}).replace(/\s+/g, ' ').slice(0, 60)})`;
-				}).join(', ');
-				label = `→ tool call`;
-				detail = calls;
-			} else if (ev.type === 'action.result') {
-				const r = d.result ?? {};
-				label = `← tool result`;
-				detail = `▸ ${r.toolName ?? 'tool'} · ${unwrapMcpOutput(r.output).slice(0, 80)}`;
-			} else if (ev.type === 'step.completed') {
-				label = `step`;
-				detail = `▸ finish=${d.finishReason} · tokens in=${(d.usage as any)?.inputTokens ?? 0} out=${(d.usage as any)?.outputTokens ?? 0}`;
-			} else if (ev.type === 'message.appended') {
-				label = 'message.appended';
-				detail = String(d.delta ?? '').slice(0, 80);
-			} else if (ev.type === 'message.completed') {
-				label = 'message.completed';
-				detail = `"${String(d.content ?? '').slice(0, 100)}"`;
-			} else if (ev.type === 'session.started') {
-				label = 'session'; detail = 'sesión iniciada';
-			} else if (ev.type === 'turn.started') {
-				label = 'turn'; detail = 'turno iniciado';
-			} else if (ev.type === 'turn.completed') {
-				label = 'turn'; detail = 'turno completado';
-			}
-
-			const filt = devFilter;
-			if (filt === 'llm' && !['→ LLM input', '← LLM output', 'message.appended', 'message.completed', 'reasoning.completed'].includes(label)) return;
-			if (filt === 'tool' && !['→ tool call', '← tool result'].includes(label)) return;
-			if (filt === 'step' && !label.startsWith('step')) return;
-			if (filt === 'flow' && !['session', 'turn'].includes(label)) return;
-
-			rows.push({ idx, t, delta, type: ev.type, label, detail });
-		});
-		return rows;
-	});
-
-	function rowColor(type: string): string {
-		if (type === 'actions.requested') return '#b45309';
-		if (type === 'action.result') return '#15803d';
-		if (type.startsWith('message')) return '#0369a1';
-		if (type.startsWith('step')) return '#64748b';
-		if (type.startsWith('turn') || type.startsWith('session')) return '#334155';
-		return '#475569';
+	function handleStatusChange(id: string, busy: boolean) {
+		liveActive = { ...liveActive, [id]: busy };
+		if (!busy) void refreshSessions();
 	}
 
-	function toggleRow(idx: number) {
-		const next = new Set(expandedRows);
-		if (next.has(idx)) next.delete(idx); else next.add(idx);
-		expandedRows = next;
-	}
-
-	async function copyTrace() {
-		try { await navigator.clipboard.writeText(traceText); } catch { /* ok */ }
-	}
-
-	// ── form ────────────────────────────────────────────────────────────────
-
-	async function submit() {
-		const value = text.trim();
-		if (!value || isBusy) return;
-		text = '';
-		await agent.send({ message: value });
-	}
-
-	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey) {
-			event.preventDefault();
-			void submit();
-		}
+	function formatRelative(iso: string): string {
+		const diffMs = Date.now() - new Date(iso).getTime();
+		const min = Math.round(diffMs / 60000);
+		if (min < 1) return 'ahora';
+		if (min < 60) return `hace ${min} min`;
+		const h = Math.round(min / 60);
+		if (h < 24) return `hace ${h} h`;
+		const d = Math.round(h / 24);
+		return `hace ${d} d`;
 	}
 </script>
 
-<div class="bg-background mx-auto flex h-full max-w-3xl flex-col">
-	<!-- Header -->
-	<div class="flex h-11 shrink-0 items-center justify-between px-4">
-		<div class="flex items-center gap-2">
-			<MessageSquare class="text-muted-foreground size-4" />
-			<span class="text-sm font-medium">Chat IA</span>
-		</div>
-		<div class="flex items-center gap-0.5">
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					{#snippet child({ props })}
-						<Button
-							{...props}
-							variant="ghost"
-							size="icon"
-							class="size-7"
-							aria-label="Reiniciar conversación"
-							onclick={() => agent.reset()}
-							disabled={isBusy}
+<Sidebar.Provider class="h-full min-h-0">
+	<!-- Sidebar de sesiones: persistente en desktop, colapsado en overlay (Sheet) en mobile -->
+	<Sidebar.Root collapsible="offcanvas">
+		<Sidebar.Header class="gap-0 p-0">
+			<div class="flex h-11 shrink-0 items-center justify-between px-3">
+				<span class="flex items-center gap-2 text-sm font-medium">
+					<MessagesSquareIcon class="text-muted-foreground size-4" />
+					{showArchived ? 'Archivadas' : 'Conversaciones'}
+				</span>
+				<Button
+					variant="ghost"
+					size="icon"
+					class="size-7"
+					aria-label="Nueva conversación"
+					onclick={startNewConversation}
+				>
+					<PlusIcon class="size-4" />
+				</Button>
+			</div>
+			<Separator />
+		</Sidebar.Header>
+		<Sidebar.Content class="gap-0 p-0">
+			<ScrollArea.Root class="min-h-0 flex-1">
+				<nav class="flex flex-col gap-0.5 p-1.5" aria-label="Historial de sesiones">
+					{#if sessions.length === 0}
+						<p class="text-muted-foreground px-2 py-3 text-xs">
+							{showArchived ? 'Sin conversaciones archivadas.' : 'Sin conversaciones todavía.'}
+						</p>
+					{/if}
+					{#each sessions as s (s.id)}
+						<div
+							class="group/session-item flex w-full items-start gap-0.5 rounded-md pr-1 text-sm transition-colors hover:bg-accent {s.id === selectedId ? 'bg-accent font-medium' : ''}"
 						>
-							<RotateCwIcon class="size-4" />
-						</Button>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content side="bottom"><p>Reiniciar</p></Tooltip.Content>
-			</Tooltip.Root>
-		</div>
-	</div>
-	<Separator />
-
-	<MessageScroller.Provider>
-		<div class="flex min-h-0 flex-1 flex-col">
-			{#if messages.length === 0}
-				<Empty.Root class="flex-1">
-					<Empty.Header>
-						<Empty.Media variant="icon">
-							<MessageCircleDashedIcon />
-						</Empty.Media>
-						<Empty.Title>Chat IA</Empty.Title>
-						<Empty.Description>¿En qué puedo ayudarte?</Empty.Description>
-					</Empty.Header>
-				</Empty.Root>
-			{:else}
-				<MessageScroller.Root class="flex-1">
-					<MessageScroller.Viewport>
-						<MessageScroller.Content aria-busy={isBusy} class="p-4">
-							{#each messages as message, i (message.id)}
-								{#if message.role === 'assistant' && i === messages.length - 1 && activities.length > 0}
-									<div class="space-y-2 pb-2">
-										{#each activities as act (act.key)}
-											{#if act.kind === 'tool'}
-												<Tool.Tool status={act.state}>
-													<Tool.ToolHeader type={friendlyToolLabel(act.name, act.input as Record<string, unknown>)} state={act.state} />
-													<Tool.ToolContent>
-														<Tool.ToolInput input={act.input} />
-														{#if act.state === 'output-available'}
-															<Tool.ToolOutput output={redactSensitiveData(act.output)} />
-														{/if}
-														{#if act.state === 'output-error' && act.errorText}
-															<Tool.ToolOutput errorText={act.errorText} />
-														{/if}
-													</Tool.ToolContent>
-												</Tool.Tool>
-											{:else}
-												<Reasoning.Reasoning class="w-full" isStreaming={act.streaming}>
-													<Reasoning.ReasoningTrigger isStreaming={act.streaming} />
-													<Reasoning.ReasoningContent content={act.text} isStreaming={act.streaming} />
-												</Reasoning.Reasoning>
-											{/if}
-										{/each}
-									</div>
-								{/if}
-								<MessageAnimated {message} scrollAnchor={message.role === 'user'} />
-							{/each}
-						</MessageScroller.Content>
-					</MessageScroller.Viewport>
-					<MessageScroller.Button />
-				</MessageScroller.Root>
-			{/if}
-
-			{#if liveStatus}
-				<div class="flex min-h-7 items-center gap-2 px-4 pb-2 text-xs text-muted-foreground" aria-live="polite">
-					<span class="inline-block size-2 animate-pulse rounded-full bg-blue-500"></span>
-					<span class="font-medium text-foreground/80">{liveStatus.label}</span>
-					<span class="tabular-nums text-muted-foreground/70">{Math.max(1, Math.ceil(elapsedMs / 1000))} s</span>
-				</div>
-			{/if}
-
-			{#if todoActive && todoState}
-				<div class="shrink-0 px-3 pt-1">
-					<Queue.Root>
-						<Queue.Section bind:open={todoOpen}>
-							<Queue.SectionTrigger>
-								<Queue.SectionLabel count={todoState.counts.total} label="tareas" />
-							</Queue.SectionTrigger>
-							<Queue.SectionContent>
-								<Queue.List>
-									{#each todoState.todos as item, i (i)}
-										{@const isDone = item.status === 'completed' || item.status === 'cancelled'}
-										<Queue.Item>
-											<div class="flex items-center gap-2">
-												<Queue.ItemIndicator completed={isDone} />
-												<Queue.ItemContent completed={isDone}>{item.content}</Queue.ItemContent>
-											</div>
-											{#if item.status === 'in_progress'}
-												<Queue.ItemDescription>en curso…</Queue.ItemDescription>
-											{/if}
-										</Queue.Item>
-									{/each}
-								</Queue.List>
-							</Queue.SectionContent>
-						</Queue.Section>
-					</Queue.Root>
-				</div>
-			{/if}
-
-			<!-- Input -->
-			<div class="shrink-0 border-t p-3">
-				<form onsubmit={(event) => { event.preventDefault(); void submit(); }}>
-					<InputGroup.Root>
-						<InputGroup.Textarea
-							bind:value={text}
-							placeholder="Escribe tu mensaje…"
-							rows={2}
-							onkeydown={onKeydown}
-						/>
-						<InputGroup.Addon align="block-end" class="pt-1">
-							{#if isBusy}
-								<InputGroup.Button
-									type="button"
-									variant="outline"
-									size="icon-sm"
-									class="ml-auto"
-									aria-label="Detener"
-									onclick={() => agent.stop()}
-								>
-									<SquareIcon />
-								</InputGroup.Button>
-							{:else}
-								<InputGroup.Button
-									type="submit"
-									variant="default"
-									size="icon-sm"
-									disabled={!text.trim()}
-									class="ml-auto"
-								>
-									<ArrowUpIcon />
-									<span class="sr-only">Enviar</span>
-								</InputGroup.Button>
-							{/if}
-						</InputGroup.Addon>
-					</InputGroup.Root>
-				</form>
-			</div>
-		</div>
-	</MessageScroller.Provider>
-
-	<!-- ── Debug Panel ──────────────────────────────────────────────────── -->
-	<div class="shrink-0 border-t bg-slate-950 text-slate-300">
-		<!-- Toggle bar -->
-		<button
-			class="flex w-full items-center justify-between px-3 py-1.5 text-xs font-mono hover:bg-slate-900"
-			onclick={() => (showDebug = !showDebug)}
-		>
-			<span class="flex items-center gap-2">
-				{#if showDebug}<ChevronDownIcon class="size-3" />{:else}<ChevronUpIcon class="size-3" />{/if}
-				<span>▼ DevTools</span>
-			</span>
-			<span class="text-slate-500">
-				{agent.events.length} / {agent.events.length} eventos · {tokenTotals.total} tok
-			</span>
-		</button>
-
-		<!-- Inspector text: siempre en DOM para read_page (accessibility snapshot) -->
-		<div role="region" aria-label="Agent inspector">
-			<div class="px-3 pb-1 text-xs font-mono text-slate-400" style="display:{showDebug ? 'block' : 'none'}">
-				<div class="flex items-center justify-between py-1">
-					<span class="text-slate-500">status: {agent.status} · {agent.events.length} eventos · {tokenTotals.total} tokens</span>
-					<button class="flex items-center gap-1 text-slate-500 hover:text-slate-200" onclick={copyTrace}>
-						<CopyIcon class="size-3" />Copiar
-					</button>
-				</div>
-			</div>
-			<!-- pre siempre renderizado pero oculto visualmente: accesible via read_page -->
-			<pre
-				aria-label="Inspector (texto plano · sin screenshots)"
-				class="sr-only"
-				style="position:absolute;left:-9999px;white-space:pre-wrap"
-			>{traceText}</pre>
-		</div>
-
-		{#if showDebug}
-			<!-- Filter tabs -->
-			<div class="flex gap-0 border-b border-slate-800 px-2">
-				{#each (['all', 'llm', 'tool', 'step', 'flow'] as const) as f}
-					<button
-						class="px-2 py-1 text-xs font-mono {devFilter === f ? 'border-b border-blue-400 text-blue-300' : 'text-slate-500 hover:text-slate-300'}"
-						onclick={() => (devFilter = f)}
-					>{f}</button>
-				{/each}
-				<span class="ml-auto px-2 py-1 text-xs text-slate-600">{devRows.length} / {agent.events.length} eventos · {tokenTotals.total} tok</span>
-			</div>
-
-			<!-- Diagnóstico agregado -->
-			<div class="flex flex-col gap-2 border-b border-slate-800 px-3 py-2">
-				<div class="flex flex-wrap gap-1.5 font-mono text-xs">
-					{#each [
-						{ v: fmtMs(diagnostics.turnMs), l: 'turno', c: 'text-slate-200' },
-						{ v: String(diagnostics.steps), l: 'steps', c: 'text-slate-200' },
-						{ v: fmtMs(diagnostics.modelTime), l: 'modelo*', c: 'text-sky-300' },
-						{ v: diagnostics.toolCalls > 0 && diagnostics.toolTime === 0 ? 'n/d' : fmtMs(diagnostics.toolTime), l: 'tools', c: 'text-amber-300' },
-						{ v: diagnostics.tokPerSec.toFixed(0), l: 'tok/s ef.', c: 'text-slate-200' },
-						{ v: String(diagnostics.outputTok), l: 'out tok', c: 'text-slate-200' },
-						{ v: `${(diagnostics.cacheHit * 100).toFixed(0)}%`, l: 'cache hit', c: diagnostics.cacheHit > 0.3 ? 'text-green-400' : 'text-red-400' },
-						{ v: `${diagnostics.cacheRead}/${diagnostics.cacheWrite}`, l: 'cache r/w', c: 'text-slate-200' }
-					] as m}
-						<span class="flex flex-col items-center rounded border border-slate-800 bg-slate-900 px-2 py-1">
-							<b class="{m.c} font-semibold">{m.v}</b>
-							<i class="text-[0.6rem] uppercase not-italic text-slate-500">{m.l}</i>
-						</span>
-					{/each}
-				</div>
-				{#if diagnostics.modelTime + diagnostics.toolTime > 0}
-					<div class="flex h-1.5 overflow-hidden rounded bg-slate-900" title="modelo (azul) vs tools (ámbar)">
-						<span class="bg-sky-600" style="flex:{diagnostics.modelTime || 1}"></span>
-						<span class="bg-amber-600" style="flex:{diagnostics.toolTime || 0.0001}"></span>
-					</div>
-				{/if}
-				{#if diagnostics.warnings.length}
-					<div class="flex flex-col gap-1">
-						{#each diagnostics.warnings as w}
-							<div class="rounded border-l-2 px-2 py-1 text-xs {w.level === 'error' ? 'border-red-600 bg-red-950/40 text-red-300' : w.level === 'warn' ? 'border-amber-600 bg-amber-950/40 text-amber-300' : 'border-sky-600 bg-sky-950/40 text-sky-300'}">
-								{w.level === 'error' ? '⛔' : w.level === 'warn' ? '⚠️' : 'ℹ️'} {w.msg}
-							</div>
-						{/each}
-					</div>
-				{:else}
-					<div class="rounded border-l-2 border-green-600 bg-green-950/40 px-2 py-1 text-xs text-green-300">✅ Sin anti-patrones detectados</div>
-				{/if}
-			</div>
-
-			<!-- Events table -->
-			<div class="max-h-64 overflow-y-auto font-mono text-xs">
-				<table class="w-full border-collapse">
-					<thead class="sticky top-0 bg-slate-950">
-						<tr class="text-slate-600">
-							<td class="w-14 px-2 py-0.5">t</td>
-							<td class="w-12 px-1 py-0.5">Δ</td>
-							<td class="w-20 px-1 py-0.5">tipo</td>
-							<td class="px-1 py-0.5">detalle</td>
-						</tr>
-					</thead>
-					<tbody>
-						{#if devRows.length === 0}
-							<tr><td colspan="4" class="px-2 py-2 text-slate-600">Sin eventos. Envía un mensaje para ver el flujo.</td></tr>
-						{/if}
-						{#each devRows as row (row.idx)}
-							<tr
-								class="cursor-pointer border-b border-slate-900 hover:bg-slate-900"
-								onclick={() => toggleRow(row.idx)}
+							<button
+								type="button"
+								class="flex min-w-0 flex-1 flex-col items-start gap-0.5 px-2 py-1.5 text-left"
+								onclick={() => openSession(s.id)}
 							>
-								<td class="px-2 py-0.5 text-slate-500">{row.t < 1000 ? `${row.t}ms` : `${(row.t/1000).toFixed(2)}s`}</td>
-								<td class="px-1 py-0.5 text-slate-600">+{row.delta < 1000 ? `${row.delta}ms` : `${(row.delta/1000).toFixed(2)}s`}</td>
-								<td class="px-1 py-0.5" style="color:{rowColor(row.type)}">{row.label}</td>
-								<td class="max-w-xs truncate px-1 py-0.5 text-slate-400">{row.detail}</td>
-							</tr>
-							{#if expandedRows.has(row.idx)}
-								<tr class="bg-slate-900">
-									<td colspan="4" class="px-4 py-2">
-										<pre class="whitespace-pre-wrap text-slate-300 text-xs">{fullToolPayload((agent.events[row.idx] as any)?.data)}</pre>
-									</td>
-								</tr>
-							{/if}
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
-	</div>
-</div>
+								<span class="flex w-full items-center gap-1.5">
+									{#if isActive(s)}
+										<span
+											class="inline-block size-1.5 shrink-0 animate-pulse rounded-full bg-blue-500"
+											title="Respondiendo…"
+										></span>
+									{/if}
+									<span class="truncate">{s.title}</span>
+								</span>
+								<span class="text-muted-foreground text-[0.7rem]">{formatRelative(s.updatedAt)}</span>
+							</button>
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									{#snippet child({ props })}
+										<button
+											{...props}
+											type="button"
+											aria-label="Opciones de la conversación"
+											class="mt-1.5 shrink-0 rounded p-1 opacity-0 hover:bg-black/5 focus-visible:opacity-100 group-hover/session-item:opacity-100 dark:hover:bg-white/10"
+										>
+											<EllipsisVerticalIcon class="text-muted-foreground size-3.5" />
+										</button>
+									{/snippet}
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="start" class="w-44" portalProps={{ disabled: true }}>
+									{#if showArchived}
+										<DropdownMenu.Item onclick={() => setArchived(s.id, false)}>
+											<ArchiveRestoreIcon />
+											Desarchivar
+										</DropdownMenu.Item>
+									{:else}
+										<DropdownMenu.Item onclick={() => setArchived(s.id, true)}>
+											<ArchiveIcon />
+											Archivar
+										</DropdownMenu.Item>
+									{/if}
+									<DropdownMenu.Separator />
+									<DropdownMenu.Item variant="destructive" onclick={() => openDeleteConfirm(s.id)}>
+										<Trash2Icon />
+										Eliminar
+									</DropdownMenu.Item>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						</div>
+					{/each}
+				</nav>
+			</ScrollArea.Root>
+		</Sidebar.Content>
+		<Sidebar.Footer class="gap-0 p-0">
+			<Separator />
+			<button
+				type="button"
+				class="text-muted-foreground flex items-center gap-1.5 px-3 py-2 text-xs hover:bg-accent"
+				onclick={toggleArchivedView}
+			>
+				{#if showArchived}
+					<ArchiveRestoreIcon class="size-3.5" />
+					Ver conversaciones activas
+				{:else}
+					<ArchiveIcon class="size-3.5" />
+					Ver archivadas
+				{/if}
+			</button>
+			{#if loadError}
+				<p class="border-t px-3 py-2 text-xs text-red-500">{loadError}</p>
+			{/if}
+		</Sidebar.Footer>
+	</Sidebar.Root>
+
+	<AlertDialog.Root open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) pendingDeleteId = null; }}>
+		<AlertDialog.Content portalProps={{ disabled: true }}>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Eliminar conversación</AlertDialog.Title>
+				<AlertDialog.Description>
+					¿Eliminar esta conversación de forma permanente? No se puede deshacer.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+				<AlertDialog.Action variant="destructive" onclick={confirmDeleteSession}
+					>Eliminar</AlertDialog.Action
+				>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+
+	<!-- Sesión activa -->
+	<Sidebar.Inset class="min-w-0">
+		<div class="flex h-9 shrink-0 items-center border-b px-2 md:hidden">
+			<Sidebar.Trigger />
+		</div>
+		<!-- El chat usa `mx-auto max-w-3xl`; dentro del flex-col de Inset esos márgenes
+		     automáticos impiden el stretch y colapsan su ancho, así que va en un
+		     wrapper block que sí se estira (restaura el comportamiento previo). -->
+		<div class="min-h-0 min-w-0 flex-1">
+			{#key sessionKey}
+				<ChatSession
+					initialSession={loadedSession}
+					initialEvents={loadedEvents}
+					recovered={loadedRecovered}
+					onSessionId={handleSessionId}
+					onStatusChange={handleStatusChange}
+				/>
+			{/key}
+		</div>
+	</Sidebar.Inset>
+</Sidebar.Provider>

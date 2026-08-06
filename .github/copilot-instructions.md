@@ -2,7 +2,9 @@
 
 ## Qué es este proyecto
 
-Agente conversacional de ERP (Intelisis) construido con **Eve + SvelteKit**. Se conecta al ERP via **MCP sobre DAB (Azure Data API Builder customizado)** y responde preguntas de negocio (CXP, tesorería, proveedores, cuentas bancarias) con datos reales de SQL Server.
+Agente conversacional de ERP (Intelisis) construido con **Eve + SvelteKit**. Se conecta al ERP via **MCP sobre DAB (Azure Data API Builder customizado)** y responde preguntas de negocio con datos reales de SQL Server.
+
+**Es la implementación de la tesis Sigma AGI** (`tesis/`): tres abstracciones (Meta-fábrica, Agente, Company Twin) + Governance, con **recursive self-improvement**: el runtime captura errores → buffer → la fábrica (VS Code Copilot) promueve conocimiento a su hogar canónico. **Copilot ES la fábrica** — el agente runtime NUNCA se auto-edita el conocimiento.
 
 ---
 
@@ -12,8 +14,8 @@ Agente conversacional de ERP (Intelisis) construido con **Eve + SvelteKit**. Se 
 |---|---|---|
 | UI + SSR | SvelteKit 2 + Svelte 5 | 5173/5174/5175 |
 | Agent framework | Eve 0.29.2 | embedded en Vite |
-| LLM | Anthropic Claude (via `@ai-sdk/anthropic`) | — |
-| MCP server | DAB custom (.NET 8) | 5050 |
+| LLM | **`deepseek/deepseek-v4-flash-0731`** vía AI Gateway de Vercel (`@ai-sdk/gateway`); model dinámico por `agent.md` (`agent/agent.ts` + `agent/instructions/agent-active.ts`) | — |
+| MCP server | DAB custom; tenant **ICF remoto** `https://api2.maserp.mx/icf/mcp` (DAB local joyarock en 5050) | 5050 (local) |
 | Base de datos | SQL Server 2022 (Docker) | 1433 |
 | Node.js | **24.x obligatorio** (Eve requiere ≥24) | — |
 
@@ -172,14 +174,16 @@ Las entidades tienen `object-description` enriquecidos con schema, valores de Es
 
 ---
 
-## Skill CXP/Tesorería (`agent/skills/cxp/SKILL.md`)
+## Skill CXP/Tesorería (`agent/skill-library/cxp/SKILL.md`)
 
-Se carga automáticamente cuando el usuario pregunta sobre CXP, facturas, proveedores, tesorería o cuentas bancarias. Contiene:
+Se carga cuando el usuario pregunta sobre CXP, facturas, proveedores, tesorería o cuentas bancarias **en un tenant que sí publica el módulo** (ej. joyarock). Contiene:
 - Tool names exactos con prefijo `intelisis-dab__`
 - Schema completo de cada entidad (campos, tipos, FK)
 - Patrones de consulta OData recomendados
 - Reglas de eficiencia (aggregate vs read, paralelismo, campos limitados)
 - Formato de fechas (ISO sin comillas en OData)
+
+> ⚠️ En **ICF** este módulo NO está publicado (ver sección "Conocimiento del tenant ICF") — ante preguntas de CXP en ICF responder "Dato no disponible" sin probar el MCP.
 
 ---
 
@@ -215,3 +219,75 @@ Se carga automáticamente cuando el usuario pregunta sobre CXP, facturas, provee
 - Flujo de prueba: navegar a `/chat` → enviar desde `Escribe tu mensaje…` → esperar que desaparezca `Detener` / `status: ready` → llamar `read_page` → leer respuesta + `Agent inspector`.
 - Si el snapshot es demasiado grande, usa el browser automation tool para leer únicamente `getByRole('region', { name: 'Agent inspector' }).innerText()`. No hagas click en DevTools.
 - Para entender una falla, reporta desde el inspector: respuesta final, tools llamados, primer tool error, steps, cache r/w y warnings. No infieras el resultado desde la UI visual.
+- El inspector muestra además `trend:` (resumen de turnos pasados del trace store): duración media, steps, calls, tokens, cache y errores. Úsalo para ver mejora/degradación.
+
+---
+
+## Recursive self-improvement — la tesis aplicada (OBLIGATORIO)
+
+El sistema sigue la **constitución** (`tesis/constitucion.md`) y el **context stack** (`tesis/context-stack.md`). Reglas que Copilot (la fábrica) debe respetar SIEMPRE:
+
+### Separación de poderes
+- **Runtime (Eve/agente)** SOLO: lee el Twin, ejecuta tools, y **anexa al buffer** `company-twin/companies/<tenant>/state/learnings.md` (vía `agent/hooks/memory.ts`) cuando un tool falla. NUNCA reorganiza el Twin ni promueve conocimiento.
+- **Fábrica (tú, Copilot)** SOLO: toma el buffer, clasifica cada aprendizaje y lo escribe en su **hogar canónico** (protocolo del skill `/promote-learnings` en `.github/skills/promote-learnings/SKILL.md`), y vacía el buffer.
+
+### Hogar canónico de cada hecho (constitución §2)
+| Tipo de conocimiento | Hogar | Prohibido en |
+|---|---|---|
+| Capacidades del motor (OData, UPPERCASE, fechas) | `erp-kernel/index.md` (§ Capacidades OData) | skills, instructions, learnings |
+| Schema de entidad | `erp-kernel/<entidad>.md` | skills, instructions |
+| Hecho/política del tenant (qué módulos publica, límites, aprobadores) | `companies/<tenant>/` (OKF) | kernel, skills |
+| Cómo ejecutar un flujo | `agent/skill-library/<x>/SKILL.md` (cero schema) | instructions, twin |
+| Ruteo "para X usa fuente Y" | `agent/instructions.md` | skills, twin |
+
+**Nunca conviertas una observación local en conocimiento universal sin validación.** Un `EntityNotFound` de un tenant NO sube al kernel; vive en el twin del tenant.
+
+### Ciclo completo (validado 2026-08-05)
+1. Un tool falla (ej. `read_records CXP` → `EntityNotFound` en ICF).
+2. El hook `agent/hooks/memory.ts` lo captura (ahora detecta errores **embebidos** `{ error: "..." }`, no solo `isError`) y anexa `ent-inexistente-CXP` al buffer.
+3. El buffer se inyecta en el prompt de la próxima sesión (`agent/instructions/memory.ts`).
+4. **Promoción (tú)**: clasifica el learning → twin declarativo del tenant (ej. `companies/icf/modulos.md`), ruteo → `agent/instructions.md`, capacidades → kernel root. Luego marca como promovido en el buffer.
+5. Resultado: el agente responde "Dato no disponible" consultando el twin en **2 steps / 14s / 22k tokens** (antes: 12 steps / 16 calls / 4 errores / 608k tokens).
+
+### Evals de regresión
+- `evals/no-entity-inexistente.eval.ts` — nunca usar entidades inexistentes del tenant ni `describe_entities`.
+- `evals/eficiencia-turno.eval.ts` — ≤10 tool calls, sin errores, sin duplicados.
+- Correr con `npx eve eval --list` (descubrimiento) / `npx eve eval` (ejecución).
+
+---
+
+## Self-improvement implementado (2026-08-05) — resumen del stack
+
+- **Hook de memoria ampliado** (`agent/hooks/memory.ts`): `extractError` normaliza todos los shapes de error DAB (estructurado, `{ error: "<json>" }`, `{status:"error",...}`, string); `deriveLearning` cubre errores de **schema** (`EntityNotFound` → `ent-inexistente-<ent>`; `Invalid field...` → `fld-<tool>-<campo>` con hint UPPERCASE). Todo blindado con try/catch.
+- **Skill `mrp-cf` corregido**: usa entidades reales del MCP ICF (`ForecastPlanProduccion`, `CalendarioFC`; NO `ResumenPlaneacionCF`/`DimTiempoSemana`/`UtLogEjcProMrp` — EntityNotFound). Campos UPPERCASE. Prohíbe `describe_entities` y reads masivos.
+- **Tools restringidos**: `agent/tools/bash.ts` y `glob.ts` → `disableTool()`; `describe_entities` fuera del allow-list del agente (`agent.md`).
+- **Trace store**: `src/lib/server/trace-store.ts` + `src/routes/api/traces` — persiste un resumen por turno en `.eve/traces.jsonl`; el inspector muestra la tendencia.
+- **Guard de contexto** (`agent/lib/context-budget.ts`): trunca tool-results >20k chars con aviso; blindado con try/catch.
+- **Anti-duplicados** (`agent/instructions/duplicates.ts`): escanea tool-calls del historial (part `tool-call` usa `input`, NO `args` — verificado en llm-io.jsonl) y avisa al prompt si repite el mismo input.
+- **Linter de conocimiento**: `npm run lint:knowledge` (= `node scripts/check-knowledge.ts`). Valida entidades/campos de skills+twin contra el MCP REAL con `read_records(ent, first:1)` — la verdad de runtime (`describe_entities` es catálogo INCOMPLETO). Detectó 17 entidades no usables en ICF (CXP, CtaDinero, Dinero, DimTiempoSemana, UtLogEjcProMrp, ArtPrototipo*, ProgramaTraspaso, TraspasoSemanal, MRPAlmArribos, ArtAlm, EmpresaCfg2, PlanArtOP, TipoImpuesto1, UtMrpPrevioMateriaPrima).
+- **Clasificación por familia del sistema Forecast CF (2026-08-05, validado)**: para "qué variedades de <producto> tenemos" usar `ArtFamFC.Familia` (familias FC finas: "Frijol Negro", "Frijol negro americano"...) + `ResumenPlaneacionCF.FamiliaCF/VariedadCF` (mapeo articulo→familia FC, 1 fila por artículo, S1..S54/P1..P54) — NO `Art.Familia` (genérica). `FamArtCF` NO existe. Patrón en `agent/skill-library/icf/SKILL.md` Patrón 0.2. `primero` de `buscar_registro` SIEMPRE NÚMERO (string no limita → cientos de filas, ~524k chars). `ArtMaterial` (BOM) = `result.value[]`, 0 filas = sin BOM.
+- **Gotcha de validación**: cada sesión Eve toma un SNAPSHOT del source en `session.started` — editar skills/kernel no se refleja en la sesión activa. Para validar cambios: terminar el turno → "Reiniciar conversación" (nueva sesión). El inspector de `/chat` tiene ventana deslizante (últimos 300 eventos, outputs truncados a 2k) para no bloquear el hilo con turnos largos.
+
+---
+
+## Operación y mantenimiento — GOTCHAS críticos (2026-08-04/05)
+
+### ⚠️ NUNCA recargar la página durante un turno activo
+Interrumpir un turno deja **sesiones huérfanas de Eve** (reintentan en bucle por su cola, saturando el server) y **contenedores Docker del sandbox** (uno "Up" escaneando `/sys` → la UI se congela). Si pasa:
+```bash
+lsof -tiTCP:5173,5174,5175 -sTCP:LISTEN | xargs -r kill -9
+docker ps -aq --filter ancestor=ghcr.io/vercel/eve:latest | xargs -r docker rm -f
+rm -rf .eve node_modules/.vite
+npm run dev
+```
+
+### ⚠️ Proxy /eve 502 tras reiniciar
+`.eve/sveltekit-dev-server.json` queda stale (puerto/PID muerto). El script `dev` del package.json ya hace `rm -f .eve/sveltekit-dev-server.json` antes de `vite dev`. Si el server no arranca con el fix, repetir el ciclo de limpieza de arriba.
+
+### ⚠️ TODO código del self-improvement en el runtime debe ser a prueba de errores
+Un `throw` en un hook / instruction dinámica / middleware (ej. `ReferenceError: truncateSchemaDescriptions`) **crashea el turno y puede recargar la página** ("refresh como HMR" tras un error de tool). Todo lo que corre en `action.result`, `step.started` o `transformParams` va envuelto en try/catch.
+
+### Conocimiento del tenant ICF (verificado)
+- El MCP ICF **NO publica** CXP/Tesorería/Cuentas bancarias: `CXP`, `CxpD`, `CxpConSaldo`, `CtaDinero`, `Dinero`, `DineroD` → `EntityNotFound`. Documentado en `companies/icf/modulos.md`. Ante preguntas de ese módulo en ICF → responder **"Dato no disponible"** sin probar variantes.
+- Campos DAB en **UPPERCASE** (`SEMANA`, no `semana`).
+- `describe_entities` es un catálogo incompleto (no lista `UV_QV_PPTOCOMPRA` que sí funciona); la disponibilidad real se valida con `read_records(entity, first:1)`.

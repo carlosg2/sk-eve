@@ -7,8 +7,8 @@ description: >
   producción vs. disponible, estado del MRP, faltantes de producción,
   cumplimiento de producción, "¿cuánto frijol/concentrado tenemos?", "¿qué nos
   falta para producir?". Analista MRP CF: combina los snapshots del proceso
-  (ExplocionMatCF, ResumenPlaneacionCF) con catálogos (UV_QV_PPTOCOMPRA,
-  ArtDisponible, ArtMaterial, DimTiempoSemana) sin ejecutar stored procedures.
+  (ExplocionMatCF, ForecastPlanProduccion) con catálogos (UV_QV_PPTOCOMPRA,
+  ArtDisponibleDesc, ArtMaterial) sin ejecutar stored procedures.
 ---
 
 # Skill: MRP CF Analyst (Campo Fresco / ICF)
@@ -36,21 +36,32 @@ Dada una pregunta de negocio sobre producción, inventario o materia prima:
 
 **Garantías:**
 - Nunca ejecutar DML (`create_record`/`update_record`/`execute_entity`) — solo lectura.
-- Verificar que el MRP se corrió (`UtLogEjcProMrp`) antes de reportar "no hay datos".
-- Advertir cuando `DimTiempoSemana` no cubre el año actual.
+- ⚠️ `UtLogEjcProMrp` y `DimTiempoSemana` NO existen en el MCP ICF (EntityNotFound) — NO llamarlas. Para semanas/fechas usar `CalendarioFC`.
+- Advertir cuando `CalendarioFC` no cubre el año actual.
 - Calificar los datos por ejercicio y `Usuario` de sesión.
 
 ## Modelo de datos clave
 
 ```
-ResumenPlaneacionCF   — Plan de producción por usuario/artículo (S1..S54/P1..P54 + Producir/Kg)
+ForecastPlanProduccion — Plan de producción semanal consolidado (vista calculada).
+                         Campos (verificados en vivo 2026-08-04, UPPERCASE):
+                         EJERCICIO, PERIODO, SEMANA, SITUACION, CENTROTRABAJO,
+                         ARTICULO, DESCRIPCION, PORPRODUCIR, KILOS, FAMILIA.
+                         Para "qué se va a producir esta semana" empezar AQUÍ.
+ResumenPlaneacionCF   — GRID MAESTRO de planeación: UNA fila por artículo con
+                         Articulo, Descripcion, FamiliaCF, VariedadCF y los 54
+                         pares S<n>/P<n> (semana/producir). Verificado en vivo
+                         2026-08-05 (read_records first:60 OK). Es la fuente
+                         para "artículos de la familia X del sistema FC" y
+                         agregados por FamiliaCF (ver mrp-concentrado).
 ExplocionMatCF        — Explosión de materiales vs. disponible (snapshot de sesión)
-ArtDisponible         — Inventario actual por almacén y empresa (erp-kernel)
+ArtDisponibleDesc     — Inventario actual por almacén y empresa (vista ENRIQUECIDA
+                        con Descripcion1/Unidad; usar SIEMPRE esta, no ArtDisponible)
 ArtMaterial           — Lista de materiales (BOM): artículo → materiales
-DimTiempoSemana       — Calendario de semanas por año/mes (en DAB se llama
-                        DimTiempoSemana, NO DIM_TIEMPO_SEMANA)
+CalendarioFC          — Calendario de semanas por usuario/año (Ano, Semana,
+                        FechaD, FechaA). ⚠️ DimTiempoSemana NO existe en el
+                        MCP ICF (EntityNotFound) — usar SIEMPRE CalendarioFC.
 UV_QV_PPTOCOMPRA      — Stock mínimo/máximo y máx. de compra por artículo/familia (materia prima)
-ArtFamFC              — Familias del sistema Forecast CF
 CentroFCTemp / EstacionTFCTemp — Centros/estaciones y capacidades (sesión de usuario)
 Prod / ProdD          — Producción real transaccional (erp-kernel)
 VentaTCalc            — Ventas reales para comparar vs. forecast
@@ -73,22 +84,32 @@ parámetro configurado — no asumir 0.
 | Stock de seguridad / min-máx | `UV_QV_PPTOCOMPRA`, `Art` |
 | Inventario disponible | `ArtDisponibleDesc`, `Art`, `Alm` |
 | Cobertura de materia prima (30 días) | `ExplocionMatCF`, `ArtMaterial` |
-| Plan de producción | `ResumenPlaneacionCF` / `ForecastPlanProduccion` |
-| Cumplimiento real vs. plan | `ResumenPlaneacionCF`, `Prod`, `ProdD` |
+| Plan de producción | `ForecastPlanProduccion` |
+| Cumplimiento real vs. plan | `ForecastPlanProduccion`, `Prod`, `ProdD` |
 | Capacidad de centros | `CentroFCTemp`, `EstacionTFCTemp` |
-| Forecast vs. ventas | `ResumenPlaneacionCF`, `VentaTCalc` |
+| Forecast vs. ventas | `ForecastPlanProduccion`, `VentaTCalc` |
 
 ## Fase 2 — Construir la consulta (convenciones DAB)
 
 1. Parámetros sin `$`: `filter`, `select`, `first`, `orderby`.
 2. Fechas sin comillas: `Fecha ge 2026-01-01`; strings con comillas simples:
    `Estatus eq 'ALTA'`. `in` NO soportado → encadenar `or`.
-3. Filtrar SIEMPRE por `Usuario eq 'CGARZA'` (snapshots por usuario) y por
+3. **Los campos de DAB/Intelisis son UPPERCASE** (`SEMANA`, `EJERCICIO`,
+   `PORPRODUCIR`). Usar minúsculas (`semana`) falla con `BadRequest: Invalid
+   field...`.
+4. Filtrar SIEMPRE por `Usuario eq 'CGARZA'` (snapshots por usuario) y por
    `Ejercicio`/`Periodo` cuando aplique — no traer corridas de otros usuarios.
-4. Para inventario: `Almacen eq '<ALM>'` (política del tenant) y `Disponible gt 0`.
-5. Antes de afirmar "no hay datos", verificar en `UtLogEjcProMrp` que el proceso
-   se corrió para ese usuario/periodo.
-6. Si un `read_records` con `select` falla (schema no verificado), usar
+5. Para inventario: `Almacen eq '<ALM>'` (política del tenant) y `Disponible gt 0`.
+6. `UtLogEjcProMrp` NO existe en el MCP ICF — no intentar verificar la corrida
+   con ella; usar los snapshots directamente y advertir si parecen vacíos.
+7. **NUNCA llamar `describe_entities`**: el schema vive en el Company Twin y
+   este skill (fuente única). No está en el allow-list del agente.
+8. **No duplicar llamadas**: si ya consultaste `X` con el mismo `filter`/`select`
+   en este turno, reutiliza el resultado; no repitas el tool call.
+9. **No leer vistas masivas**: nunca `read_records` con `first` alto sobre
+   `ExplocionMatCF`/`ForecastPlanProduccion` (re-envía ~60k chars por step).
+   Usar `aggregate_records` (groupby) o `buscar_registro` (LIKE en servidor).
+10. Si un `read_records` con `select` falla (schema no verificado), usar
    `read_records(<Entidad>, first: 1)` sin `select` para descubrir columnas reales.
 
 ### Consultas base reutilizables
@@ -141,15 +162,18 @@ declarar la aproximación.
 
 - **Q4 — Plan de producción por familia (piezas y kg)**
 ```
-aggregate_records(ResumenPlaneacionCF,
-  filter: "Usuario eq 'CGARZA' and Ejercicio eq <AÑO> and Producir gt 0",
-  groupby: "FamiliaCF", function: "sum", field: "Producir")
-aggregate_records(ResumenPlaneacionCF,
-  filter: "Usuario eq 'CGARZA' and Ejercicio eq <AÑO> and Producir gt 0",
-  groupby: "FamiliaCF", function: "sum", field: "Kg")
+aggregate_records(ForecastPlanProduccion,
+  filter: "EJERCICIO eq <AÑO> and SEMANA eq <N> and SITUACION eq 'Autorizado'",
+  groupby: "FAMILIA", function: "sum", field: "PORPRODUCIR")
+aggregate_records(ForecastPlanProduccion,
+  filter: "EJERCICIO eq <AÑO> and SEMANA eq <N> and SITUACION eq 'Autorizado'",
+  groupby: "FAMILIA", function: "sum", field: "KILOS")
 ```
 Si `aggregate_records` no soporta dos `sum` en una llamada, ejecutarlas por
-separado y combinar por `FamiliaCF`.
+separado y combinar por `FAMILIA`. Para el total sin desglose, un `sum` sin
+`groupby`. ⚠️ Si la semana pedida no tiene plan autorizado, advertirlo y
+reportar la semana anterior con plan (verificar `SITUACION eq 'Autorizado'`).
+⚠️ `ResumenPlaneacionCF` NO existe en el MCP ICF — no usarla.
 
 - **Q5 — Cumplimiento (producido real vs. programado)**
 ```
@@ -157,11 +181,12 @@ aggregate_records(ProdD, filter: "Articulo eq '<A>' and Fecha ge <inicio> and Fe
   function: "sum", field: "Cantidad")
 ```
 Cumplimiento % = `SUM(Cantidad real) / Producir programado * 100`; traducir
-semana → rango de fechas con `DimTiempoSemana`/`CalendarioFC` antes de filtrar.
+semana → rango de fechas con `CalendarioFC` (DimTiempoSemana no existe) antes
+de filtrar.
 
 - **Q6 — Vigencia del calendario (¿cubre hoy?)**
 ```
-read_records(DimTiempoSemana, filter: "Ano ge 2026",
+read_records(CalendarioFC, filter: "Ano ge 2026 and Usuario eq 'CGARZA'",
   select: "Ano,Semana,FechaD,FechaA", orderby: ["Ano desc"], first: 5)
 ```
 
@@ -195,15 +220,16 @@ Estructura de respuesta estándar:
 
 ## Limitaciones conocidas
 
-- `DimTiempoSemana` puede no cubrir el año actual; preguntas que requieran
-  semanas fuera del rango usan aproximaciones proporcionales y se advierte.
-- `ExplocionMatCF`/`ResumenPlaneacionCF` son snapshots de la última corrida del
-  usuario — pueden estar desactualizados si no se reejecutó el proceso
-  (verificar `UtLogEjcProMrp`).
+- `CalendarioFC` puede no cubrir el año actual; preguntas que requieran semanas
+  fuera del rango usan aproximaciones proporcionales y se advierte.
+- `ExplocionMatCF`/`ForecastPlanProduccion` son snapshots de la última corrida
+  del usuario — pueden estar desactualizados si no se reejecutó el proceso.
+  (`UtLogEjcProMrp`/`DimTiempoSemana` no existen en el MCP ICF; no usarlas.)
 - `UV_QV_PPTOCOMPRA` es una vista calculada: `INVMINIMOKG`/`INVMAXIMOKG`/
   `MAXCOMPRAKG` pueden ser `null` para artículos sin parámetro.
-- Las columnas exactas de las entidades MRP vienen de `describe_entities`
-  remoto contra ICF (sin tipos/PK reales); si un `select` falla, descubrir el
-  schema con `read_records(first: 1)` antes de reintentar.
+- El schema de las entidades MRP vive en el Company Twin (mrp-explosion.md,
+  mrp-plan-produccion.md) y en este skill; **NO usar `describe_entities`**.
+  Si un `select` falla, descubrir el schema con `read_records(first: 1)` antes
+  de reintentar.
 - El agente es de **solo lectura** sobre este módulo: nunca intentar replicar
   escrituras ni transiciones de estatus.

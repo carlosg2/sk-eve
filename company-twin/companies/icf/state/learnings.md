@@ -5,11 +5,25 @@ aquí cuando una tool falla; el agente las lee al inicio de sesión para no repe
 
 ## Reglas aprendidas
 
-- [buscar-registro] Existe el tool MCP nativo `buscar_registro` para búsqueda de texto parcial. Llamar DIRECTAMENTE (no via execute_entity). Parámetros OBLIGATORIOS: `entidad`, `campo`, `termino`. Opcionales: `modo` (CONTIENE|EMPIEZA|TERMINA, default CONTIENE), `primero` (default 20, max 500), `ordenar`. Respuesta: `data.value.value[]`. ⚠️ Este build custom NO genera `required` en inputSchema — los 3 obligatorios están documentados en sus `description`. Siempre pasarlos explícitamente.
-- [odata-no-in] El operador `in` de OData NO está soportado en este DAB. Usar cadenas `or`: `Mov eq 'Pedido' or Mov eq 'Factura'`.
-- [params-sin-dolar] Los parámetros del MCP ICF NO usan `$`: usar `filter`, `select`, `first`, `orderby` (no `$filter`, `$select`, etc.).
-- [ventad-sin-importe] `VentaD` no tiene campo `Importe`. Calcular como `Cantidad * Precio`.
-- [ventad-sin-descripcion] `VentaD` no tiene campo `Descripcion`. Usar `Art.Descripcion1` via join manual.
-- [movtipo-lookup] Para ventas/compras por tipo semántico (firme/pendiente), primero consultar `MovTipo` con `filter: "Modulo eq 'VTAS' and Clave eq 'VTAS.F'"` para obtener los valores de `Mov`, luego filtrar `Venta`/`Compra` con `or` chains.
-- [empresa-incf] El código de empresa en Intelisis para ICF es `INCF` (NO `CP` — ese es Comercial Parras). Requerido en `create_record`.
-- [almacen-c-fresco] El almacén principal de producto terminado es `C. FRESCO` (y variantes `C. FRESCO1`, `C.FRESCO02`-`05`). Hay muchos almacenes: PROCESADOS, REFRITOSMP, JAMAICA, ACELAYA, CRIBA1MP, etc. Usar `read_records(Alm)` para listarlos todos.
+- [pendiente] ventad-sin-importe / ventad-sin-descripcion — schema de `VentaD` (verificar si ya está en `erp-kernel/ventad.md`; si no, promover ahí).
+- [pendiente] movtipo-lookup — patrón procedural para ventas/compras por tipo semántico (verificar skill destino de ventas/compras).
+- [pendiente] almacen-c-fresco — catálogo de almacenes de ICF (ubicar en el twin ICF, p.ej. `policies/operaciones-policy.md` o un concepto de almacenes).
+
+> Promovidos el 2026-08-05 vía protocolo de la meta-fábrica: `ent-inexistente-*` →
+> `companies/icf/modulos.md`; `fld-read_records-*` (UPPERCASE) → `erp-kernel/index.md`
+> § Capacidades OData; `buscar-registro`/`odata-no-in`/`params-sin-dolar`/`empresa-incf`
+> ya cubiertos en instructions/kernel/twin.
+>
+> **Fase frijol-negro (2026-08-05, validado en UI):** clasificación por familia del
+> sistema Forecast CF promovida a `erp-kernel/artfamfc.md` + `erp-kernel/resumenplaneacioncf.md`
+> (verificadas en vivo: ArtFamFC con Familia/StockMinimo/StockMaximo/TiempoEntrega;
+> ResumenPlaneacionCF mapea Articulo→FamiliaCF/VariedadCF; `FamArtCF` NO existe);
+> `erp-kernel/artmaterial.md` (BOM, shape result.value) creado (el modelo fallaba con
+> "concepto no encontrado"); patrón procedural en `agent/skill-library/icf/SKILL.md`
+> (Patrón 0.2: ArtFamFC + ResumenPlaneacionCF, `primero` SIEMPRE numérico — string no
+> limita y devuelve cientos de filas); `mrp-cf` corregido (ResumenPlaneacionCF SÍ existe,
+> antes marcada como EntityNotFound — la verdad de runtime read_records first:60 la validó).
+> Impacto validado: pregunta frijol negro 919k→136k tokens input (-85%), 302→135s,
+> 22→14 calls, 1→0 errores, cache 44%→62%.
+- [ent-inexistente-ArtAlm] La entidad 'ArtAlm' NO existe en el MCP del tenant activo (EntityNotFound). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada. _(2026-08-05T16:34:53.353Z)_
+- [ent-inexistente-UtLogEjcProMrp] La entidad 'UtLogEjcProMrp' NO existe en el MCP del tenant activo (EntityNotFound). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada. _(2026-08-05T18:41:13.214Z)_

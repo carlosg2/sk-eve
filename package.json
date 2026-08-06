@@ -7,14 +7,17 @@
 		"node": "24.x"
 	},
 	"scripts": {
-		"dev": "unset npm_config_prefix && . ~/.nvm/nvm.sh && nvm use 24 && vite dev",
+		"dev": "rm -f .eve/sveltekit-dev-server.json && unset npm_config_prefix && . ~/.nvm/nvm.sh && nvm use 24 && vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint:knowledge": "node scripts/check-knowledge.ts"
 	},
 	"devDependencies": {
+		"@internationalized/date": "^3.12.3",
+		"@lucide/svelte": "^1.28.0",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -34,8 +37,9 @@
 		"@ai-sdk/anthropic": "^3.0.85",
 		"@ai-sdk/gateway": "^4.0.40",
 		"@ai-sdk/svelte": "^5.0.42",
+		"@chat-adapter/state-memory": "^4.36.0",
+		"@chat-adapter/whatsapp": "^4.36.0",
 		"@fontsource-variable/inter": "^5.3.0",
-		"@lucide/svelte": "^1.28.0",
 		"@shikijs/themes": "^4.3.1",
 		"@vercel/blob": "^2.6.1",
 		"ai": "^7.0.38",

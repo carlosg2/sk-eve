@@ -10,6 +10,16 @@ import { loadSearchProjections } from "./runtime-config.js";
 // deja ~20k tokens por tool; 8000 chars es ~2000 tokens, holgado pero seguro.
 const MAX_TOOL_DESC_CHARS = 8_000;
 const MAX_SCHEMA_DESC_CHARS = 4_000;
+// Guard anti-paginación bruta: un tool-result de read_records con first alto
+// (60k+ chars) se re-envía completo en CADA step e infla el contexto. Se trunca
+// a este límite indicándolo al modelo (los datos grandes se resuelven con
+// aggregate_records / buscar_registro, no trayendo filas completas).
+const MAX_TOOL_RESULT_CHARS = 20_000;
+// Límite defensivo de filas para buscar_registro: si `primero` llega como string
+// ("30" en vez de 30) el DAB no aplica el límite y devuelve cientos de filas
+// (visto en vivo: ~211k chars). Proyectar + cortar a N filas evita inflar el
+// contexto sin importar cómo llegue `primero`.
+const MAX_SEARCH_ROWS = 50;
 
 const SEARCH_RESULT_FIELDS = loadSearchProjections();
 
@@ -31,10 +41,15 @@ function compactSearchResultText(text: string): string {
     const fields = entity ? SEARCH_RESULT_FIELDS[entity] : undefined;
     if (!fields || !Array.isArray(records)) return text;
 
+    // Proyecta los campos definidos y acota a las primeras filas (ver MAX_SEARCH_ROWS).
     return JSON.stringify({
       entity: payload.entity,
       parameters: payload.parameters,
-      value: { value: records.map((record) => projectRecord(record, fields)) },
+      value: {
+        value: records
+          .slice(0, MAX_SEARCH_ROWS)
+          .map((record) => projectRecord(record, fields)),
+      },
     });
   } catch {
     return text;
@@ -57,19 +72,41 @@ function compactSearchResults(prompt: Array<{ role?: string; content?: unknown }
   }
 }
 
+// Trunca tool-results MCP excesivamente grandes (paginación bruta) a un tope
+// seguro, avisando al modelo para que no repita la lectura masiva.
+function truncateLargeToolResults(prompt: Array<{ role?: string; content?: unknown }>): void {
+	for (const message of prompt) {
+		if (message.role !== "tool" || !Array.isArray(message.content)) continue;
+		for (const part of message.content as Array<Record<string, any>>) {
+			if (part.type !== "tool-result") continue;
+			const contents = part.output?.value?.content;
+			if (!Array.isArray(contents)) continue;
+			for (const content of contents) {
+				if (content?.type === "text" && typeof content.text === "string" && content.text.length > MAX_TOOL_RESULT_CHARS) {
+					const kept = content.text.slice(0, MAX_TOOL_RESULT_CHARS);
+					content.text =
+						kept +
+						`\n… [TRUNCADO: resultado de ${content.text.length} chars; limitado a ${MAX_TOOL_RESULT_CHARS}. ` +
+						`No reintentar la lectura masiva: usa aggregate_records (groupby) o buscar_registro (LIKE en servidor).]`;
+				}
+			}
+		}
+	}
+}
+
 function truncateSchemaDescriptions(schema: unknown): unknown {
-  if (!schema || typeof schema !== "object") return schema;
-  if (Array.isArray(schema)) return schema.map(truncateSchemaDescriptions);
-  const obj = schema as Record<string, unknown>;
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (key === "description" && typeof value === "string" && value.length > MAX_SCHEMA_DESC_CHARS) {
-      result[key] = value.slice(0, MAX_SCHEMA_DESC_CHARS) + "…";
-    } else {
-      result[key] = truncateSchemaDescriptions(value);
-    }
-  }
-  return result;
+	if (!schema || typeof schema !== "object") return schema;
+	if (Array.isArray(schema)) return schema.map(truncateSchemaDescriptions);
+	const obj = schema as Record<string, unknown>;
+	const result: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(obj)) {
+		if (key === "description" && typeof value === "string" && value.length > MAX_SCHEMA_DESC_CHARS) {
+			result[key] = value.slice(0, MAX_SCHEMA_DESC_CHARS) + "…";
+		} else {
+			result[key] = truncateSchemaDescriptions(value);
+		}
+	}
+	return result;
 }
 
 export const contextBudgetMiddleware: LanguageModelMiddleware = {
@@ -93,7 +130,15 @@ export const contextBudgetMiddleware: LanguageModelMiddleware = {
 
     const prompt = anyParams.prompt;
     if (Array.isArray(prompt) && prompt.length > 0) {
-      compactSearchResults(prompt);
+      // ⚠️ Blindado: si la compactación lanza (shape de tool-result inesperado),
+      // el middleware crashearía la llamada al modelo (el ReferenceError de
+      // truncateSchemaDescriptions causó exactamente eso → refresh de página).
+      try {
+        compactSearchResults(prompt);
+        truncateLargeToolResults(prompt);
+      } catch {
+        // nunca romper la llamada al modelo por el guard de contexto
+      }
     }
 
     return params;

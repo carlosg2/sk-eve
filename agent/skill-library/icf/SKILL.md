@@ -49,7 +49,41 @@ buscar_registro({ entidad:"Prov", campo:"Nombre", termino:"MEXICANA", modo:"EMPI
 
 Parámetros: `entidad` (req), `campo` (req), `termino` (req), `modo` (CONTIENE|EMPIEZA|TERMINA), `primero` (max 500), `ordenar` (campo para ORDER BY).
 
+⚠️ **`primero` SIEMPRE como NÚMERO** (`primero: 20`, no `primero: "20"`). Si llega
+como string el DAB NO aplica el límite y devuelve cientos de filas (~200k chars
+que se re-envían en cada step). Resultado grande de `buscar_registro` = error
+caro: el contexto se proyecta y trunca, pero la llamada ya trajo todo.
+
 Entidades soportadas: Prov, Cte, Art, Compra, Venta, Inv, ArtDisponibleDesc, ArtDisponible, GastoT, CompraD, VentaD, MovTipo, Alm.
+
+## Patrón 0.2 — Artículos por familia (clasificación Forecast CF) — NO repetir buscar_registro
+
+Para responder "¿de qué variedad/artículos de <familia> disponemos?" (ej. frijol
+negro), **NO** hagas varios `buscar_registro` con el mismo concepto y distinto
+`primero`. Usa la clasificación del **sistema Forecast CF** (la que usa el plan
+de producción), NO `Art.Familia` (que es genérica, ej. "FRIJOL"):
+
+1. **Familias del sistema FC** → `read_records(ArtFamFC, select: "Familia",
+   first: 200)` — catálogo fino ("Frijol Negro", "Frijol negro americano",
+   "Mitades Negras", "Frijol Pinto"...). Filtra localmente las que contengan el
+   término.
+2. **Artículos por familia FC** → `read_records(ResumenPlaneacionCF,
+   select: "Articulo,Descripcion,VariedadCF,FamiliaCF", first: 300)` — UNA fila
+   por artículo con su `FamiliaCF`/`VariedadCF`. Selecciona localmente los de la
+   familia. (Para productos terminados de la familia FC consultar también
+   `Art`/`ArtDisponibleDesc` por esos artículos.)
+
+```
+read_records(ArtFamFC, select: "Familia,StockMinimo,StockMaximo", first: 200)
+read_records(ResumenPlaneacionCF,
+  select: "Articulo,Descripcion,VariedadCF,FamiliaCF", first: 300)
+```
+
+Después agrega existencias por artículo con `aggregate_records(ArtDisponible,
+sum, Disponible, filter: "Articulo eq '<X1>' or Articulo eq '<X2>'",
+groupby: ["Articulo"])` y consulta arribos una sola vez. **Regla:** una búsqueda
+por concepto; si el resultado no alcanza, usa `ResumenPlaneacionCF.FamiliaCF`/
+`ArtFamFC`, no repetir `buscar_registro`.
 
 ---
 

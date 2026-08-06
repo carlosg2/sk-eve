@@ -25,3 +25,6 @@ vite.config.ts.timestamp-*
 # Eve runtime / workflow data
 .workflow-data/
 .eve/
+
+# Persistent app data (SQLite, sobrevive purgas de .eve/)
+.data/

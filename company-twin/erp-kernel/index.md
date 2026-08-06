@@ -36,6 +36,9 @@ Las transiciones se ejecutan con el SP [Afectar](afectar.md), no con `update_rec
 * [Empresa](empresa.md) - Catálogo de empresas (instalaciones multiempresa).
 * [EmpresaCfg2](empresacfg2.md) - Configuración de planeación por empresa (TipoPeriodo, Horizonte).
 * [ArtAlm](artalm.md) - Configuración de planeación de artículo por almacén (IS, lote, múltiplos).
+* [ArtMaterial](artmaterial.md) - Lista de materiales (BOM): insumos por artículo producible.
+* [ArtFamFC](artfamfc.md) - Familias del sistema Forecast CF (clasificación fina por producto).
+* [ResumenPlaneacionCF](resumenplaneacioncf.md) - Grid maestro FC: fila por artículo con FamiliaCF y semanas S1..S54/P1..P54.
 * [PlanArtOP](planartop.md) - Órdenes planeadas resultado de la explosión MRP (sugerido de compra oficial).
 * [PlaneacionMRP](planeacion-mrp.md) - SP `spPlanArt`, fuente de verdad que prevalece sobre cálculo manual.
 
@@ -72,3 +75,7 @@ de cada tool vive en [Contrato de MCP tools](/erp-kernel/mcp-tools.md).
   entidad dependiente en paso 2 con `campo eq 'v1' or campo eq 'v2'`).
 * **Fechas sin comillas:** `Vencimiento le 2026-12-31`.
 * **Strings con comillas simples:** `Estatus eq 'PENDIENTE'`.
+* **Campos en UPPERCASE:** los nombres de columnas de Intelisis/DAB se referencian en MAYÚSCULAS
+  (`SEMANA`, `PORPRODUCIR`, `DESCRIPCION1`). Usar minúsculas (`semana`) falla con
+  `BadRequest: Invalid field to be returned requested/used in filter`. (Promovido del buffer
+  `fld-read_records-*`, 2026-08-05.)

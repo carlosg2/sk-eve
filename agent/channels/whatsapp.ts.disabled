@@ -1,0 +1,59 @@
+import { createWhatsAppAdapter } from "@chat-adapter/whatsapp";
+import { createMemoryState } from "@chat-adapter/state-memory";
+import type { Message, Thread } from "chat";
+import { chatSdkChannel } from "eve/channels/chat-sdk";
+
+// Canal WhatsApp vía Chat SDK → Meta WhatsApp Business Cloud API (sin Twilio).
+//
+// El adapter es dueño de la auth del proveedor, verificación de webhook
+// (HMAC-SHA256 con el App Secret) y entrega; Eve es dueño del dispatch de
+// sesión, streaming (post+edit), typing y human-in-the-loop (HITL con botones
+// nativos de WhatsApp).
+//
+// Credenciales (env vars leídas automáticamente por el adapter):
+//   WHATSAPP_ACCESS_TOKEN     — System User access token (Cloud API)
+//   WHATSAPP_APP_SECRET       — verificación de X-Hub-Signature-256
+//   WHATSAPP_PHONE_NUMBER_ID  — ID del número Business (NO el número)
+//   WHATSAPP_VERIFY_TOKEN     — challenge-response del webhook
+//
+// Webhook: monta POST /eve/v1/whatsapp. En la consola de Meta (WhatsApp →
+// Configuration → Webhook) apuntar a esa URL pública (ngrok en dev, Vercel
+// en prod).
+//
+// Dev: usar el número de PRUEBA de Meta (hasta 5 destinatarios = tu WhatsApp
+// normal, sin perfil Business). Producción: número real registrado con perfil
+// WhatsApp Business. Al migrar tu número personal, la app normal deja de
+// funcionar en él.
+//
+// Nota: createMemoryState() es suficiente para dev; para producción usar un
+// state durable (Redis/Upstash) para que suscripciones, locks y dedupe
+// sobrevivan restarts.
+export const { bot, channel, send } = chatSdkChannel({
+  userName: "Asistente ERP",
+  adapters: {
+    whatsapp: createWhatsAppAdapter(),
+  },
+  state: createMemoryState(),
+  // Auth al reanudar una sesión parqueada desde un botón HITL (approval gates
+  // de escrituras). `event.user.userId` es el wa_id del usuario en WhatsApp.
+  resolveInputAuth: (event) => ({
+    authenticator: "whatsapp",
+    principalType: "user",
+    principalId: event.user?.userId ?? "whatsapp:unknown",
+    attributes: {},
+  }),
+});
+
+// Mensaje nuevo (fresh thread): suscribirse para que las respuestas del mismo
+// hilo sigan llegando al agente, y entregar el turno a Eve.
+bot.onNewMention(async (thread: Thread, message: Message) => {
+  await thread.subscribe();
+  await send(message.text, { thread });
+});
+
+// Mensajes siguientes en un hilo ya suscrito.
+bot.onSubscribedMessage(async (thread: Thread, message: Message) => {
+  await send(message.text, { thread });
+});
+
+export default channel;
