@@ -85,9 +85,14 @@ function deriveLearning(
   }
 
   // 2) Campo inexistente en select / filter / orderby / groupby (BadRequest).
+  //    ⚠️ DAB usa 2 shapes: "Invalid field to be returned/used..." y
+  //    "Could not find a property named 'X' on type '...'" (vista UPPERCASE,
+  //    verificado 2026-08-06 con ForecastPlanProduccion: `Semana eq 31` →
+  //    BadRequest, `SEMANA eq 31` → OK).
   const field =
     message.match(/Invalid field to be returned requested:\s*([A-Za-z0-9_]+)/i)?.[1] ??
-    message.match(/Invalid field to be used in (?:filter|orderby|groupby)[^:]*:\s*([A-Za-z0-9_]+)/i)?.[1];
+    message.match(/Invalid field to be used in (?:filter|orderby|groupby)[^:]*:\s*([A-Za-z0-9_]+)/i)?.[1] ??
+    message.match(/Could not find a property named '?([A-Za-z0-9_]+)'?/i)?.[1];
   if (field) {
     const isLowercase = field !== field.toUpperCase();
     const hint = isLowercase

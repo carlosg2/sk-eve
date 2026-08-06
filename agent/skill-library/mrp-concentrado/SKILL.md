@@ -47,10 +47,14 @@ las dos por separado (Producir y Kg) y combina por `FamiliaCF`.
 
 ## Patrón 2 — Programa de producción de la semana por centro (variante concentrado)
 
+⚠️ **Los campos de `ForecastPlanProduccion` son UPPERCASE en el DAB** (verificado
+2026-08-06: `Semana eq 31` → BadRequest; `SEMANA eq 31` → OK). Usa SIEMPRE
+UPPERCASE en filter/select.
+
 ```
 read_records(ForecastPlanProduccion,
-  filter: "Ejercicio eq 2026 and Periodo eq 7 and Semana eq <N> and CentroTrabajo eq '<Centro>'",
-  select: "Renglon,Articulo,Descripcion,PorProducir,Kilos,Situacion")
+  filter: "EJERCICIO eq 2026 and PERIODO eq 7 and SEMANA eq <N> and CENTROTRABAJO eq '<Centro>'",
+  select: "RENGLON,ARTICULO,DESCRIPCION,PORPRODUCIR,KILOS,SITUACION")
 ```
 
 Para comparar contra lo YA producido, ver `mrp-indicadores` (usa

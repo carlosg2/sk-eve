@@ -57,6 +57,10 @@ Calendario de semanas (`Ano`/`Semana` con rango `FechaD`-`FechaA`) configurado
 por usuario para el módulo FC. Llave lógica: `Usuario+Ano+Semana`. **Usar esta
 tabla para traducir "semana N" a fechas reales** antes de filtrar otras
 entidades por rango de fecha.
+⚠️ Casing documentado camelCase (`Ano`/`Semana`/`FechaD`/`FechaA`). NO usar
+UPPERCASE aquí (a diferencia de `ForecastPlanProduccion`, que sí es UPPERCASE —
+ver mrp-plan-produccion.md). Si un filter/select falla con BadRequest, verifica
+el casing real con `read_records(CalendarioFC, first:1)` antes de reportar.
 
 ## `DimTiempoSemana`
 Dimensión de tiempo por semana natural: `Anio` (expuesto así por restricción de

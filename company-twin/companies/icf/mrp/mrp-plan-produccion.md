@@ -19,10 +19,16 @@ cubre [gap-abasto](/agent/skills/gap-abasto/SKILL.md)).
 # Entidades
 
 ## `ForecastPlanProduccion`
-**Vista consolidada** (solo lectura, calculada) del plan de producción semanal:
-`Ejercicio`/`Periodo`/`CentroTrabajo`/`Semana`/`Situacion`/`Renglon`/`Articulo`,
-con desglose diario `Lun..Dom` y totales (`PorProducir`, `Kilos`). **Punto de
-entrada recomendado** para preguntas de "qué se va a producir esta semana".
+**Vista consolidada** (solo lectura, calculada) del plan de producción semanal.
+⚠️ **Los campos de ESTA vista están en UPPERCASE en el DAB** (verificado
+2026-08-06: `Semana eq 31` → BadRequest "Could not find a property named
+'Semana'"; `SEMANA eq 31` → OK). No generalizar a otras entidades FC — cada
+vista tiene su propio casing (ej. `CalendarioFC` documenta `Ano`/`Semana`
+camelCase). Campos reales:
+`EJERCICIO`/`PERIODO`/`CENTROTRABAJO`/`SEMANA`/`SITUACION`/`RENGLON`/`ARTICULO`/
+`DESCRIPCION`/`FAMILIA`/`PORPRODUCIR`/`KILOS`, con desglose diario `LUN..DOM`.
+**Punto de entrada recomendado** para preguntas de "qué se va a producir esta
+semana".
 
 ## `ForecastPlanSemanal`
 Encabezado del plan de producción semanal por centro de trabajo

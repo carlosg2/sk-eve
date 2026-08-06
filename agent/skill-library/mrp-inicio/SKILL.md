@@ -44,10 +44,17 @@ si el usuario pide "el resumen general", pero exclúyela
 
 ## Patrón 2 — Programa de la semana por centro
 
+⚠️ **Los campos de `ForecastPlanProduccion` son UPPERCASE en el DAB** (verificado
+2026-08-06: `Semana eq 31` → BadRequest; `SEMANA eq 31` → OK). Usa SIEMPRE
+UPPERCASE en filter/select de ESTA vista. NO generalices el UPPERCASE a otras
+entidades FC (cada vista tiene su casing — ej. `CalendarioFC` usa `Ano`
+camelCase); si otra vista falla con BadRequest, verifica su schema con
+`read_records(first:1)`.
+
 ```
 read_records(ForecastPlanProduccion,
-  filter: "Ejercicio eq 2026 and Periodo eq 7 and Semana eq <N> and CentroTrabajo eq '<Centro>'",
-  select: "Renglon,Articulo,Descripcion,PorProducir,Kilos,Situacion")
+  filter: "EJERCICIO eq 2026 and PERIODO eq 7 and SEMANA eq <N> and CENTROTRABAJO eq '<Centro>'",
+  select: "RENGLON,ARTICULO,DESCRIPCION,PORPRODUCIR,KILOS,SITUACION")
 ```
 
 ## ⚠️ Autorizar el plan semanal tiene efectos reales en el ERP
@@ -67,6 +74,11 @@ read_records(ForecastPlanSemanal,
   filter: "Ejercicio eq 2026 and Periodo eq 7 and Semana eq <N> and CentroTrabajo eq '<Centro>'",
   select: "ID,Situacion,SituacionUsuario,SituacionFecha")
 ```
+
+⚠️ Si este patrón falla con BadRequest (campo no encontrado), prueba el campo en
+**UPPERCASE** (`SEMANA`, `EJERCICIO`, `SITUACION`...) — el DAB normaliza
+`ForecastPlanProduccion` a UPPERCASE (confirmado); para `ForecastPlanSemanal`
+verifica el casing real con `read_records(first:1)` antes de asumir.
 
 Si el usuario pide "autorizar"/"cambiar situación" del plan, indícale que debe
 hacerlo desde el portal MRP directamente.
