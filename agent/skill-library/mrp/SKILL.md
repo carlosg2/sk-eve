@@ -13,7 +13,7 @@ description: >
 # Skill: MRP (ICF) — Índice de rutas
 
 > **Este skill es SOLO un índice/orquestador.** El detalle procedural de cada
-> funcionalidad vive en 12 skills especializados (`agent/skills/mrp-*/SKILL.md`),
+> funcionalidad vive en 12 skills especializados (`agent/skill-library/mrp-*/SKILL.md`),
 > uno por cada ruta real del portal MRP legacy (sigma-icf). El schema de cada
 > entidad vive en el Company Twin:
 > [company-twin/companies/icf/mrp/index.md](/company-twin/companies/icf/mrp/index.md).
@@ -35,18 +35,18 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
 
 | Ruta del portal (sigma-icf) | Qué responde | Skill |
 |---|---|---|
-| Programa de Arribos | Arribos/recepciones proyectados 12 semanas, cobertura, reorden | [`mrp-arribos`](/agent/skills/mrp-arribos/SKILL.md) |
-| Artículos (Art Prototipo) | Prototipos de artículo/receta, costeo, autorización — ⚠️ no confirmado en DAB | [`mrp-articulos`](/agent/skills/mrp-articulos/SKILL.md) |
-| Concentrado de Familias | Consolidado de piezas/kg a producir por familia | [`mrp-concentrado`](/agent/skills/mrp-concentrado/SKILL.md) |
-| Dashboard | Vista general/KPIs (solapa con Programa Mensual) | [`mrp-dashboard`](/agent/skills/mrp-dashboard/SKILL.md) |
-| Faltantes de Materia | Faltante insumos/materia prima/concentrado por familia | [`mrp-faltantes`](/agent/skills/mrp-faltantes/SKILL.md) (→ ver primero `gap-abasto`) |
-| Desglose de Forecast | Grid maestro S1-S54/P1-P54 por artículo/cliente/centro | [`mrp-forecast`](/agent/skills/mrp-forecast/SKILL.md) |
-| Indicadores | Cumplimiento programado vs. producido real, forecast vs. venta | [`mrp-indicadores`](/agent/skills/mrp-indicadores/SKILL.md) |
-| Programa Mensual (`/inicio`) | Ocupación/capacidad por centro, situación del plan semanal | [`mrp-inicio`](/agent/skills/mrp-inicio/SKILL.md) |
-| Inventario Semanal | Presupuesto ganadero (VACA) por semana, lotes PEPS/FIFO | [`mrp-inventario`](/agent/skills/mrp-inventario/SKILL.md) |
-| Modelado de Centros | Configuración/capacidad de centros y estaciones, balanceo | [`mrp-modelado-centros`](/agent/skills/mrp-modelado-centros/SKILL.md) |
-| Validación de Insumos (`/produccion`) | Cobertura de materiales para producir, alcance, capacidad | [`mrp-produccion`](/agent/skills/mrp-produccion/SKILL.md) |
-| Programa de Traspasos | Traspasos entre almacenes por semana — ⚠️ no confirmado en DAB | [`mrp-traspasos`](/agent/skills/mrp-traspasos/SKILL.md) |
+| Programa de Arribos | Arribos/recepciones proyectados 12 semanas, cobertura, reorden | [`mrp-arribos`](/agent/skill-library/mrp-arribos/SKILL.md) |
+| Artículos (Art Prototipo) | Prototipos de artículo/receta, costeo, autorización — ⚠️ no confirmado en DAB | [`mrp-articulos`](/agent/skill-library/mrp-articulos/SKILL.md) |
+| Concentrado de Familias | Consolidado de piezas/kg a producir por familia | [`mrp-concentrado`](/agent/skill-library/mrp-concentrado/SKILL.md) |
+| Dashboard | Vista general/KPIs (solapa con Programa Mensual) | [`mrp-dashboard`](/agent/skill-library/mrp-dashboard/SKILL.md) |
+| Faltantes de Materia | Faltante insumos/materia prima/concentrado por familia | [`mrp-faltantes`](/agent/skill-library/mrp-faltantes/SKILL.md) (→ ver primero `gap-abasto`) |
+| Desglose de Forecast | Grid maestro S1-S54/P1-P54 por artículo/cliente/centro | [`mrp-forecast`](/agent/skill-library/mrp-forecast/SKILL.md) |
+| Indicadores | Cumplimiento programado vs. producido real, forecast vs. venta | [`mrp-indicadores`](/agent/skill-library/mrp-indicadores/SKILL.md) |
+| Programa Mensual (`/inicio`) | Ocupación/capacidad por centro, situación del plan semanal | [`mrp-inicio`](/agent/skill-library/mrp-inicio/SKILL.md) |
+| Inventario Semanal | Presupuesto ganadero (VACA) por semana, lotes PEPS/FIFO | [`mrp-inventario`](/agent/skill-library/mrp-inventario/SKILL.md) |
+| Modelado de Centros | Configuración/capacidad de centros y estaciones, balanceo | [`mrp-modelado-centros`](/agent/skill-library/mrp-modelado-centros/SKILL.md) |
+| Validación de Insumos (`/produccion`) | Cobertura de materiales para producir, alcance, capacidad | [`mrp-produccion`](/agent/skill-library/mrp-produccion/SKILL.md) |
+| Programa de Traspasos | Traspasos entre almacenes por semana — ⚠️ no confirmado en DAB | [`mrp-traspasos`](/agent/skill-library/mrp-traspasos/SKILL.md) |
 
 > **¿Pregunta de análisis consolidado (no de una ruta específica)?** Stock de
 > seguridad/min-máx (`UV_QV_PPTOCOMPRA`), inventario disponible, cobertura de
@@ -68,9 +68,9 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
   proxy que el snapshot esté poblado: `read_records(ResumenPlaneacionCF,
   filter: "Usuario eq 'CGARZA'", select: "Articulo,Producir", first: 1)`
   o `CalendarioFC` (si trae filas, el proceso se corrió).
-- **Traducir "semana N" a fechas**: usar `CalendarioFC`/`DimTiempoSemana`, no
-  asumir que la semana 1 es la primera del año calendario (depende de cuándo se
-  capturó el forecast).
+- **Traducir "semana N" a fechas**: usar `CalendarioFC` (campos camelCase
+  `Ano`/`Semana`/`FechaD`/`FechaA`), no asumir que la semana 1 es la primera
+del año calendario (depende de cuándo se capturó el forecast).
 - **Escrituras/transiciones de estatus**: el agente es de **solo lectura** sobre
   este módulo. En particular, autorizar el plan semanal (`ForecastPlanSemanal.
   Situacion = 'AUTORIZADO'`) dispara generación real de Órdenes de Surtido en el

@@ -94,11 +94,20 @@ parámetro configurado — no asumir 0.
 1. Parámetros sin `$`: `filter`, `select`, `first`, `orderby`.
 2. Fechas sin comillas: `Fecha ge 2026-01-01`; strings con comillas simples:
    `Estatus eq 'ALTA'`. `in` NO soportado → encadenar `or`.
-3. **Los campos de DAB/Intelisis son UPPERCASE** (`SEMANA`, `EJERCICIO`,
-   `PORPRODUCIR`). Usar minúsculas (`semana`) falla con `BadRequest: Invalid
-   field...`.
-4. Filtrar SIEMPRE por `Usuario eq 'CGARZA'` (snapshots por usuario) y por
-   `Ejercicio`/`Periodo` cuando aplique — no traer corridas de otros usuarios.
+3. **El casing de los campos es POR VISTA** (verificado 2026-08-06):
+   `ForecastPlanProduccion` y `UV_QV_PPTOCOMPRA` son **UPPERCASE** (`SEMANA`,
+   `EJERCICIO`, `PORPRODUCIR`); `CalendarioFC`, `ResumenPlaneacionCF` y
+   `ExplocionMatCF` son **camelCase** (`Ano`, `Semana`, `FechaD`, `FamiliaCF`,
+   `Producir`, `Kg`). Ante duda, `read_records(<Entidad>, first: 1)` sin
+   `select` o el mensaje del error del filter ("Could not find a property
+   named X") revela el casing correcto.
+4. Filtrar por `Usuario eq 'CGARZA'` en las tablas de trabajo que lo tienen
+   (`ResumenPlaneacionCF`, `ExplocionMatCF`, `CalendarioFC`, `CentroFCTemp`,
+   `EstacionTFCTemp`, `BalanceFC`, `WebInicio`, `Arribos12`) y por
+   `Ejercicio`/`Periodo` cuando aplique — no traer corridas de otros
+   usuarios. ⚠️ `ForecastPlanProduccion` es una vista consolidada **SIN
+   `Usuario`** (verificado): filtrarla por Usuario da `BadRequest`; filtrar
+   por `EJERCICIO`/`SEMANA`/`SITUACION`.
 5. Para inventario: `Almacen eq '<ALM>'` (política del tenant) y `Disponible gt 0`.
 6. `UtLogEjcProMrp` NO existe en el MCP ICF — no intentar verificar la corrida
    con ella; usar los snapshots directamente y advertir si parecen vacíos.
@@ -130,10 +139,10 @@ re-envían en cada step e inflan el contexto). Usar `aggregate_records` con
 ```
 aggregate_records(UV_QV_PPTOCOMPRA,
   filter: "INVMINIMOKG gt 0",
-  groupby: "FAMILIA", function: "sum", field: "INVMINIMOKG")
+  groupby: ["FAMILIA"], function: "sum", field: "INVMINIMOKG")
 aggregate_records(UV_QV_PPTOCOMPRA,
   filter: "INVMINIMOKG gt 0",
-  groupby: "FAMILIA", function: "sum", field: "INVMAXIMOKG")
+  groupby: ["FAMILIA"], function: "sum", field: "INVMAXIMOKG")
 ```
 Combinar los dos resultados por `FAMILIA`. Si hace falta el detalle por artículo
 de UNA familia, recién ahí usar Q1 con filtro `FAMILIA eq '<F>'`. Limitar
@@ -153,7 +162,7 @@ Para totales numéricos puros (agregaciones) sí se puede usar `ArtDisponible`.
 - **Q3 — Cobertura de materia prima (explosión)**
 ```
 read_records(ExplocionMatCF, filter: "Usuario eq 'CGARZA'",
-  select: "Articulo,Descripcion1,Requerido,Disponible")
+  select: "Articulo,ArticuloPadre,ArticuloHijo,Total,Faltante,Stock,Producir,AlcanceDias")
 ```
 Si `ExplocionMatCF` viene vacío o desactualizado, armar manualmente cruzando
 `ArtMaterial` (BOM) × `ArtDisponible` — ver el skill `gap-abasto` para ese patrón.
@@ -164,20 +173,22 @@ declarar la aproximación.
 ```
 aggregate_records(ForecastPlanProduccion,
   filter: "EJERCICIO eq <AÑO> and SEMANA eq <N> and SITUACION eq 'Autorizado'",
-  groupby: "FAMILIA", function: "sum", field: "PORPRODUCIR")
+  groupby: ["FAMILIA"], function: "sum", field: "PORPRODUCIR")
 aggregate_records(ForecastPlanProduccion,
   filter: "EJERCICIO eq <AÑO> and SEMANA eq <N> and SITUACION eq 'Autorizado'",
-  groupby: "FAMILIA", function: "sum", field: "KILOS")
+  groupby: ["FAMILIA"], function: "sum", field: "KILOS")
 ```
 Si `aggregate_records` no soporta dos `sum` en una llamada, ejecutarlas por
 separado y combinar por `FAMILIA`. Para el total sin desglose, un `sum` sin
 `groupby`. ⚠️ Si la semana pedida no tiene plan autorizado, advertirlo y
 reportar la semana anterior con plan (verificar `SITUACION eq 'Autorizado'`).
-⚠️ `ResumenPlaneacionCF` NO existe en el MCP ICF — no usarla.
+⚠️ `groupby` SIEMPRE en array (`["FAMILIA"]`): con string el DAB lo ignora y
+devuelve un solo total. Para la variedad por artículo, `ResumenPlaneacionCF`
+SÍ existe (grid maestro por usuario, `Usuario eq 'CGARZA'`) — ver Q6.
 
 - **Q5 — Cumplimiento (producido real vs. programado)**
 ```
-aggregate_records(ProdD, filter: "Articulo eq '<A>' and Fecha ge <inicio> and Fecha le <fin>",
+aggregate_records(ProdD, filter: "Articulo eq '<A>' and FechaRequerida ge <inicio>T00:00:00Z and FechaRequerida le <fin>T23:59:59Z",
   function: "sum", field: "Cantidad")
 ```
 Cumplimiento % = `SUM(Cantidad real) / Producir programado * 100`; traducir

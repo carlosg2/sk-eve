@@ -27,6 +27,11 @@ Ocupacion), `PorOcupacion` (= HorasProgram / CapacidadHrs × 100), `Maq1` (=
 AProducir − Ocupacion), `Inventario` (vía `fnInvForecastDesglosado`), y `DOH`
 (= Venta / Inventario). La fila `Total` suma todas las columnas numéricas.
 
+⚠️ `DOH` es una columna **calculada** del SP (`DOH = Venta / Inventario`), NO
+es un campo DAB de `WebInicio` (verificado 2026-08-06: pedirlo en `select` da
+`BadRequest`). No lo incluyas en `select`; calcúlalo client-side si se
+necesita.
+
 La misma ruta también carga, semana por semana (`spFCPPSemanaLista` da la
 lista de semanas del periodo), el programa de producción consolidado por
 centro (`spProgramaProdConcentadoCentro`) — usa `ForecastPlanProduccion`.
@@ -75,10 +80,10 @@ read_records(ForecastPlanSemanal,
   select: "ID,Situacion,SituacionUsuario,SituacionFecha")
 ```
 
-⚠️ Si este patrón falla con BadRequest (campo no encontrado), prueba el campo en
-**UPPERCASE** (`SEMANA`, `EJERCICIO`, `SITUACION`...) — el DAB normaliza
-`ForecastPlanProduccion` a UPPERCASE (confirmado); para `ForecastPlanSemanal`
-verifica el casing real con `read_records(first:1)` antes de asumir.
+⚠️ `ForecastPlanSemanal` usa **camelCase** (`Ejercicio`/`Periodo`/`Semana`/
+`CentroTrabajo`/`Situacion` — verificado 2026-08-06: `EJERCICIO`/`SITUACION`
+dan `BadRequest`). NO pruebes UPPERCASE en esta vista. El UPPERCASE aplica
+SOLO a `ForecastPlanProduccion`.
 
 Si el usuario pide "autorizar"/"cambiar situación" del plan, indícale que debe
 hacerlo desde el portal MRP directamente.

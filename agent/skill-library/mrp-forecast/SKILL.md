@@ -21,7 +21,8 @@ Es el **grid maestro** de la planeación: cada renglón de `ResumenPlaneacionCF`
 representa un artículo/cliente/centro con una fila de venta pronosticada
 (`S1..S54`, una por semana del año) y una fila espejo de plan de producción
 (`P1..P54`), más columnas de contexto (`Concepto`, `Cliente`/`NombreCte`,
-`Programa`, `CtTrabajo`/centro de trabajo, `Familia`, `Gramaje`) y totales de
+`Programa`, `CtTrabajo`/centro de trabajo, `FamiliaCF`/`VariedadCF`,
+`Gramaje`) y totales de
 inventario (`Stock`, `InvEmp`, `InvGra`, `TotalInv`). Este grid es la fuente
 de la que se derivan tanto `mrp-produccion` (validación de insumos, vía
 `ExplocionMatCF`) como `mrp-indicadores` (cumplimiento).
@@ -37,7 +38,7 @@ artículo X?", este es el patrón.
 ```
 read_records(ResumenPlaneacionCF,
   filter: "Usuario eq 'CGARZA'",
-  select: "CtTrabajo,Articulo,Concepto,Cliente,Programa,Familia,Producir,Kg,Stock,InvEmp,InvGra,TotalInv")
+  select: "CtTrabajo,Articulo,Concepto,Cliente,Programa,FamiliaCF,VariedadCF,Producir,Kg,Stock,InvEmp,InvGra,TotalInv")
 ```
 
 Si se necesita el desglose semanal completo (`S1..S54`/`P1..P54`), agrégalo al
@@ -61,7 +62,8 @@ debe hacerlo desde el portal MRP, no lo intentes vía `update_record`.
 
 ## Limitaciones
 
-- `ResumenPlaneacionCF` es scratch por usuario — verificar `UtLogEjcProMrp` si
-  regresa vacío.
+- `ResumenPlaneacionCF` es scratch por usuario — si regresa vacío, la corrida
+del usuario `CGARZA` no existe en ese snapshot; declarar "dato no disponible"
+(no hay bitácora `UtLogEjcProMrp` en el MCP de ICF para verificarla).
 - 54 columnas semanales por fila es costoso — siempre acota `select` a las
-  semanas relevantes.
+semanas relevantes.

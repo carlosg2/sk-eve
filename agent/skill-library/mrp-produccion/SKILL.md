@@ -56,20 +56,26 @@ read_records(ExplocionMatCF, filter: "Usuario eq 'CGARZA' and ArticuloHijo eq '<
   select: "Articulo,ArticuloHijo,PorAlcance,AlcanceDias,Cubre")
 ```
 
-`Cubre = false`/`PorAlcance < 100` → el material NO alcanza para el
-requerimiento planeado; reportarlo como riesgo de producción, no solo como
-"faltante de compra" (eso es el skill `gap-abasto`/`mrp-faltantes`).
+`Cubre` puede venir `null` (no solo `false`/`true` — verificado 2026-08-06):
+considerar el material **no cubierto** si `Cubre` no es `true` O
+`PorAlcance < 100` → riesgo de producción, no solo "faltante de compra" (eso
+es el skill `gap-abasto`/`mrp-faltantes`).
 
 ## Patrón 3 — Detalle de lote/almacén asignado (FIFO) contra el plan autorizado
 
-Ver skill `mrp-inventario` → `UtMrpPrevioMateriaPrima` para saber de qué lote
-específico saldría cada material, una vez que el plan semanal está en
-`Situacion = 'Autorizado'`.
+La asignación PEPS/FIFO de lotes (`SerieLote`) contra el plan autorizado
+materializa en `UtMrpPrevioMateriaPrima`, que **NO existe en el MCP ICF** (es
+staging del proyecto sigma-icf; EntityNotFound verificado 2026-08-06). Si el
+usuario pregunta por lote específico asignado, declara la limitación y ofrece
+`ArtDisponibleDesc` (existencias por artículo/almacén) — ver skill
+`mrp-inventario`.
 
 ## Limitaciones
 
-- `ExplocionMatCF` es scratch por usuario — verificar `UtLogEjcProMrp` si
-  regresa vacío o desactualizado.
+- `ExplocionMatCF` es scratch por usuario — si regresa vacío, la corrida de
+  `CGARZA` no existe en ese snapshot; declarar "dato no disponible" (no hay
+  bitácora `UtLogEjcProMrp` en el MCP de ICF). Proxy: `aggregate_records(
+  ExplocionMatCF, function: "count", field: "*")` o `CalendarioFC`.
 - `PorAlcance`/`AlcanceDias` son cálculos ya hechos por el proceso batch — no
   los recalcules a mano con otras fórmulas; si necesitas más columnas,
   descubre el schema real con `read_records(ExplocionMatCF, first: 1)` sin

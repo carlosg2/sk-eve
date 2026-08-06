@@ -35,7 +35,7 @@ por semana/centro) — no dupliques lógica, es la misma fuente.
 
 ```
 read_records(WebInicio, filter: "Usuario eq 'CGARZA'",
-  select: "CentroTrabajo,Venta,AProducir,Ocupacion,Capacidadhrs,HorasProgram,PorOcupacion,Inventario")
+  select: "CentroTrabajo,Venta,AProducir,Ocupacion,CapacidadHrs,HorasProgram,PorOcupacion,Inventario")
 ```
 
 **Si el usuario pregunta por venta/cobranza/pagos** (KPIs de `Pay.svelte`),

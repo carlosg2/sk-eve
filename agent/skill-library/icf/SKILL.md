@@ -116,7 +116,7 @@ Reglas de respuesta:
 ```
 read_records(ArtDisponibleDesc,
   filter: "Almacen eq '<ALMACEN_DEL_TENANT>'",
-  select: "Articulo,Descripcion1,Disponible,Apartado,DispMenosApartado,Unidad",
+  select: "Articulo,Descripcion1,Disponible,Unidad",
   orderby: ["Disponible desc"],
   first: 50)
 ```
@@ -125,7 +125,7 @@ read_records(ArtDisponibleDesc,
 ```
 read_records(ArtDisponibleDesc,
   filter: "Articulo eq '000002'",
-  select: "Articulo,Descripcion1,Disponible,Apartado,DispMenosApartado,Almacen")
+  select: "Articulo,Descripcion1,Disponible,Almacen")
 ```
 
 ### Búsqueda por texto parcial (usar buscar_registro, NO paginar)

@@ -13,7 +13,7 @@ description: >
 
 > **Este skill es SOLO procedural.** Para el detalle de schema y el método
 > principal de insumos/materia prima, ver primero
-> [gap-abasto/SKILL.md](/agent/skills/gap-abasto/SKILL.md) — **no lo dupliques
+> [gap-abasto/SKILL.md](/agent/skill-library/gap-abasto/SKILL.md) — **no lo dupliques
 > aquí**. Este documento solo agrega lo que gap-abasto no cubre: la vista
 > "Faltante de Concentrado" (agregada por familia).
 
@@ -40,29 +40,28 @@ los tools dedicados `faltante_insumos`/`faltante_materia_prima` documentados en
 ya está implementado ahí.
 
 **Caso 3 (faltante de concentrado, agregado por familia)** — no existe un tool
-dedicado para esta agregación. Dos opciones, en este orden de preferencia:
+dedicado para esta agregación. Usar `aggregate_records` sobre `ExplocionMatCF`
+agrupando por `FamiliaCF` (verificado 2026-08-06 contra el MCP real):
 
 ```
-# Opción A (preferida): llamar faltante_materia_prima y agregar client-side
-# por familia, SI el resultado incluye un campo de familia (verificar primero
-# con una corrida real — el schema documentado de faltante_materia_prima no
-# incluye Familia explícitamente, puede requerir un join manual contra Art
-# para obtener FamArtCF por cada Articulo devuelto).
-faltante_materia_prima(Usuario: "CGARZA", Ejercicio: 2026, Periodo: 7)
-# luego: read_records(Art, filter: "Articulo eq 'X' or ...", select: "Articulo,FamArtCF")
-# y agrupar Faltante por FamArtCF en el análisis.
-
-# Opción B (fallback, más cara): reconstruir la agregación directamente sobre
-# ExplocionMatCF (mismo filtro que faltante_materia_prima) agrupando por FamiliaCF.
+# Patrón canónico (verificado OK): faltante de concentrado por familia
 aggregate_records(ExplocionMatCF,
-  filter: "Usuario eq 'CGARZA' and SeProduce eq 0",
-  groupby: "FamiliaCF", function: "sum", field: "InvRequerido")
+  filter: "Usuario eq 'CGARZA' and SeProduce eq false",
+  groupby: ["FamiliaCF"], function: "sum", field: "InvRequerido")
 ```
+
+⚠️ Notas verificadas (2026-08-06):
+- `SeProduce` es **booleano** (`false`/`true`), NO entero: `SeProduce eq 0` →
+  `BadRequest` (incompatible types Edm.Boolean/Edm.Int32). Usar `eq false`.
+- `groupby` debe ser **array** `["FamiliaCF"]`: como string el DAB lo IGNORA
+  y devuelve un solo total sin desglosar.
+- La familia del faltante es el **`FamiliaCF` de `ExplocionMatCF`**; NO intentar
+  el join a `Art.FamArtCF` (ese campo es `null` en `Art` — verificado).
 
 ## Limitaciones
 
-- No hay tool dedicado para "faltante por familia" — usar la Opción A/B de
-  arriba, ninguna probada en vivo todavía.
+- No hay tool dedicado para "faltante por familia" — usar el patrón de arriba
+  (verificado OK contra el MCP el 2026-08-06).
 - Si el usuario simplemente pregunta "¿qué falta comprar?" sin mencionar
   "familia"/"concentrado", **usa siempre `gap-abasto` primero** — este skill
   solo aplica cuando la pregunta pide explícitamente el nivel de agregación

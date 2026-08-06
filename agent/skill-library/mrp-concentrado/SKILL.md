@@ -33,14 +33,19 @@ contra el plan) — ver skill `mrp-indicadores` para el patrón de cumplimiento.
 ```
 aggregate_records(ResumenPlaneacionCF,
   filter: "Usuario eq 'CGARZA' and Producir gt 0",
-  groupby: "FamiliaCF",
+  groupby: ["FamiliaCF"],
   function: "sum", field: "Producir")
 
 aggregate_records(ResumenPlaneacionCF,
   filter: "Usuario eq 'CGARZA' and Producir gt 0",
-  groupby: "FamiliaCF",
+  groupby: ["FamiliaCF"],
   function: "sum", field: "Kg")
 ```
+
+⚠️ `groupby` debe ser **array** (`["FamiliaCF"]`), no string: con string el DAB
+lo IGNORA silenciosamente y devuelve un solo total global sin desglosar
+(verificado 2026-08-06: string → 1 fila suma total; array → desglose real por
+familia).
 
 Si `aggregate_records` no soporta múltiples `sum` en una sola llamada, ejecuta
 las dos por separado (Producir y Kg) y combina por `FamiliaCF`.
@@ -63,9 +68,11 @@ Para comparar contra lo YA producido, ver `mrp-indicadores` (usa
 ## Limitaciones
 
 - `ResumenPlaneacionCF` es scratch por usuario (se sobrescribe en cada corrida)
-  — si regresa vacío, verificar `UtLogEjcProMrp` antes de reportar "no hay
-  datos" (mismo criterio que el skill `mrp` general).
+  — si regresa vacío, verificar que el snapshot existe con
+  `aggregate_records(ResumenPlaneacionCF, function: "count", field: "*")`
+  (o `CalendarioFC`) antes de reportar "no hay datos".
 - La columna calculada "Producido" (comparación plan vs. real por semana) no
   existe como campo DAB — hay que calcularla aparte con `Prod`/`ProdD`
-  filtrando por fecha de la semana (usar `DimTiempoSemana`/`CalendarioFC` para
-  traducir semana → rango de fechas).
+  filtrando por fecha de la semana (usar `CalendarioFC` — campos camelCase
+  `Ano`/`Semana`/`FechaD`/`FechaA` — para traducir semana → rango de fechas;
+  `DimTiempoSemana` NO existe en el MCP ICF).

@@ -26,11 +26,15 @@ contra el forecast asignado a ese centro (`spBalanceFC`, que corresponde
 conceptualmente a la tabla `BalanceFC`).
 
 Distintos **tipos de centro** (Envasado/Cribado, Maquila, Cribado Mitades,
-etc. — ver `EstacionTFC.Tipo`) usan fórmulas de capacidad distintas
-(piezas/minuto × minutos turno × núm. estaciones activas, etc.); el detalle
-exacto de cada fórmula vive en `spFCCentroCapacidadReal` (mismo SP que usa la
-ruta `inicio` para `CapacidadHrs`) — no se transcribió aquí línea por línea,
-usar el valor ya calculado en `CentroFC`/`WebInicio` en vez de recalcularlo.
+etc.) usan fórmulas de capacidad distintas (piezas/minuto × minutos turno ×
+núm. estaciones activas, etc.); el detalle exacto de cada fórmula vive en
+`spFCCentroCapacidadReal` (mismo SP que usa la ruta `inicio` para
+`CapacidadHrs`) — no se transcribió aquí línea por línea, usar el valor ya
+calculado en `CentroFC`/`WebInicio` en vez de recalcularlo. ⚠️ El "tipo" de
+centro/estación **no está expuesto como campo DAB** en `EstacionTFC`/`CentroFC`
+(verificado 2026-08-06: `Tipo` y 9 variantes probadas → `Invalid field`); el
+tipo vive solo en la lógica de los SPs `spFCCentroCapacidadReal`/
+`spFCBasesjson`, no es consultable.
 
 ## Patrón 1 — Configuración de un centro específico
 
@@ -39,11 +43,14 @@ read_records(Centro, filter: "Centro eq '<C>'", select: "Centro,Descripcion")
 read_records(CentroFC, filter: "Centro eq '<C>'")   # sin select: descubrir columnas reales primero
 ```
 
-## Patrón 2 — Estaciones de un centro y su tipo
+## Patrón 2 — Estaciones de un centro (tipo no expuesto por DAB)
 
 ```
-read_records(EstacionTFC, filter: "Centro eq '<C>'", select: "Estacion,Descripcion,Tipo,Centro")
+read_records(EstacionTFC, filter: "Centro eq '<C>'", select: "Estacion,Descripcion,Centro")
 ```
+
+⚠️ `EstacionTFC` no expone el campo `Tipo` por DAB (verificado 2026-08-06) —
+no lo pidas en `select`; el tipo de estación no es consultable.
 
 ## Patrón 3 — Selección/temp de la sesión de modelado (por usuario)
 

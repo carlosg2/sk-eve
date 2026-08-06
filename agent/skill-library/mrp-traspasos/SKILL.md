@@ -35,6 +35,11 @@ disponible del proyecto) — no se pudo confirmar la lógica de negocio real
 
 ## Qué hacer si el usuario pregunta por esto
 
+0. **Los arribos proyectados (no traspasos) SÍ existen** y están cubiertos por
+   `mrp-arribos` (`Arribos12`/`FCArribos`/`Arribos12S`/`ArribosSub12S`, todos
+   verificados OK 2026-08-06). Si el usuario pregunta por llegadas/embarques
+   proyectados, usar `mrp-arribos`, no este skill.
+
 1. **Estado verificado (2026-08-06, linter contra el MCP real)**: las
    entidades `ProgramaTraspaso`, `TraspasoSemanal` y `MRPAlmArribos` NO
    existen en el MCP de ICF (`EntityNotFound` confirmado con

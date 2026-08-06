@@ -32,6 +32,10 @@ hay ninguna entidad `ArtPrototipo*` documentada actualmente en el Company Twin
 
 ## Qué hacer si el usuario pregunta por esto
 
+0. **Estado verificado (2026-08-06, probe contra el MCP real)**:
+   `ArtPrototipo`, `ArtPrototipoD` y `ArtPrototipoMaterial` → `EntityNotFound`
+   confirmado con `read_records(..., first: 1)`. No las pruebes una por una.
+
 1. **Primero intenta descubrimiento de schema** — no asumas que la entidad no
    existe en DAB solo porque no está documentada en el Twin:
    ```

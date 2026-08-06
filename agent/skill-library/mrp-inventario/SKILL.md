@@ -27,10 +27,15 @@ forecast general del módulo FC.
 
 ```
 read_records(CalendarioFC, filter: "Usuario eq 'CGARZA'", select: "Ano,Semana,FechaD,FechaA")
-read_records(VacaPresupuestoVtaCon, select: "ID,Ejercicio,SemanaMRP,Version,Estatus")
+read_records(VacaPresupuestoVtaCon, filter: "Ejercicio eq 2026", select: "ID,Ejercicio,SemanaMRP,Version,Estatus")
 read_records(VacaPresupuestoVtaConD, filter: "ID eq <ID del encabezado>",
   select: "Renglon,Articulo,Cliente,Programa,S1,S2,...,S12,P1,P2,...,P12")
 ```
+
+⚠️ El presupuesto VACA **no es snapshot por usuario** (tiene su propio
+`Usuario`, p.ej. `MASERP`, y el encabezado más antiguo es `Ejercicio 2021`) —
+NO filtrar por `Usuario eq 'CGARZA'`; filtrar por `Ejercicio` del año de
+trabajo (verificado 2026-08-06).
 
 ## Patrón 2 — Validación de lotes (PEPS/FIFO) contra el plan autorizado
 
@@ -49,6 +54,8 @@ la tabla `UtMrpPrevioMateriaPrima`.
 > disponible) y ofrece en su lugar existencias por artículo/almacén vía
 > `ArtDisponibleDesc`.
 
+> 🔒 **NO EJECUTABLE — solo referencia del proyecto legacy sigma-icf** (la
+> entidad no está publicada en el MCP ICF; no intentar llamarla):
 ```
 read_records(UtMrpPrevioMateriaPrima,
   filter: "SEMANA eq <N> and ARTICULO eq '<A>'",
