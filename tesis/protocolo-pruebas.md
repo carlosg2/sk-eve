@@ -37,6 +37,9 @@ curl -s 'http://localhost:5173/api/audit/turns?sessionId=<id>&limit=50'
 # Inputs reales al LLM por step
 curl -s 'http://localhost:5173/api/audit/llm?limit=50&sessionId=<id>'
 
+# Razonamiento reconstruido de una sesión (concatenación de reasoningDelta por turno)
+curl -s 'http://localhost:5173/api/audit/reasoning?sessionId=<id>'
+
 # Resúmenes + tendencia (inspector / DevTools)
 curl -s 'http://localhost:5173/api/traces?limit=50'
 
