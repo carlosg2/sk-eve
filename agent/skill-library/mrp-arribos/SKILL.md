@@ -38,6 +38,11 @@ read_records(Arribos12,
   select: "Articulo,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12")
 ```
 
+⚠️ **No pagines en grande**: `read_records(Arribos12, first: 500)` sin filtro
+re-envía ~36k chars por step (anti-patrón visto en E2E 2026-08-06). Limita
+`first` a ≤100, acota con `filter` (artículo/familia) o usa `aggregate_records`
+para totales. `Arribos12` tiene una fila por artículo/usuario.
+
 Usar `Arribos12S` si se necesita el desglose por familia o el ajuste (`An`)
 en vez del detalle por artículo (verificado 2026-08-06: `Arribos12S` tiene
 `S1..S12`/`A1..A12`; `ArribosSub12S` SOLO mapea artículo→familia

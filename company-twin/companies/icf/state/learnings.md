@@ -38,3 +38,13 @@ aquí cuando una tool falla; el agente las lee al inicio de sesión para no repe
 > ESPECÍFICO de `ForecastPlanProduccion`, no generalizar). `ForecastPlanProduccion` UPPERCASE
 > promovido al mismo doc + skills `mrp-concentrado`/`mrp-inicio`. Hook `deriveLearning` ampliado
 > (shape "Could not find a property named X").
+- [fld-read_records-unidad] El campo 'Unidad' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'UNIDAD', no 'Unidad'. _(2026-08-06T10:06:17.125Z)_
+
+> **Clasificado 2026-08-06 (E2E icf, turno wrun_01KZB8JVF5TJHSGXK5WJ3AFNT0):** el
+> hint UPPERCASE del hook NO aplica aquí — la causa real fue el patrón viejo del
+> skill (snapshot anterior al fix): pedir `Apartado`/`DispMenosApartado` en
+> `ArtDisponibleDesc` (no existen en esa vista) y `Unidad` en `ArtDisponible`
+> (vista mínima de 6 campos, sin Unidad). Verdad verificada: `Unidad` camelCase
+> SÍ existe en `ArtDisponibleDesc` (devuelve "Pz"). Lección ya cubierta por
+> `agent/skill-library/icf` (select corregido sin Apartado/DispMenosApartado) y
+> `mrp-cf` (ArtDisponible solo para agregados numéricos). No promover a UPPERCASE.

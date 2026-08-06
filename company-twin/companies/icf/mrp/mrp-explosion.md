@@ -46,11 +46,12 @@ Resumen de capacidad/eficiencia procesada por centro (`CapacidadReal`,
 como llave lógica. Al 2026-07-31 la tabla no tenía datos en ICF.
 
 ## `UtLogEjcProMrp`
-Bitácora de ejecución del proceso de MRP de producción (`LOG_ID`, `LOG_FYH`
-fecha/hora, `ORG` origen, `PRM` parámetros). Solo lectura/creación. Llave lógica:
-`LOG_ID`. Útil para saber **cuándo y con qué parámetros se corrió el MRP** de un
-usuario/periodo — consultar aquí antes de asumir que `ExplocionMatCF` está
-actualizado para un `Ejercicio`/`Periodo` dado.
+⚠️ **NO existe en el MCP de ICF** (EntityNotFound verificado 2026-08-06). Era
+la bitácora de ejecución del MRP (`LOG_ID`, `LOG_FYH`, `ORG`, `PRM`) del
+proyecto sigma-icf, pero no está publicada. **No intentar leerla** — causa un
+`EntityNotFound` en runtime. Para saber si el MRP se corrió, usar como proxy:
+`aggregate_records(ExplocionMatCF, function: "count", field: "*")` o
+`CalendarioFC` (si traen filas, la corrida existe).
 
 ## `UtMaxMinCompra`
 Parámetros de inventario mínimo/máximo (en Kg) por artículo y módulo, usados por
@@ -87,9 +88,14 @@ módulo FC. Llave lógica: `ID+Usuario`.
 # Notas de uso
 
 - Ninguna de estas tablas tiene PK física declarada salvo `ExplocionMatCF`
-  (`ID+Usuario`) — al hacer `read_records`, filtrar siempre por `Usuario` (y
-  `Ejercicio`/`Periodo` si aplica) para no traer corridas de otros usuarios.
+  (`ID+Usuario`) — al hacer `read_records`, filtrar SIEMPRE por `Usuario`.
+  ⚠️ **`ExplocionMatCF` NO tiene campos `Ejercicio`/`Periodo`** (verificado
+  2026-08-06: filter/groupby con ellos da `FieldNotFound`); es snapshot por
+  usuario sin año/periodo en la fila. NO intentes filtrar/agrupar por
+  ejercicio/periodo en esta vista.
 - `BalanceFC`/`ResumenPlaneacionCF` son **scratch, se sobrescriben** — no sirven
   para comparar corridas históricas; usar las versiones `*Hist` para eso.
 - Antes de confiar en un resultado vacío de `ExplocionMatCF`/`faltante_*`,
-  verificar en `UtLogEjcProMrp` que el MRP se corrió para ese `Usuario`/periodo.
+  verificar que el snapshot existe con `aggregate_records(ExplocionMatCF,
+  function: "count", field: "*")` o `CalendarioFC` (`UtLogEjcProMrp` NO existe
+  en el MCP ICF).

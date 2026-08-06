@@ -44,11 +44,13 @@ disponible del proyecto) — no se pudo confirmar la lógica de negocio real
    entidades `ProgramaTraspaso`, `TraspasoSemanal` y `MRPAlmArribos` NO
    existen en el MCP de ICF (`EntityNotFound` confirmado con
    `read_records(..., first: 1)`). NO las pruebes una por una.
-2. Responde la limitación directamente: **el programa de traspasos entre
-   almacenes no está disponible a través de este agente** — no lo confundas
-   con movimientos de inventario genéricos del ERP (que sí podrían existir
-   en erp-kernel bajo otro nombre; verifica con `query_company_twin` antes
-   de descartar).
+2. **RESPONDE LA LIMITACIÓN DE INMEDIATO, sin explorar**: el programa de
+   traspasos entre almacenes NO está disponible a través de este agente
+   (las 3 entidades no existen). NO intentes reconstruir traspasos con
+   `Inv`/`MovTipo`/`CalendarioFC` ni explores el catálogo (E2E 2026-08-06:
+   intentarlo costó 187k tok / 14 calls / 1 error). Solo si el usuario pide
+   explícitamente **movimientos de inventario transaccional real** (no
+   traspasos programados), ofrécele `Inv` (erp-kernel) como alternativa.
 3. Si el usuario reporta que sí existe una entidad de traspaso, repórtalo
    para que se documente — no la documentes tú mismo con datos inventados.
 
