@@ -38,6 +38,7 @@ capacidad. Elegir la capa correcta ES el trabajo.
 | Trazas de ejecución, patrones repetidos de tool-calls | → | **Procedural (cómo hacer)** — secuencias reutilizables | `agent/skills/<x>/SKILL.md` |
 | Fricciones del modelo con las tools (llama `describe_entities` de más, malinterpreta un filtro) | → | **Ejecución (qué puede la máquina + cómo se le describe)** | `dab/dab-config.json` (`object-description`) o descripciones de tools del DAB (C#) |
 | Confusión de ruteo ("no supe a qué fuente ir") | → | **Identidad/ruteo (thin)** | `agent/instructions.md` |
+| **Radiografía durable** (`.data/sessions.sqlite3`: `events`/`llm_inputs`/`turn_summaries`; `/api/audit/turns`, `/api/audit/llm`) — métricas y trayectorias para decidir qué promover y validar impacto | → | **Evidencia para evaluar** (no una capa: la usa la fábrica para clasificar y medir antes/después) | consultas SQL/endpoints — ver `tesis/protocolo-pruebas.md` |
 
 **Regla de compilación (ley ontológica):** una observación de **un** tenant compila a la
 capa **local** (`companies/<tenant>/`). Solo asciende a **universal** (`erp-kernel/`) con
@@ -125,6 +126,11 @@ si algún destino quedó ambiguo.
 
 1. **Lee** el buffer `company-twin/companies/<tenant>/state/learnings.md`
    (default `joyarock-300326`). Si solo tiene encabezado → termina: "buffer vacío".
+0. **Contexto con evidencia** (si el buffer tiene entradas): consulta la radiografía para
+   entender el costo real de cada problema antes de compilar — `curl http://localhost:5173/api/audit/turns`
+   y SQL sobre `.data/sessions.sqlite3` (ver `tesis/protocolo-pruebas.md` §1). Un error
+   aislado compila distinto a un patrón que repite 5 veces y quema 300k tokens: usa
+   `turn_summaries` para medir el impacto y justificar la promoción.
 2. **Inventaría** el destino: revisa `index.md` del kernel/twin y el archivo destino
    probable **antes** de escribir, para refinar en vez de reescribir y evitar duplicados.
 3. Para **cada** entrada `- [key] texto`:
@@ -136,7 +142,9 @@ si algún destino quedó ambiguo.
       rebuild + restart del DAB (no aplica en caliente).
 4. **Actualiza `index.md`** del directorio afectado si añadiste/renombraste un concepto.
 5. **Registra en `log.md`** del bundle del Twin/Kernel la promoción (fecha, qué se compiló).
-6. **Valida:** `npm run check`.
+6. **Valida:** `npm run check` + `node scripts/check-knowledge.ts` (0 críticos). Si la
+   promoción toca un skill/patrón con medición posible, re-mide el turno representativo
+   (E2E con sesión nueva, ver `tesis/protocolo-pruebas.md`) y registra antes/después.
 7. **ADR:** si el cambio fue **estructural** (nueva entidad, nueva capa, cambio de dueño),
    añade un ADR breve en [tesis/decisiones.md](../../../tesis/decisiones.md).
 8. **Vacía el buffer:** reescribe `learnings.md` dejando **solo su encabezado**. Las entradas
@@ -168,4 +176,5 @@ la fábrica, no por el agente*.
 ## Salida
 
 Al terminar, muestra una tabla `key → capa → destino (archivo) → acción (nuevo/refinado/pendiente)`
-y el resultado de `npm run check`.
+, el resultado de `npm run check` y, cuando haya medición, las métricas antes/después
+(tokens, steps, calls, errores) de la evidencia de la radiografía.

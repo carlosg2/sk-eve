@@ -223,6 +223,33 @@ Se carga cuando el usuario pregunta sobre CXP, facturas, proveedores, tesorería
 
 ---
 
+## Protocolo de pruebas y evaluación — OBLIGATORIO
+
+Documento canónico completo: **`tesis/protocolo-pruebas.md`** (fuentes de evidencia, receta de 8 pasos, ciclo E2E, baselines, gotchas). Resumen operativo:
+
+### Radiografía durable (toda la evidencia que recopila el runtime)
+- SQLite `.data/sessions.sqlite3` (sobrevive al purge de `.eve/`): tablas `events` (espejo completo del stream: mensajes, reasoning, tool calls, errores, HITL), `llm_inputs` (input real al LLM por step), `turn_summaries` (tokens/cache/errors/steps/calls por turno), `sessions`.
+- Endpoints: `GET /api/audit/turns` (radiografía por turno: pregunta + respuesta + tools + tokens + errores), `GET /api/audit/llm` (inputs), `GET /api/traces` (resúmenes + tendencia), `GET /api/sessions`.
+- Evals: `node_modules/.bin/eve eval --list` + `eve eval --url http://127.0.0.1:62803/ --timeout 360000` → **4/4 verdes**.
+- Linter: `node scripts/check-knowledge.ts` → **0 críticos** (WARN CONOCIDO/KERNEL esperados).
+- Learnings buffer: `company-twin/companies/<tenant>/state/learnings.md` (errores por promover).
+
+### Receta de evaluación (todo cambio)
+1. **Baseline antes**: turno E2E de la feature (sesión nueva) → registrar tokens/steps/calls/errores del inspector.
+2. Cambio → `npm run check` (con `nvm use 24`) + `get_errors`.
+3. Linter (0 críticos) + evals (4/4).
+4. **E2E post-cambio**: "Reiniciar conversación" (sesión = snapshot del `session.started`), turno, leer `Agent inspector` (status/tokens/errores/trend).
+5. Verificar persistencia: `curl /api/audit/turns` trae question+answer+métricas de la sesión nueva.
+6. Registrar antes/después en la memoria del repo; si toca conocimiento → `/promote-learnings`.
+
+### Baselines para comparar
+frijol negro **78.7k tok/98s/4 steps/6 calls/0 err** (era 919k/302s/22/1) · gap-abasto **50k/69s/3/3/0** · plan S31 70.6k/4/7/0. Mejora real = menos tokens/calls/tiempo o menos errores sin perder calidad.
+
+### Gotchas de evaluación (resumen)
+Sesión=snapshot (reiniciar conversación) · llm-io captura PRE-middleware (planTag null es esperado) · NO recargar durante turno (sesiones huérfanas) · purge mata sesiones Eve pero NO la radiografía SQLite · DeepSeek lento (timeouts amplios) · modelo no determinista (validar invariante, no ruta) · inspector trunca a 300 eventos/2k (usar `textContent()` o SQLite) · `first` string = 524k chars (hardening ya lo coacciona; warning = revisar skill) · evals con `--url` del dev server interno.
+
+---
+
 ## Recursive self-improvement — la tesis aplicada (OBLIGATORIO)
 
 El sistema sigue la **constitución** (`tesis/constitucion.md`) y el **context stack** (`tesis/context-stack.md`). Reglas que Copilot (la fábrica) debe respetar SIEMPRE:
