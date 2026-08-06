@@ -9,17 +9,18 @@ import {
 
 // Registro de sesiones para el sidebar de "conversaciones anteriores" en
 // /chat (observe-only, mismo patrón que agent/hooks/memory.ts — nunca
-// inyecta contexto al modelo). Ignora sesiones de subagentes (session.started
-// con data.invocation.kind === "subagent") para no ensuciar la lista con
-// sub-ejecuciones internas: session-store.ts solo crea una entrada nueva
-// desde touchSessionStarted, así que basta con no llamarla para esos casos.
+// inyecta contexto al modelo). El índice del sidebar IGNORA sesiones de
+// subagentes (session.started con data.invocation.kind === "subagent") para
+// no ensuciar la lista: session-store.ts solo crea una entrada nueva desde
+// touchSessionStarted, así que basta con no llamarla para esos casos.
 //
 // El handler "*" espeja CADA evento del stream a `events` (session-store.ts)
 // — patrón oficial de Eve para persistir a tu propia base de datos — así el
 // historial completo sobrevive un `rm -rf .eve` y se acumula para minería.
-// Usa el mismo filtro anti-subagente: un Set en memoria poblado desde
-// session.started (que siempre llega antes que cualquier otro evento de esa
-// sesión), consultado por cada evento posterior de la misma sesión.
+// ⚠️ 2026-08-06: el espejo ahora incluye TAMBIÉN los subagentes (su
+// razonamiento y tool calls son evidencia para diagnosticar qué pensó el
+// agente y dónde se equivocó). El índice `sessions` (sidebar) los sigue
+// filtrando — el espejo y el índice son dos cosas distintas.
 //
 // ⚠️ Blindado con try/catch en cada handler: un throw aquí rompería el turno
 // (ver gotcha "self-improvement runtime a prueba de errores" en la memoria
@@ -92,7 +93,8 @@ export default defineHook({
     },
     async "*"(event, ctx) {
       try {
-        if (subagentSessions.has(ctx.session.id)) return;
+        // Espejo COMPLETO del stream: TODAS las sesiones, incluidos subagentes.
+        // El índice del sidebar (tabla sessions) sigue filtrándolos arriba.
         const ev = event as { type: string; data?: unknown; meta: { id: string; at: string } };
         await appendEvent(ctx.session.id, { type: ev.type, data: ev.data, meta: ev.meta });
       } catch {
