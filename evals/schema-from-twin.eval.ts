@@ -6,7 +6,7 @@ export default defineEval({
   description: "El schema se obtiene del Company Twin, no de describe_entities.",
   async test(t) {
     await t.send("¿Qué campos tiene la entidad CtaDinero y cuál es su PK?");
-    t.completed();
+    t.succeeded();
     t.calledTool("query_company_twin");
     t.notCalledTool("intelisis-dab__describe_entities");
   },
