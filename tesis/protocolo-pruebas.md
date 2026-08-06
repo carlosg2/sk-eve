@@ -38,7 +38,8 @@ curl -s 'http://localhost:5173/api/audit/turns?sessionId=<id>&limit=50'
 curl -s 'http://localhost:5173/api/audit/llm?limit=50&sessionId=<id>'
 
 # Razonamiento reconstruido de una sesión (concatenación de reasoningDelta por turno)
-curl -s 'http://localhost:5173/api/audit/reasoning?sessionId=<id>'
+# ⚠️ Consolidado: /api/audit/reasoning se eliminó (2026-08-06); usa
+# /api/audit/turn (devuelve reasoning completo + razonamiento por step en timeline).
 
 # Vista HOLÍSTICA de un turno (todo en una llamada): question/answer/reasoning/tools/hitl/métricas
 curl -s 'http://localhost:5173/api/audit/turn?sessionId=<id>&turnId=turn_0'
