@@ -24,6 +24,17 @@
     reasoning: string; planTag: string | null; hitl: string[];
     timeline: TlItem[];
   };
+  // Evaluaciones de CALIDAD (fábrica, para graduación de skills).
+  type Evaluacion = {
+    id: number; at: string; caso: string; skill: string; pregunta: string;
+    sessionId: string; turnId: string; status: string; errors: number;
+    inputTok: number; turnMs: number; exactitud: number; congruencia: number | null;
+    invariantes: Array<{ label: string; valor: string; hallado: boolean }>;
+    respuesta: string;
+  };
+  type Tendencia = {
+    caso: string; n: number; exactitudMedia: number; congruenciaPct: number | null;
+  };
 
   let sessions = $state<Session[]>([]);
   let selectedSession = $state<string | null>(null);
@@ -33,6 +44,13 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let expanded = $state<Set<number>>(new Set());
+  // Vista + evaluaciones de calidad.
+  let view = $state<"radiografia" | "evaluaciones">("radiografia");
+  let evaluaciones = $state<Evaluacion[]>([]);
+  let tendencia = $state<Tendencia[]>([]);
+  let evalLoading = $state(false);
+  let evalError = $state<string | null>(null);
+  let expandedEval = $state<Set<number>>(new Set());
 
   function fmt(ms: number | null | undefined): string {
     if (ms == null) return "—";
@@ -50,6 +68,11 @@
     const next = new Set(expanded);
     next.has(i) ? next.delete(i) : next.add(i);
     expanded = next;
+  }
+  function toggleEval(i: number) {
+    const next = new Set(expandedEval);
+    next.has(i) ? next.delete(i) : next.add(i);
+    expandedEval = next;
   }
 
   const KIND_BADGE: Record<string, string> = {
@@ -148,8 +171,24 @@
     }
   }
 
+  async function loadEvaluaciones() {
+    evalLoading = true;
+    evalError = null;
+    try {
+      const res = await fetch("/api/audit/evaluaciones?limit=200");
+      const j = await res.json();
+      evaluaciones = j.evaluaciones ?? [];
+      tendencia = j.tendencia ?? [];
+    } catch (e) {
+      evalError = String(e);
+    } finally {
+      evalLoading = false;
+    }
+  }
+
   onMount(() => {
     void loadSessions();
+    void loadEvaluaciones();
   });
 
   $effect(() => {
@@ -165,9 +204,21 @@
     <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-3">
       <div class="flex items-center gap-3">
         <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-600/20 text-cyan-400 text-lg">◉</div>
-        <div>
-          <h1 class="text-sm font-semibold text-zinc-50 leading-tight">Auditoría — radiografía</h1>
-          <p class="text-[11px] text-zinc-500">qué pensó · cómo ejecutó · en qué falló · cuánto costó</p>
+        <div class="flex flex-col gap-2">
+          <div>
+            <h1 class="text-sm font-semibold text-zinc-50 leading-tight">Auditoría — radiografía</h1>
+            <p class="text-[11px] text-zinc-500">qué pensó · cómo ejecutó · en qué falló · cuánto costó</p>
+          </div>
+          <div class="flex w-fit items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5">
+            <button
+              class="rounded-md px-3 py-1 text-xs font-medium transition-colors ${view === 'radiografia' ? 'bg-cyan-600/20 text-cyan-300' : 'text-zinc-400 hover:text-zinc-200'}"
+              onclick={() => (view = "radiografia")}
+            >Radiografía</button>
+            <button
+              class="rounded-md px-3 py-1 text-xs font-medium transition-colors ${view === 'evaluaciones' ? 'bg-emerald-600/20 text-emerald-300' : 'text-zinc-400 hover:text-zinc-200'}"
+              onclick={() => (view = "evaluaciones")}
+            >Evaluaciones {tendencia.length ? `(${tendencia.length})` : ""}</button>
+          </div>
         </div>
       </div>
       <div class="flex items-center gap-3 text-xs text-zinc-400">
@@ -178,11 +229,15 @@
   </header>
 
   <main class="mx-auto max-w-[1600px] px-6 py-6">
-    {#if error}
+    {#if error && view === "radiografia"}
       <div class="mb-4 rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-300">{error}</div>
     {/if}
+    {#if evalError && view === "evaluaciones"}
+      <div class="mb-4 rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-300">{evalError}</div>
+    {/if}
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+    {#if view === "radiografia"}
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
       <!-- Sidebar: sesiones + turnos -->
       <aside class="space-y-5">
         <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
@@ -324,6 +379,84 @@
           <div class="flex h-64 items-center justify-center text-sm text-zinc-600">Selecciona una sesión y un turno para ver la trayectoria completa.</div>
         {/if}
       </section>
-    </div>
+      </div>
+    {:else}
+      <!-- Evaluaciones de calidad (fábrica, para graduación de skills) -->
+      <section class="min-w-0">
+        {#if evalLoading}
+          <div class="flex h-64 items-center justify-center text-sm text-zinc-500">Cargando evaluaciones…</div>
+        {:else if !evaluaciones.length}
+          <div class="rounded-xl border border-dashed border-zinc-800 p-10 text-center text-sm text-zinc-500">
+            <p class="mb-2 text-3xl">🧪</p>
+            <p>No hay evaluaciones todavía.</p>
+            <p class="mt-1 text-xs text-zinc-600">
+              Ejecuta <code class="text-cyan-400">node --experimental-strip-types --import ./scripts/ts-hook.mjs scripts/eval-calidad.ts</code>
+              para correr una pregunta N veces en paralelo y medir exactitud + congruencia.
+            </p>
+          </div>
+        {:else}
+          <!-- Tendencia por caso (semáforo para graduar) -->
+          <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {#each tendencia as t}
+              <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="truncate text-sm font-semibold text-zinc-100">{t.caso}</span>
+                  <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">{t.n} corridas</span>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2">
+                  <div class="rounded-lg border border-zinc-800 bg-black/40 p-2.5 text-center">
+                    <div class="text-[10px] uppercase tracking-wider text-zinc-500">Exactitud</div>
+                    <div class="text-lg font-bold ${t.exactitudMedia >= 80 ? 'text-emerald-400' : t.exactitudMedia >= 60 ? 'text-amber-400' : 'text-red-400'}">{t.exactitudMedia}%</div>
+                  </div>
+                  <div class="rounded-lg border border-zinc-800 bg-black/40 p-2.5 text-center">
+                    <div class="text-[10px] uppercase tracking-wider text-zinc-500">Congruencia</div>
+                    <div class="text-lg font-bold ${t.congruenciaPct == null ? 'text-zinc-500' : t.congruenciaPct >= 80 ? 'text-emerald-400' : t.congruenciaPct >= 60 ? 'text-amber-400' : 'text-red-400'}">{t.congruenciaPct == null ? "—" : t.congruenciaPct + "%"}</div>
+                  </div>
+                </div>
+              </div>
+            {/each}
+          </div>
+
+          <!-- Corridas evaluadas -->
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/40">
+            <div class="border-b border-zinc-800 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              Corridas evaluadas ({evaluaciones.length})
+            </div>
+            <ul class="divide-y divide-zinc-800/70">
+              {#each evaluaciones as e, i (e.id ?? i)}
+                <li class="px-4 py-3">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold text-zinc-300">{e.caso}</span>
+                    <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">{e.skill}</span>
+                    <span class="text-xs text-zinc-300">exactitud <b class="${e.exactitud * 100 >= 80 ? 'text-emerald-400' : e.exactitud * 100 >= 60 ? 'text-amber-400' : 'text-red-400'}">{Math.round(e.exactitud * 100)}%</b></span>
+                    <span class="text-xs text-zinc-300">congruencia <b class="text-cyan-300">{e.congruencia == null ? "—" : Math.round(e.congruencia * 100) + "%"}</b></span>
+                    <span class="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] ${e.errors ? 'text-red-400' : 'text-emerald-400'}">{e.errors} err</span>
+                    <span class="text-[10px] text-zinc-500">{fmtK(e.inputTok)} tok</span>
+                    <span class="text-[10px] text-zinc-500">{fmt(e.turnMs)}</span>
+                    <span class="ml-auto text-[10px] text-zinc-600">{new Date(e.at).toLocaleString()}</span>
+                  </div>
+                  <p class="mt-1.5 text-[13px] text-zinc-200">{e.pregunta}</p>
+                  <div class="mt-1 flex flex-wrap gap-1.5">
+                    {#each e.invariantes as inv}
+                      <span class="rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${inv.hallado ? 'border-emerald-800 bg-emerald-950/60 text-emerald-300' : 'border-red-800 bg-red-950/60 text-red-300'}">
+                        {inv.hallado ? "✓" : "✗"} {inv.label} = {inv.valor}
+                      </span>
+                    {/each}
+                  </div>
+                  <div class="mt-2">
+                    <button class="text-[11px] text-cyan-400 hover:underline" onclick={() => toggleEval(i)}>
+                      {expandedEval.has(i) ? "▾ ocultar respuesta" : "▸ ver respuesta"}
+                    </button>
+                    {#if expandedEval.has(i)}
+                      <pre class="mt-1.5 max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-zinc-800 bg-black/60 p-3 text-[12px] text-zinc-300">{e.respuesta}</pre>
+                    {/if}
+                  </div>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+      </section>
+    {/if}
   </main>
 </div>
