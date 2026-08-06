@@ -186,3 +186,47 @@ repetidas es un candidato a learning. Al promover:
    el cambio.
 3. Tras compilar y validar, re-mide el mismo turno (post-cambio) y registra la mejora en la
    memoria del repo — cierra el ciclo con evidencia, no con opinión.
+
+---
+
+## 7. Evaluación de CALIDAD de respuestas (exactitud + congruencia) — 2026-08-06
+
+Las métricas de la §1-2 (errores de tool, tokens, steps) miden la EJECUCIÓN, no la
+CALIDAD del contenido. Para "graduar" un skill (tesis: los evals deciden cuándo
+sube de etapa) hace falta medir la respuesta: ¿contiene los datos correctos? y
+¿es reproducible?
+
+**`scripts/eval-calidad.ts`** — evaluador de la fábrica que:
+- Lanza N repeticiones de una pregunta EN PARALELO (vía `POST /eve/v1/session`,
+  sin esperar entre corridas — las sesiones son independientes; no saturar con
+  >3-4 a la vez por DeepSeek). O reutiliza sesiones ya hechas con `SKIP_LANZAR=1`
+  (mismo título en el índice) para no gastar LLM al re-evaluar.
+- Espera a que terminen leyendo `/api/audit/turns` (status `/completed/`), y
+  evalúa CADA respuesta contra **invariantes** (valores clave esperados).
+- Calcula **exactitud** (% de invariantes presentes en la respuesta) y
+  **congruencia** (% de corridas que dan los mismos datos — reproducibilidad).
+- Persiste cada corrida en la tabla `evaluaciones` (`.data/sessions.sqlite3`,
+  auditable, sobrevive al purge) y expone la tendencia en
+  `GET /api/audit/evaluaciones` (exactitud media + congruencia por caso).
+
+Uso:
+```bash
+node --experimental-strip-types --import ./scripts/ts-hook.mjs scripts/eval-calidad.ts
+N=3 node ...  scripts/eval-calidad.ts          # repeticiones por caso
+CASO=plan-s31-familias node ...                # un solo caso
+SKIP_LANZAR=1 node ...                          # reutiliza sesiones ya hechas
+BASE=http://localhost:5173 node ...             # el server escucha en ::1 → usar localhost
+```
+
+⚠️ **Regla de oro de los invariantes (lección validada 2026-08-06)**: los valores
+esperados deben **derivarse de la verdad de runtime** (probe MCP), NO asumirse.
+El primer golden de `faltante-concentrado` usaba "Frijol Negro" y daba 67% falso;
+el faltante real es "Mitades claras"+"Frijol Media Oreja" (aggregate real) → con
+el invariante correcto, 100% exactitud / 100% congruencia. El modelo SÍ es
+reproducible; un golden mal definido mide mal al modelo.
+
+Demo validada (2026-08-06): plan-s31-familias y faltante-concentrado, 3 corridas
+en paralelo cada uno → **100% exactitud / 100% congruencia** en ambos (6
+evaluaciones en SQLite). La tendencia en `/api/audit/evaluaciones` es la base
+para "graduar" un skill (pasar de "no verificado" a "verificado" con calidad
+reproducible).

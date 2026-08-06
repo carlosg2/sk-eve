@@ -115,6 +115,31 @@ function getDb(): DatabaseSync {
       tools TEXT
     );
     CREATE INDEX IF NOT EXISTS turn_summaries_session ON turn_summaries (sessionId, id);
+
+    -- Evaluaciones de CALIDAD de respuestas (fábrica, para graduación): cada
+    -- corrida de una pregunta evaluada guarda invariantes verificados,
+    -- congruencia vs. otras corridas y métricas. Auditable: alimenta la
+    -- tendencia de "¿un skill está listo para subir de etapa?" (tesis:
+    -- eval-first). Escrita por scripts/eval-calidad.mjs, leída por
+    -- /api/audit/evaluaciones.
+    CREATE TABLE IF NOT EXISTS evaluaciones (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      at TEXT NOT NULL,
+      caso TEXT NOT NULL,
+      skill TEXT NOT NULL,
+      pregunta TEXT NOT NULL,
+      sessionId TEXT NOT NULL,
+      turnId TEXT NOT NULL,
+      status TEXT NOT NULL,
+      errors INTEGER NOT NULL,
+      inputTok INTEGER NOT NULL,
+      turnMs INTEGER NOT NULL,
+      invariantes TEXT,
+      exactitud REAL NOT NULL,
+      congruencia REAL,
+      respuesta TEXT
+    );
+    CREATE INDEX IF NOT EXISTS evaluaciones_caso ON evaluaciones (caso, id);
   `);
   // Migración: `archived` se añadió después de la creación original de la
   // tabla — SQLite no soporta `ADD COLUMN IF NOT EXISTS`, así que se checa
@@ -394,5 +419,81 @@ export async function listTurnSummaries(
     warnings: Number(r.warnings),
     status: String(r.status),
     tools: r.tools ? JSON.parse(String(r.tools)) : [],
+  }));
+}
+
+// ── Evaluaciones de calidad (fábrica, para graduación) ─────────────────────
+
+export interface EvaluacionRecord {
+  id?: number;
+  at: string;
+  caso: string;
+  skill: string;
+  pregunta: string;
+  sessionId: string;
+  turnId: string;
+  status: string;
+  errors: number;
+  inputTok: number;
+  turnMs: number;
+  /** [{ label, valor, hallado }] — invariantes evaluados en la respuesta. */
+  invariantes: Array<{ label: string; valor: string; hallado: boolean }>;
+  /** Fracción de invariantes hallados (0..1). */
+  exactitud: number;
+  /** 1 si el set de valores de los invariantes coincide con el de otras corridas del mismo caso (null si sin referencia). */
+  congruencia: number | null;
+  respuesta: string;
+}
+
+/** Persiste una evaluación de calidad (una corrida de una pregunta). */
+export async function appendEvaluacion(rec: EvaluacionRecord): Promise<void> {
+  getDb()
+    .prepare(
+      `INSERT INTO evaluaciones
+        (at, caso, skill, pregunta, sessionId, turnId, status, errors, inputTok, turnMs, invariantes, exactitud, congruencia, respuesta)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      rec.at,
+      rec.caso,
+      rec.skill,
+      rec.pregunta,
+      rec.sessionId,
+      rec.turnId,
+      rec.status,
+      rec.errors,
+      rec.inputTok,
+      rec.turnMs,
+      JSON.stringify(rec.invariantes),
+      rec.exactitud,
+      rec.congruencia ?? null,
+      rec.respuesta,
+    );
+}
+
+/** Lee evaluaciones, más recientes primero; opcional filtrar por caso. */
+export async function listEvaluaciones(opts: { caso?: string; limit?: number } = {}): Promise<EvaluacionRecord[]> {
+  const limit = Math.max(1, Math.min(1000, opts.limit ?? 500));
+  const rows = opts.caso
+    ? getDb()
+        .prepare("SELECT * FROM evaluaciones WHERE caso = ? ORDER BY id DESC LIMIT ?")
+        .all(opts.caso, limit)
+    : getDb().prepare("SELECT * FROM evaluaciones ORDER BY id DESC LIMIT ?").all(limit);
+  return (rows as unknown as Array<Record<string, unknown>>).map((r) => ({
+    id: Number(r.id),
+    at: String(r.at),
+    caso: String(r.caso),
+    skill: String(r.skill),
+    pregunta: String(r.pregunta),
+    sessionId: String(r.sessionId),
+    turnId: String(r.turnId),
+    status: String(r.status),
+    errors: Number(r.errors),
+    inputTok: Number(r.inputTok),
+    turnMs: Number(r.turnMs),
+    invariantes: r.invariantes ? JSON.parse(String(r.invariantes)) : [],
+    exactitud: Number(r.exactitud),
+    congruencia: r.congruencia === null ? null : Number(r.congruencia),
+    respuesta: String(r.respuesta),
   }));
 }
