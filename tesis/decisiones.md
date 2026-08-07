@@ -161,6 +161,7 @@ provenance/trust/lifecycle (`verified`, `status`, `stale_after`, `usage_window`)
 | P-2 | ¿File system → qué DB exactamente (Postgres/pgvector)? ¿Cuándo? | Escala del Company Twin |
 | P-3 | ¿El Pattern Engine cross-client ([`inteligencia-consultora.md`](./inteligencia-consultora.md)) es producto aparte o módulo? | Scope del roadmap |
 | P-4 | ¿Primer loop concreto: financiero nocturno (CXP) confirmado como MVP? | Inicio de construcción |
+| P-5 | Camino a producción: ¿Vercel (Workflow hosted + DB gestionada) o self-host (workflow world montado + Postgres)? Ver [`produccion.md`](./produccion.md). | Despliegue real |
 
 ---
 
