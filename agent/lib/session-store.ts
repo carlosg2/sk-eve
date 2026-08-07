@@ -43,6 +43,15 @@ const MAX_SESSIONS = 500; // tope duro: descarta las más viejas por updatedAt
 // más de 1h sin tocar nada, es un turno huérfano (proceso muerto a mitad de
 // turno — ver gotcha "sesiones huérfanas") y se trata como inactivo.
 const ACTIVE_STALE_MS = 60 * 60 * 1000;
+// Retención de `llm_inputs` (el input real al LLM por step): es la tabla que
+// más crece después de `events`. `events` NUNCA se trunca (corpus de minería,
+// decisión explícita del usuario); `llm_inputs` SÍ tiene TTL configurable para
+// producción vía SIGMA_LLM_RETENTION_DAYS (default 30 días).
+const LLM_RETENTION_DAYS = (() => {
+  const raw = process.env.SIGMA_LLM_RETENTION_DAYS;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 30;
+})();
 
 export interface SessionRecord {
   readonly id: string;
@@ -168,7 +177,32 @@ function getDb(): DatabaseSync {
   // recién creado, así que limpiar flags `active` huérfanos (un kill del dev
   // server a mitad de turno deja active=1 sin evento de cierre).
   db.exec("UPDATE sessions SET active = 0");
+  pruneLlmInputs();
   return db;
+}
+
+// Solo corre 1 vez por proceso (el HMR de Vite re-ejecuta el módulo y
+// re-dispara getDb; la poda no debe repetirse a mitad de trabajo).
+let llmRetentionPruned = false;
+
+/**
+ * Poda de retención de `llm_inputs`: borra los inputs al LLM más viejos que
+ * `LLM_RETENTION_DAYS`. No toca `events` (corpus de minería sin tope).
+ */
+export function pruneLlmInputs(): void {
+  if (llmRetentionPruned) return;
+  llmRetentionPruned = true;
+  try {
+    const cutoff = new Date(Date.now() - LLM_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const res = getDb().prepare("DELETE FROM llm_inputs WHERE at < ?").run(cutoff);
+    if (res.changes > 0) {
+      console.error(
+        `[session-store] retención: ${res.changes} llm_inputs > ${LLM_RETENTION_DAYS} días eliminados`,
+      );
+    }
+  } catch {
+    // nunca romper el arranque por un fallo de poda
+  }
 }
 
 interface SessionRow {
