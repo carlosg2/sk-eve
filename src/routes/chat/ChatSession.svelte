@@ -3,7 +3,10 @@
 	import { computeDiagnostics, detectMcpError, formatDiagnosticsSummary, friendlyToolLabel, redactSensitiveData, unwrapMcpOutput } from '$lib/lib/agent-diagnostics';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
+	import * as Attachment from '$lib/components/ui/attachment/index.js';
 	import * as Empty from '$lib/components/ui/empty/index.js';
+	import * as Marker from '$lib/components/ui/marker/index.js';
 	import * as InputGroup from '$lib/components/ui/input-group/index.js';
 	import * as MessageScroller from '$lib/components/ui/message-scroller/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
@@ -20,6 +23,8 @@
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import ChevronUpIcon from '@lucide/svelte/icons/chevron-up';
 	import CopyIcon from '@lucide/svelte/icons/copy';
+	import DatabaseIcon from '@lucide/svelte/icons/database';
+	import FileWarningIcon from '@lucide/svelte/icons/file-warning';
 
 	// Props de rehidratación: al abrir una sesión pasada desde el sidebar, el
 	// shell (+page.svelte) carga { session, events } vía GET /api/sessions/[id]
@@ -69,12 +74,16 @@
 	const isBusy = $derived(agent.status === 'submitted' || agent.status === 'streaming');
 	let elapsedMs = $state(0);
 
-	// ── Feed de actividad del turno activo (tool calls + razonamiento) ─────
-	// Se reconstruye desde los eventos del stream (append-only, en orden):
+	// ── Feed de actividad POR TURNO (tool calls + razonamiento) ────────────
+	// Se reconstruye desde los eventos del stream (append-only, en orden) y se
+	// agrupa por turnId: cada mensaje assistant de la conversación (histórico o
+	// en vivo) puede mostrar las actividades de SU turno. Antes esto se
+	// reseteaba en cada `turn.started` y solo se renderizaba en el último
+	// mensaje — al reabrir una sesión con varios turnos, los tool calls y el
+	// razonamiento de los turnos anteriores desaparecían.
 	//   - `actions.requested`/`action.result` → tool calls con estado.
 	//   - `reasoning.appended`/`reasoning.completed` → bloques de razonamiento
 	//     que se van agregando (uno por segmento) con texto en vivo.
-	// Se resetea en cada `turn.started`.
 	type ActivityToolState = 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
 	type Activity =
 		| { kind: 'reasoning'; key: string; text: string; streaming: boolean }
@@ -88,44 +97,46 @@
 				errorText?: string;
 		  };
 
-	const activities = $derived.by((): Activity[] => {
+	const activitiesByTurn = $derived.by((): Map<string, Activity[]> => {
 		const evs = agent.events as readonly StreamEv[];
-		const out: Activity[] = [];
+		const byTurn = new Map<string, Activity[]>();
+		let cur: Activity[] = [];
 		let reasoningSeq = 0;
 		let toolSeq = 0;
 		let openReasoning = -1;
 		for (const ev of evs) {
 			const d = (ev.data ?? {}) as Record<string, unknown>;
 			if (ev.type === 'turn.started') {
-				out.length = 0;
+				cur = [];
+				byTurn.set(String(d?.turnId ?? `turn_${byTurn.size}`), cur);
 				reasoningSeq = 0;
 				toolSeq = 0;
 				openReasoning = -1;
 			} else if (ev.type === 'reasoning.appended') {
 				if (openReasoning === -1) {
-					openReasoning = out.length;
-					out.push({ kind: 'reasoning', key: `r${reasoningSeq++}`, text: '', streaming: true });
+					openReasoning = cur.length;
+					cur.push({ kind: 'reasoning', key: `r${reasoningSeq++}`, text: '', streaming: true });
 				}
-				const cur = out[openReasoning];
-				if (cur.kind === 'reasoning') {
+				const item = cur[openReasoning];
+				if (item.kind === 'reasoning') {
 					const soFar = d?.reasoningSoFar;
 					const delta = d?.reasoningDelta;
-					cur.text =
+					item.text =
 						typeof soFar === 'string'
 							? soFar
-							: cur.text + (typeof delta === 'string' ? delta : '');
-					cur.streaming = true;
+							: item.text + (typeof delta === 'string' ? delta : '');
+					item.streaming = true;
 				}
 			} else if (ev.type === 'reasoning.completed') {
 				if (openReasoning === -1) {
-					openReasoning = out.length;
-					out.push({ kind: 'reasoning', key: `r${reasoningSeq++}`, text: '', streaming: false });
+					openReasoning = cur.length;
+					cur.push({ kind: 'reasoning', key: `r${reasoningSeq++}`, text: '', streaming: false });
 				}
-				const cur = out[openReasoning];
-				if (cur.kind === 'reasoning') {
+				const item = cur[openReasoning];
+				if (item.kind === 'reasoning') {
 					const full = d?.reasoning;
-					if (typeof full === 'string') cur.text = full;
-					cur.streaming = false;
+					if (typeof full === 'string') item.text = full;
+					item.streaming = false;
 				}
 				openReasoning = -1;
 			} else if (ev.type === 'actions.requested') {
@@ -133,7 +144,7 @@
 				for (const a of actions) {
 					const rec = (a ?? {}) as Record<string, unknown>;
 					const name = String(rec?.name ?? rec?.toolName ?? rec?.tool ?? 'tool');
-					out.push({
+					cur.push({
 						kind: 'tool',
 						key: `t${toolSeq++}`,
 						name,
@@ -145,8 +156,8 @@
 			} else if (ev.type === 'action.result') {
 				const r = (d?.result ?? {}) as Record<string, unknown>;
 				const name = String(r?.toolName ?? r?.name ?? '');
-				for (let i = out.length - 1; i >= 0; i--) {
-					const it = out[i];
+				for (let i = cur.length - 1; i >= 0; i--) {
+					const it = cur[i];
 					if (
 						it.kind === 'tool' &&
 						it.name === name &&
@@ -169,16 +180,32 @@
 				}
 			}
 		}
-		return out;
+		return byTurn;
+	});
+
+	// Actividades del turno de un mensaje assistant. Los `message.id` del store
+	// vienen como `<turnId>:assistant` (verificado: `turn_0:assistant`), así que
+	// el turnId se extrae de la parte anterior al `:`.
+	function activitiesOf(message: { id: string }): Activity[] {
+		const id = String(message?.id ?? '');
+		const turnId = id.includes(':') ? id.split(':')[0] : id;
+		return activitiesByTurn.get(turnId) ?? [];
+	}
+
+	// Actividades del turno ACTIVO (el último) — para el autoscroll en vivo.
+	const liveActivities = $derived.by((): Activity[] => {
+		let last: Activity[] = [];
+		for (const arr of activitiesByTurn.values()) last = arr;
+		return last;
 	});
 
 	// Autoscroll del viewport: al crecer el feed (nuevo bloque/tool o razonamiento
 	// en vivo), baja el scroll para ir viendo lo que se va escribiendo. Reacciona
 	// al feed vía `watch` (runed) con deps explícitas — sin `$effect`.
 	let prevActCount = 0;
-	watch([() => activities], () => {
-		const count = activities.length;
-		const live = activities.some((a) => a.kind === 'reasoning' && a.streaming);
+	watch([() => liveActivities], () => {
+		const count = liveActivities.length;
+		const live = liveActivities.some((a) => a.kind === 'reasoning' && a.streaming);
 		if (count !== prevActCount || live) {
 			const viewport = document.querySelector(
 				'[data-slot="message-scroller-viewport"]',
@@ -378,6 +405,19 @@
 		return { step: Math.max(1, step), label };
 	});
 
+	// Marker en el transcript: se muestra mientras el agente trabaja pero aún
+	// no hay texto del asistente (fase pendiente o procesando tools). Desaparece
+	// en cuanto empieza a fluir la respuesta.
+	const showLiveMarker = $derived(
+		isBusy &&
+			liveStatus !== null &&
+			messages.length > 0 &&
+			(() => {
+				const last = messages[messages.length - 1];
+				return last.role === 'user' || messageText(last).trim() === '';
+			})()
+	);
+
 	function fmtMs(ms: number): string {
 		return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`;
 	}
@@ -548,6 +588,84 @@
 		try { await navigator.clipboard.writeText(traceText); } catch { /* ok */ }
 	}
 
+	async function copyToClipboard(text: string) {
+		try { await navigator.clipboard.writeText(text); } catch { /* ok */ }
+	}
+
+	// Resumen compacto de un tool output para el chip de evidencia (Attachment):
+	// "34 filas · 2.1 KB" cuando es JSON con arreglo, o solo el tamaño en KB.
+	function summarizeToolOutput(output: unknown): string {
+		try {
+			const text = unwrapMcpOutput(output).trim();
+			let rows: number | null = null;
+			try {
+				const parsed = JSON.parse(text);
+				const arr = Array.isArray(parsed)
+					? parsed
+					: (parsed as Record<string, unknown> | null)?.result;
+				if (Array.isArray(arr)) rows = arr.length;
+				else if (parsed && typeof parsed === 'object') {
+					const v = (parsed as Record<string, unknown>).value;
+					if (Array.isArray(v)) rows = v.length;
+				}
+			} catch { /* no es JSON */ }
+			const kb = (text.length / 1024).toFixed(1);
+			if (rows !== null) return `${rows} ${rows === 1 ? 'fila' : 'filas'} · ${kb} KB`;
+			return `${kb} KB`;
+		} catch {
+			return 'Resultado';
+		}
+	}
+
+	// Chips de evidencia: un Attachment por tool call del turno activo.
+	// Solo se muestran para tools que tocan datos del ERP (read/aggregate/search);
+	// las internas (load_skill, query_company_twin, memory…) NO generan chip,
+	// para no exponer outputs internos ni añadir ruido.
+	function isDataEvidenceTool(name: string): boolean {
+		return /read_records|aggregate_records|buscar_registro/.test(name);
+	}
+
+	const evidenceAttachments = $derived.by(() => {
+		const out: Array<{
+			key: string;
+			title: string;
+			description: string;
+			state: 'done' | 'error' | 'processing';
+			raw: string;
+		}> = [];
+		for (const act of liveActivities) {
+			if (act.kind !== 'tool') continue;
+			if (!isDataEvidenceTool(act.name)) continue;
+			const label = friendlyToolLabel(act.name, act.input as Record<string, unknown>);
+			if (act.state === 'output-available') {
+				out.push({
+					key: `ev-${act.key}`,
+					title: label,
+					description: summarizeToolOutput(act.output),
+					state: 'done',
+					raw: unwrapMcpOutput(act.output),
+				});
+			} else if (act.state === 'output-error') {
+				out.push({
+					key: `ev-${act.key}`,
+					title: label,
+					description: act.errorText ?? 'Error',
+					state: 'error',
+					raw: act.errorText ?? '',
+				});
+			} else if (act.state === 'input-available' || act.state === 'input-streaming') {
+				out.push({
+					key: `ev-${act.key}`,
+					title: label,
+					description: 'Ejecutando…',
+					state: 'processing',
+					raw: '',
+				});
+			}
+		}
+		return out;
+	});
+
 	// ── form ────────────────────────────────────────────────────────────────
 
 	function messageText(m: { text?: string; parts?: ReadonlyArray<{ type: string; text?: string }> }): string {
@@ -602,7 +720,7 @@
 	}
 </script>
 
-<div class="bg-background mx-auto flex h-full max-w-3xl flex-col">
+<div class="bg-background flex h-full w-full flex-col">
 	<!-- Header -->
 	<div class="flex h-11 shrink-0 items-center justify-between px-4">
 		<div class="flex items-center gap-2">
@@ -648,34 +766,87 @@
 				<MessageScroller.Root class="flex-1">
 					<MessageScroller.Viewport>
 						<MessageScroller.Content aria-busy={isBusy} class="p-4">
+							{#if recovered && !recoveryContextSent}
+								<MessageScroller.Item messageId="recovered-separator">
+									<Marker.Root variant="separator" role="status">
+										<Marker.Content>Conversación recuperada</Marker.Content>
+									</Marker.Root>
+								</MessageScroller.Item>
+							{/if}
 							{#each messages as message, i (message.id)}
-								{#if message.role === 'assistant' && i === messages.length - 1 && activities.length > 0}
-									<div class="space-y-2 pb-2">
-										{#each activities as act (act.key)}
-											{#if act.kind === 'tool'}
-												<Tool.Tool status={act.state}>
-													<Tool.ToolHeader type={friendlyToolLabel(act.name, act.input as Record<string, unknown>)} state={act.state} />
-													<Tool.ToolContent>
-														<Tool.ToolInput input={act.input} />
-														{#if act.state === 'output-available'}
-															<Tool.ToolOutput output={redactSensitiveData(act.output)} />
-														{/if}
-														{#if act.state === 'output-error' && act.errorText}
-															<Tool.ToolOutput errorText={act.errorText} />
-														{/if}
-													</Tool.ToolContent>
-												</Tool.Tool>
-											{:else}
-												<Reasoning.Reasoning class="w-full" isStreaming={act.streaming}>
-													<Reasoning.ReasoningTrigger isStreaming={act.streaming} />
-													<Reasoning.ReasoningContent content={act.text} isStreaming={act.streaming} />
-												</Reasoning.Reasoning>
+								{#if message.role === 'assistant'}
+									{@const turnActivities = activitiesOf(message)}
+									{#if turnActivities.length > 0 || (i === messages.length - 1 && evidenceAttachments.length > 0)}
+										<div class="space-y-2 pb-2">
+											{#each turnActivities as act (act.key)}
+												{#if act.kind === 'tool'}
+													<Tool.Tool status={act.state}>
+														<Tool.ToolHeader type={friendlyToolLabel(act.name, act.input as Record<string, unknown>)} state={act.state} />
+														<Tool.ToolContent>
+															<Tool.ToolInput input={act.input} />
+															{#if act.state === 'output-available'}
+																<Tool.ToolOutput output={redactSensitiveData(act.output)} />
+															{/if}
+															{#if act.state === 'output-error' && act.errorText}
+																<Tool.ToolOutput errorText={act.errorText} />
+															{/if}
+														</Tool.ToolContent>
+													</Tool.Tool>
+												{:else}
+													<Reasoning.Reasoning class="w-full" isStreaming={act.streaming}>
+														<Reasoning.ReasoningTrigger isStreaming={act.streaming} />
+														<Reasoning.ReasoningContent content={act.text} isStreaming={act.streaming} />
+													</Reasoning.Reasoning>
+												{/if}
+											{/each}
+											{#if i === messages.length - 1 && evidenceAttachments.length > 0}
+												<Attachment.Group>
+													{#each evidenceAttachments as ev (ev.key)}
+														<Attachment.Root state={ev.state} class="w-full">
+															<Attachment.Media>
+																{#if ev.state === 'error'}
+																	<FileWarningIcon class="size-4 text-red-500" />
+																{:else}
+																	<DatabaseIcon class="text-muted-foreground size-4" />
+																{/if}
+															</Attachment.Media>
+															<Attachment.Content>
+																<Attachment.Title>{ev.title}</Attachment.Title>
+																<Attachment.Description>{ev.description}</Attachment.Description>
+															</Attachment.Content>
+															<Attachment.Actions>
+																{#if ev.state === 'done' || ev.state === 'error'}
+																	<Attachment.Action aria-label="Copiar resultado" title="Copiar" onclick={() => void copyToClipboard(ev.raw)}>
+																		<CopyIcon class="size-3.5" />
+																	</Attachment.Action>
+																{/if}
+															</Attachment.Actions>
+														</Attachment.Root>
+													{/each}
+												</Attachment.Group>
 											{/if}
-										{/each}
-									</div>
+										</div>
+									{/if}
 								{/if}
-								<MessageAnimated {message} scrollAnchor={message.role === 'user'} />
+								<MessageAnimated
+									{message}
+									scrollAnchor={message.role === 'user'}
+									collapsible={i < messages.length - 1}
+								/>
 							{/each}
+							{#if showLiveMarker && liveStatus}
+								<MessageScroller.Item messageId="live-status">
+									<Marker.Root role="status">
+										<Marker.Icon>
+											<Spinner />
+										</Marker.Icon>
+										<Marker.Content class="shimmer">
+											<span class="font-medium">{liveStatus.label}</span>
+											<span class="text-muted-foreground/60 tabular-nums">· {Math.max(1, Math.ceil(elapsedMs / 1000))} s</span>
+										</Marker.Content>
+									</Marker.Root>
+								</MessageScroller.Item>
+							{/if}
 						</MessageScroller.Content>
 					</MessageScroller.Viewport>
 					<MessageScroller.Button />
@@ -685,7 +856,7 @@
 			{#if liveStatus}
 				<div class="flex min-h-7 items-center gap-2 px-4 pb-2 text-xs text-muted-foreground" aria-live="polite">
 					<span class="inline-block size-2 animate-pulse rounded-full bg-blue-500"></span>
-					<span class="font-medium text-foreground/80">{liveStatus.label}</span>
+					<span class="shimmer font-medium text-foreground/80">{liveStatus.label}</span>
 					<span class="tabular-nums text-muted-foreground/70">{Math.max(1, Math.ceil(elapsedMs / 1000))} s</span>
 				</div>
 			{/if}

@@ -2,6 +2,9 @@
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
 @import '@fontsource-variable/inter';
+/* Chat components utilities (scrollbar-*, scroll-fade-*, shimmer-*).
+   Ported from shadcn-svelte PR #2780 (never merged into the published package). */
+@import './chat-utilities.css';
 
 /* Tailwind v4 ignores node_modules by default; streamdown-svelte styles its
    markdown/table controls with utility classes, so scan its dist explicitly. */
@@ -167,11 +170,18 @@
    so the "fullscreen" dialog only grows inside those boxes (taller, but
    never truly covering the viewport) instead of escaping to the real
    viewport. Suspend containment/clipping on those ancestors while a
-   table-fullscreen dialog is open anywhere in the DOM. */
+   table-fullscreen dialog is open anywhere in the DOM.
+
+   NOTE (2026-08-06): scroll-fade-b (chat-utilities.css) aplica un
+   mask-image al viewport; un mask distinto de none también establece un
+   containing block y recorta los descendientes fixed, así que hay que
+   neutralizarlo igual que contain/overflow. */
 body:has([data-streamdown='table-fullscreen']) [data-slot='message-scroller-viewport'],
 body:has([data-streamdown='table-fullscreen']) [data-slot='message-scroller-item'],
 body:has([data-streamdown='table-fullscreen']) [data-slot='bubble-content'] {
 	contain: none !important;
 	content-visibility: visible !important;
 	overflow: visible !important;
+	-webkit-mask-image: none !important;
+	mask-image: none !important;
 }

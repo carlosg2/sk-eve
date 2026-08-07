@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
+	import Loader2Icon from "@lucide/svelte/icons/loader-2";
 	import MinusIcon from "@lucide/svelte/icons/minus";
 	import SquareIcon from "@lucide/svelte/icons/square";
 	import type { SVGAttributes } from "svelte/elements";
@@ -36,7 +37,9 @@
 				? MinusIcon
 				: lucide === "ChevronRightIcon"
 					? ChevronRightIcon
-					: SquareIcon
+					: lucide === "Loader2Icon"
+						? Loader2Icon
+						: SquareIcon
 	);
 </script>
 

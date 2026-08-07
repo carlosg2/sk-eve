@@ -29,10 +29,13 @@ export async function GET({ url }) {
     const turnEvents = events.filter((e) => String(d(e as Ev).turnId ?? "") === turnId);
     if (!turnEvents.length) return json({ error: `sin eventos para ${turnId}` }, { status: 404 });
 
+    // Razonamiento completo desde `reasoning.completed` (el espejo ya NO guarda
+    // los deltas de streaming `reasoning.appended` — cada bloque completado
+    // trae el texto final completo en `data.reasoning`).
     const reasoning = turnEvents
-      .filter((e) => e.type === "reasoning.appended")
-      .map((e) => String(d(e as Ev).reasoningDelta ?? ""))
-      .join("");
+      .filter((e) => e.type === "reasoning.completed")
+      .map((e) => String((d(e as Ev) as { reasoning?: string }).reasoning ?? ""))
+      .join("\n");
 
     const question =
       (turnEvents.find((e) => e.type === "message.received")?.data as { message?: string } | undefined)?.message ??
@@ -130,9 +133,10 @@ export async function GET({ url }) {
       if (e.type === "step.started") {
         stepStartAt.set(stepIndex, atMs);
         tl.push({ kind: "step", stepIndex, at: e.meta.at, t, label: `Paso ${stepIndex + 1}` });
-      } else if (e.type === "reasoning.appended") {
-        const prev = reasoningByStep.get(stepIndex) ?? "";
-        reasoningByStep.set(stepIndex, prev + String(dd.reasoningDelta ?? ""));
+      } else if (e.type === "reasoning.completed") {
+        // Razonamiento final del step (el espejo ya NO guarda deltas).
+        const text = String((dd as { reasoning?: string }).reasoning ?? "");
+        reasoningByStep.set(stepIndex, (reasoningByStep.get(stepIndex) ?? "") + (reasoningByStep.get(stepIndex) ? "\n" : "") + text);
       } else if (e.type === "actions.requested") {
         const acts = (dd.actions ?? []) as Array<{ callId?: string; toolName?: string; input?: unknown; arguments?: unknown }>;
         for (const a of acts) {
