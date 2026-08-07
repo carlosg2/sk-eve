@@ -51,6 +51,8 @@
 	// sesión física de Eve ya construye su propio historial persistido.
 	let recoveryContextSent = $state(false);
 
+	// svelte-ignore state_referenced_locally — seed intencional: props "seed", solo se leen al montar
+	// svelte-ignore state_referenced_locally — seed intencional: props "seed", solo se leen al montar
 	const agent = useEveAgent({
 		initialSession: initialSession as never,
 		initialEvents: initialEvents as never,

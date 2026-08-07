@@ -254,8 +254,9 @@
       <!-- Sidebar: sesiones + turnos -->
       <aside class="space-y-5">
         <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-          <label class="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Sesión</label>
+          <label for="audit-session-select" class="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Sesión</label>
           <select
+            id="audit-session-select"
             bind:value={selectedSession}
             class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm focus:border-cyan-600 focus:outline-none"
           >

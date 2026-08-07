@@ -29,6 +29,7 @@
 	// monta con el razonamiento en curso, así que debe abrir de entrada) y
 	// `watch` (runed) lo mantiene sincronizado en cada cambio — sin `$effect`.
 	// El usuario puede alternarlo con el trigger vía `onOpenChange`.
+	// svelte-ignore state_referenced_locally — seed intencional: solo importa el valor al montar
 	let isOpen = $state(isStreaming);
 	watch([() => isStreaming], ([streaming]) => {
 		isOpen = streaming;

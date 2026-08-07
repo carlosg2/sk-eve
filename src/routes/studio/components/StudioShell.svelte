@@ -84,15 +84,21 @@
 		return null;
 	}
 
+	// svelte-ignore state_referenced_locally — seed intencional: deep-link/tenants solo importan al montar
 	const deepLink = resolveDeepLink(deepLinkPath, data.tenants as Tenant[], data.runtime);
 
+	// svelte-ignore state_referenced_locally — seed intencional: data solo se lee al montar
 	let tenants = $state<Tenant[]>(data.tenants as Tenant[]);
+	// svelte-ignore state_referenced_locally — seed intencional: data solo se lee al montar
 	let activeTenant = $state<string | null>(data.runtime.activeTenant);
+	// svelte-ignore state_referenced_locally — seed intencional: data solo se lee al montar
 	let activeAgent = $state<string | null>(data.runtime.activeAgent);
 
+	// svelte-ignore state_referenced_locally — seed intencional: tenants solo se lee al montar
 	let selectedTenant = $state<string | null>(deepLink?.tenantSlug ?? tenants[0]?.slug ?? null);
 	let selectedAgent = $state<string | null>(deepLink?.agentSlug ?? null);
 	let section = $state<string>(deepLink?.section ?? "perfil");
+	// svelte-ignore state_referenced_locally — seed intencional: tenants solo se lee al montar
 	let expanded = $state<Set<string>>(new Set(tenants.map((t) => t.slug)));
 
 	// Ruta del skill a auto-abrir en el primer render de esta instancia (deep-link).
