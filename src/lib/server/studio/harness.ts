@@ -69,7 +69,20 @@ export function twinRoot(): string {
 	return join(process.cwd(), "company-twin");
 }
 
-/** Resuelve `agent/skill-library/` (catálogo de skills scopeadas por tenant/agente). */
+/** Resuelve `agent/skills/` (skills globales compilados, cargados vía `load_skill`). */
+export function agentSkillsRoot(): string {
+	let dir = process.cwd();
+	for (let depth = 0; depth < 8; depth++) {
+		const candidate = join(dir, "agent", "skills");
+		if (existsSync(candidate)) return candidate;
+		const parent = dirname(dir);
+		if (parent === dir) break;
+		dir = parent;
+	}
+	return join(process.cwd(), "agent", "skills");
+}
+
+/** Resuelve la raíz del catálogo de skills (`agent/skill-library/`). */
 export function skillLibraryRoot(): string {
 	let dir = process.cwd();
 	for (let depth = 0; depth < 8; depth++) {
@@ -82,20 +95,20 @@ export function skillLibraryRoot(): string {
 	return join(process.cwd(), "agent", "skill-library");
 }
 
-/** Prefijo que distingue rutas del catálogo (`agent/skill-library/`) en el API genérico de archivos. */
+/** Prefijo que distingue rutas de `agent/skills/` dentro del API genérico de archivos. */
 const AGENT_SKILLS_PREFIX = "agent-skills/";
 
 /**
  * Resuelve una ruta relativa (recibida del cliente) contra `company-twin/` (o,
- * si empieza con `agent-skills/`, contra `agent/skill-library/`) y verifica que
- * no escape del raíz correspondiente. Lanza si hay traversal.
+ * si empieza con `agent-skills/`, contra `agent/skills/`) y verifica que no
+ * escape del raíz correspondiente. Lanza si hay traversal.
  */
 export function safeResolve(relPath: string): string {
 	if (relPath.startsWith(AGENT_SKILLS_PREFIX)) {
-		const root = skillLibraryRoot();
+		const root = agentSkillsRoot();
 		const full = resolve(root, relPath.slice(AGENT_SKILLS_PREFIX.length));
 		if (full !== root && !full.startsWith(root + sep)) {
-			throw new Error(`Ruta fuera de agent/skill-library: ${relPath}`);
+			throw new Error(`Ruta fuera de agent/skills: ${relPath}`);
 		}
 		return full;
 	}
@@ -430,16 +443,16 @@ export async function deleteAgent(tenant: string, slug: string): Promise<void> {
 	await rm(dir, { recursive: true, force: true });
 }
 
-// ── capabilities: catálogo de skills ─────────────────────────────────────────
+// ── capabilities: skills del agente ──────────────────────────────────────────
 
 export type AgentCapability = {
 	slug: string;
 	name: string;
 	description: string | null;
-	/** Visibilidad por tenant: `null` (universal) o lista de slugs de tenant. */
-	tenant: string[] | null;
-	/** Ruta del archivo editable (prefijo `agent-skills/`). */
+	/** Ruta del archivo editable, relativa a `company-twin/`. */
 	path: string;
+	/** Visibilidad por tenant (`null` = universal). Solo skills de catálogo. */
+	tenant?: string[] | null;
 };
 
 /** Lee la primera línea `# Título` del cuerpo markdown, si existe. */
@@ -556,7 +569,7 @@ export async function readAgentManifest(tenant: string, agent: string): Promise<
 
 /** Serializa un valor de manifest como línea YAML inline (lista o `"*"`). */
 function manifestLine(key: string, value: string[] | "*"): string {
-	if (value === "*") return `${key}: "*"`;
+	if (value === "*") return `${key}: \"*\"`;
 	return `${key}: [${value.join(", ")}]`;
 }
 
@@ -633,6 +646,91 @@ export async function listKernelConcepts(): Promise<KernelConcept[]> {
 		});
 	}
 	return out.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Lista los skills de un agente: cada `skills/<slug>/SKILL.md` con su
+ * `description` de frontmatter (el hint de ruteo que decide cuándo se carga).
+ */
+export async function listAgentSkills(tenant: string, agent: string): Promise<AgentCapability[]> {
+	const base = join("companies", slugify(tenant), "agents", slugify(agent), "skills");
+	const dir = join(twinRoot(), base);
+	if (!existsSync(dir)) return [];
+	const out: AgentCapability[] = [];
+	for (const entry of await readdir(dir, { withFileTypes: true })) {
+		if (!entry.isDirectory()) continue;
+		const rel = join(base, entry.name, "SKILL.md");
+		const full = join(twinRoot(), rel);
+		if (!existsSync(full)) continue;
+		const { fm, body } = parseFrontmatter(await readFile(full, "utf8"));
+		out.push({
+			slug: entry.name,
+			name: firstHeading(body) ?? entry.name,
+			description: str(fm.description),
+			path: rel,
+		});
+	}
+	return out.sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+/** Crea un skill load-on-demand en `skills/<slug>/SKILL.md`. */
+export async function createAgentSkill(input: {
+	tenant: string;
+	agent: string;
+	name: string;
+	description: string;
+	body?: string;
+}): Promise<AgentCapability> {
+	const tenant = slugify(input.tenant);
+	const agent = slugify(input.agent);
+	const slug = slugify(input.name);
+	if (!slug) throw new Error("Nombre de skill inválido.");
+	const rel = join("companies", tenant, "agents", agent, "skills", slug, "SKILL.md");
+	if (existsSync(join(twinRoot(), rel))) throw new Error(`El skill '${slug}' ya existe.`);
+	const body = input.body?.trim() || `# ${input.name}\n\nDescribe cómo el agente debe ejecutar este skill.`;
+	const md = ["---", `description: ${JSON.stringify(input.description)}`, "---", "", body, ""].join("\n");
+	await writeTwinFile(rel, md);
+	return { slug, name: input.name, description: input.description, path: rel };
+}
+
+/**
+ * Lista los skills GLOBALES (`agent/skills/<slug>/SKILL.md`, compilados por Eve,
+ * cargados on-demand vía `load_skill` para CUALQUIER agente/tenant — a
+ * diferencia de `listAgentSkills`, que son por-agente e inyectados siempre).
+ */
+export async function listGlobalSkills(): Promise<AgentCapability[]> {
+	const dir = agentSkillsRoot();
+	if (!existsSync(dir)) return [];
+	const out: AgentCapability[] = [];
+	for (const entry of await readdir(dir, { withFileTypes: true })) {
+		if (!entry.isDirectory()) continue;
+		const full = join(dir, entry.name, "SKILL.md");
+		if (!existsSync(full)) continue;
+		const { fm, body } = parseFrontmatter(await readFile(full, "utf8"));
+		out.push({
+			slug: entry.name,
+			name: firstHeading(body) ?? entry.name,
+			description: str(fm.description),
+			path: `${AGENT_SKILLS_PREFIX}${entry.name}/SKILL.md`,
+		});
+	}
+	return out.sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+/** Crea un skill global en `agent/skills/<slug>/SKILL.md`. */
+export async function createGlobalSkill(input: {
+	name: string;
+	description: string;
+	body?: string;
+}): Promise<AgentCapability> {
+	const slug = slugify(input.name);
+	if (!slug) throw new Error("Nombre de skill inválido.");
+	const rel = `${AGENT_SKILLS_PREFIX}${slug}/SKILL.md`;
+	if (existsSync(safeResolve(rel))) throw new Error(`El skill '${slug}' ya existe.`);
+	const body = input.body?.trim() || `# ${input.name}\n\nDescribe cómo el agente debe ejecutar este skill.`;
+	const md = ["---", `description: ${JSON.stringify(input.description)}`, "---", "", body, ""].join("\n");
+	await writeTwinFile(rel, md);
+	return { slug, name: input.name, description: input.description, path: rel };
 }
 
 // ── capabilities: tools del runtime ──────────────────────────────────────────
