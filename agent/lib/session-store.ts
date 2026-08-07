@@ -284,11 +284,26 @@ interface EventRow {
 }
 
 /**
+ * Tipos de eventos de STREAMING que NO se persisten en el espejo: los deltas
+ * (`reasoning.appended`/`message.appended`) son ruido transitorio — cada uno
+ * traía `reasoningSoFar`/`messageSoFar` (TODO lo acumulado) y hacían crecer la
+ * BD cuadráticamente (856MB de 920MB eran reasoning.appended). La info VITAL
+ * para auditar vive en los eventos COMPLETADOS (`reasoning.completed` con el
+ * razonamiento final, `message.completed` con el mensaje final) + `meta.at`
+ * (tiempos) + `step.completed.usage` (tokens) + `actions.requested/action.result`
+ * (tools con su duración). Los deltas siguen llegando por el stream EN VIVO
+ * (para el feed en tiempo real), solo no se guardan.
+ */
+const STREAM_DELTA_EVENTS = new Set(["reasoning.appended", "message.appended"]);
+
+/**
  * Persiste un evento crudo del stream de Eve. `INSERT OR IGNORE` porque los
  * hooks son at-least-once (un evento puede reintentar) y `meta.id` ya es la
  * clave estable recomendada por Eve para deduplicar sin perder nada.
+ * Los eventos de streaming (deltas) se descartan: no aportan a la auditoría.
  */
 export async function appendEvent(sessionId: string, event: StoredEvent): Promise<void> {
+  if (STREAM_DELTA_EVENTS.has(event.type)) return;
   getDb()
     .prepare(
       `INSERT OR IGNORE INTO events (id, sessionId, type, emittedAt, data) VALUES (?, ?, ?, ?, ?)`,
@@ -296,7 +311,7 @@ export async function appendEvent(sessionId: string, event: StoredEvent): Promis
     .run(event.meta.id, sessionId, event.type, event.meta.at, JSON.stringify(event.data ?? null));
 }
 
-/** Eventos completos de una sesión, en orden de emisión (meta.id es ULID = ordenable). */
+/** Eventos de una sesión, en orden de emisión (meta.id es ULID = ordenable). */
 export async function listEvents(sessionId: string): Promise<StoredEvent[]> {
   const rows = getDb()
     .prepare("SELECT * FROM events WHERE sessionId = ? ORDER BY id ASC")

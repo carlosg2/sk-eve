@@ -115,15 +115,22 @@ async function ensureSession(url: string): Promise<string | null> {
 }
 
 /** Descubre los tools del MCP del tenant activo. Cachea por url (TTL 5 min) y, si
- *  falla la red, devuelve la copia previa (stale) en vez de romper la sesión. */
+ *  falla la red, devuelve la copia previa (stale) en vez de romper la sesión.
+ *  Si `tools/list` responde vacío o con error de sesión (la sesión del Map quedó
+ *  caducada en el servidor MCP tras horas de proceso), se descarta la sesión y
+ *  se reintenta UNA vez con sesión nueva — mismo patrón que `mcpCallTool`.
+ *  Nunca se cachea una lista vacía. */
 export async function mcpListTools(url: string): Promise<McpTool[]> {
   const cached = toolsCache.get(url);
   if (cached && Date.now() - cached.at < TOOLS_TTL_MS) return cached.tools;
-  try {
+
+  const listOnce = async (): Promise<McpTool[] | null> => {
     const sid = await ensureSession(url);
     const { msg } = await rpc(url, "tools/list", {}, 2, sid);
-    const raw = Array.isArray(msg?.result?.tools) ? (msg!.result!.tools as Record<string, unknown>[]) : [];
-    const tools: McpTool[] = raw.map((t) => ({
+    if (msg?.error && /session|not.?initialized/i.test(JSON.stringify(msg.error))) return null;
+    const raw = Array.isArray(msg?.result?.tools) ? (msg!.result!.tools as Record<string, unknown>[]) : null;
+    if (!raw || raw.length === 0) return null;
+    return raw.map((t) => ({
       name: String(t.name),
       description: typeof t.description === "string" ? t.description : null,
       inputSchema:
@@ -131,6 +138,20 @@ export async function mcpListTools(url: string): Promise<McpTool[]> {
           ? (t.inputSchema as Record<string, unknown>)
           : { type: "object" },
     }));
+  };
+
+  try {
+    let tools = await listOnce();
+    if (!tools || tools.length === 0) {
+      // Sesión caducada en el servidor MCP: re-inicializar con sesión nueva.
+      sessions.delete(url);
+      tools = await listOnce();
+    }
+    if (!tools || tools.length === 0) {
+      // MCP alcanzable pero sin tools (o respuesta inválida): no cachear vacío.
+      if (cached) return cached.tools;
+      return [];
+    }
     toolsCache.set(url, { tools, at: Date.now() });
     return tools;
   } catch (err) {

@@ -129,11 +129,19 @@ En Eve 0.13.3 existía `patches/eve+0.13.3.patch` (via `patch-package`) que pre-
 
 **Eve 0.29.2 CONSERVA `connection_search` por diseño** — la actualización sola NO elimina el round-trip. Por ahora se acepta (E2E muestra ~4 llamadas al arranque). Eliminarlo requeriría una estrategia nueva para 0.29.2.
 
-### ⚠️ Tras actualizar la versión de Eve
-Purgar SIEMPRE la caché de compilación, o el dev server sirve 500 con `LoadCompiledManifestError` (manifest stale del esquema viejo):
+### ⚠️ Cuándo reiniciar / limpiar el dev runtime de Eve (doc oficial: `node_modules/eve/docs/reference/cli.md`)
+Eve SÍ hace hot-rebuild: editar `agent/*.ts`, `agent/instructions/*`, skills o lib dispara "rebuilding authored artifacts" y **los turnos nuevos toman los cambios sin reiniciar** (los snapshots de `.eve/dev-runtime/snapshots/` son solo para que los turnos EN CURSO mantengan una revisión consistente; Eve los poda SOLO en background, reteniendo el activo + 30min + 5 recientes). El env se recarga solo ("no restart needed"). **En el flujo normal NO hay que limpiar nada.**
+
+`clean:eve` es un FALLBACK (no rutina) para estos fallos reales:
+1. **Tras subir la versión de Eve**: el schema del manifest compilado cambia → 500 `LoadCompiledManifestError` (manifest stale). La poda en background (30min/5) no cubre el cambio de schema → hay que purgar.
+2. **"Meltdown" por churn de HMR**: tras muchas rebuilds rápidas el dev-runtime tira 500 `Development runtime generation is unavailable` (snapshots stale acumulados más rápido de lo que la poda background los limpia).
+3. **Cambios en `agent/connections/*.ts`/channels**: la conexión se instancia al arrancar y NO se hot-recarga → requiere reinicio del dev server (a veces basta restart sin purgar).
+
+Uso (purga SEGURA, no borra conversaciones):
 ```bash
-rm -rf .eve node_modules/.vite && npm run dev
+./scripts/clean-eve.sh && npm run dev
 ```
+(equivalente a `npm run clean:eve`). El estado durable de Eve (`.eve/.workflow-data`) vive en `.data/eve-workflow` vía symlink re-creado por `node scripts/ensure-eve-workflow.mjs` al inicio de `npm run dev` — por eso ni `rm -rf .eve` borra las conversaciones y las sesiones SIEMPRE se pueden continuar. La doc además advierte: detener el dev server ANTES de borrar `.eve/dev-runtime/snapshots/` (un turno sin terminar más allá de la retención automática no se puede reanudar tras podar su generación).
 
 ---
 
@@ -301,11 +309,11 @@ El sistema sigue la **constitución** (`tesis/constitucion.md`) y el **context s
 ## Operación y mantenimiento — GOTCHAS críticos (2026-08-04/05)
 
 ### ⚠️ NUNCA recargar la página durante un turno activo
-Interrumpir un turno deja **sesiones huérfanas de Eve** (reintentan en bucle por su cola, saturando el server) y **contenedores Docker del sandbox** (uno "Up" escaneando `/sys` → la UI se congela). Si pasa:
+Interrumpir un turno deja **sesiones huérfanas de Eve** (reintentan en bucle por su cola, saturando el server) y **contenedores Docker del sandbox** (uno "Up" escaneando `/sys` → la UI se congela). Si pasa (la limpieza de abajo **NO borra conversaciones** — el workflow-data vive en `.data/eve-workflow`):
 ```bash
 lsof -tiTCP:5173,5174,5175 -sTCP:LISTEN | xargs -r kill -9
 docker ps -aq --filter ancestor=ghcr.io/vercel/eve:latest | xargs -r docker rm -f
-rm -rf .eve node_modules/.vite
+./scripts/clean-eve.sh
 npm run dev
 ```
 

@@ -7,7 +7,8 @@
 		"node": "24.x"
 	},
 	"scripts": {
-		"dev": "rm -f .eve/sveltekit-dev-server.json && unset npm_config_prefix && . ~/.nvm/nvm.sh && nvm use 24 && vite dev",
+  "dev": "node scripts/ensure-eve-workflow.mjs && rm -f .eve/sveltekit-dev-server.json && unset npm_config_prefix && . ~/.nvm/nvm.sh && nvm use 24 && vite dev",
+  "clean:eve": "bash scripts/clean-eve.sh",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
