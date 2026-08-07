@@ -21,11 +21,7 @@
 	let { tenant, agent, initialOpenPath = null, onOpenSkill }: Props = $props();
 	let deepLinkConsumed = false;
 
-	type Scope = "agent" | "global";
-	let scope = $state<Scope>("agent");
-
 	let skills = $state<Skill[]>([]);
-	let globalSkills = $state<Skill[]>([]);
 	let loading = $state(true);
 	let editing = $state<Skill | null>(null);
 
@@ -35,28 +31,18 @@
 	let creating = $state(false);
 	let createError = $state<string | null>(null);
 
-	const visibleSkills = $derived(scope === "agent" ? skills : globalSkills);
-
 	async function load() {
 		loading = true;
 		editing = null;
 		try {
-			const [agentRes, globalRes] = await Promise.all([
-				fetch(`/studio/api/skills?tenant=${encodeURIComponent(tenant)}&agent=${encodeURIComponent(agent)}`),
-				fetch(`/studio/api/global-skills`),
-			]);
-			const agentData = (await agentRes.json()) as { skills: Skill[] };
-			const globalData = (await globalRes.json()) as { skills: Skill[] };
-			skills = agentData.skills ?? [];
-			globalSkills = globalData.skills ?? [];
+			const res = await fetch(`/studio/api/skills?tenant=${encodeURIComponent(tenant)}&agent=${encodeURIComponent(agent)}`);
+			const data = (await res.json()) as { skills: Skill[] };
+			skills = data.skills ?? [];
 
 			if (initialOpenPath && !deepLinkConsumed) {
 				deepLinkConsumed = true;
-				const match = skills.find((s) => s.path === initialOpenPath) ?? globalSkills.find((s) => s.path === initialOpenPath);
-				if (match) {
-					scope = match.path.startsWith("agent-skills/") ? "global" : "agent";
-					editing = match;
-				}
+				const match = skills.find((s) => s.path === initialOpenPath);
+				if (match) editing = match;
 			}
 		} finally {
 			loading = false;
@@ -81,23 +67,14 @@
 		creating = true;
 		createError = null;
 		try {
-			const endpoint = scope === "agent" ? "/studio/api/skills" : "/studio/api/global-skills";
-			const payload =
-				scope === "agent"
-					? { tenant, agent, name: newName, description: newDescription }
-					: { name: newName, description: newDescription };
-			const res = await fetch(endpoint, {
+			const res = await fetch("/studio/api/skills", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify(payload),
+				body: JSON.stringify({ tenant, agent, name: newName, description: newDescription }),
 			});
 			if (!res.ok) throw new Error(await res.text());
 			const { skill } = (await res.json()) as { skill: Skill };
-			if (scope === "agent") {
-				skills = [...skills, skill].sort((a, b) => a.slug.localeCompare(b.slug));
-			} else {
-				globalSkills = [...globalSkills, skill].sort((a, b) => a.slug.localeCompare(b.slug));
-			}
+			skills = [...skills, skill].sort((a, b) => a.slug.localeCompare(b.slug));
 			adding = false;
 			newName = "";
 			newDescription = "";
@@ -131,7 +108,7 @@
 			<BookIcon class="size-4 text-muted-foreground" />
 			<span class="text-sm font-medium">Skills</span>
 			<span class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-				{visibleSkills.length}
+				{skills.length}
 			</span>
 			<div class="flex-1"></div>
 			<Button variant="default" size="sm" onclick={() => (adding = true)} disabled={adding}>
@@ -142,36 +119,10 @@
 			</Button>
 		</div>
 
-		<!-- Selector de alcance -->
-		<div class="flex items-center gap-1 border-b border-border px-4 py-2">
-			<button
-				type="button"
-				onclick={() => (scope = "agent")}
-				class="rounded-md px-2.5 py-1 text-[12px] font-medium {scope === 'agent'
-					? 'bg-muted text-foreground'
-					: 'text-muted-foreground hover:bg-muted/50'}"
-			>
-				De este agente ({skills.length})
-			</button>
-			<button
-				type="button"
-				onclick={() => (scope = "global")}
-				class="rounded-md px-2.5 py-1 text-[12px] font-medium {scope === 'global'
-					? 'bg-muted text-foreground'
-					: 'text-muted-foreground hover:bg-muted/50'}"
-			>
-				Globales — compilados ({globalSkills.length})
-			</button>
-		</div>
-
 		<p class="border-b border-border px-4 py-2 text-[12px] leading-snug text-muted-foreground">
-			{#if scope === "agent"}
-				Los skills son instrucciones que el agente carga bajo demanda. La <strong>descripción</strong> es el
-				hint de ruteo que decide cuándo se activa. Se inyectan en el runtime del agente activo.
-			{:else}
-				Viven en <code>agent/skills/</code>, se compilan con Eve y se cargan on-demand vía <code>load_skill</code>
-				— aplican a <strong>cualquier</strong> agente/tenant, no solo al seleccionado. Edítalos con cuidado.
-			{/if}
+			Los skills viven en <code>agent/skill-library/</code> y el agente los carga bajo demanda según su
+			membresía y la visibilidad por tenant. La <strong>descripción</strong> es el hint de ruteo que decide
+			cuándo se activa cada uno.
 		</p>
 
 		{#if adding}
@@ -209,17 +160,13 @@
 				<div class="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
 					<Loader2Icon class="size-4 animate-spin" /> Cargando…
 				</div>
-			{:else if visibleSkills.length === 0}
-				<div class="px-4 py-8 text-center text-sm text-muted-foreground">
-					{#if scope === "agent"}
-						Este agente no tiene skills. Crea uno con <strong>Nuevo</strong>.
-					{:else}
-						No hay skills globales en <code>agent/skills/</code>.
-					{/if}
-				</div>
-			{:else}
-				<ul class="divide-y divide-border">
-					{#each visibleSkills as skill (skill.slug)}
+		{:else if skills.length === 0}
+			<div class="px-4 py-8 text-center text-sm text-muted-foreground">
+				Este agente no tiene skills. Crea uno con <strong>Nuevo</strong>.
+			</div>
+		{:else}
+			<ul class="divide-y divide-border">
+				{#each skills as skill (skill.slug)}
 						<li>
 							<button
 								type="button"

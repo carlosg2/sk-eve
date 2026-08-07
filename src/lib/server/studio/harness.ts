@@ -69,19 +69,6 @@ export function twinRoot(): string {
 	return join(process.cwd(), "company-twin");
 }
 
-/** Resuelve `agent/skills/` (skills globales compilados, cargados vía `load_skill`). */
-export function agentSkillsRoot(): string {
-	let dir = process.cwd();
-	for (let depth = 0; depth < 8; depth++) {
-		const candidate = join(dir, "agent", "skills");
-		if (existsSync(candidate)) return candidate;
-		const parent = dirname(dir);
-		if (parent === dir) break;
-		dir = parent;
-	}
-	return join(process.cwd(), "agent", "skills");
-}
-
 /** Resuelve la raíz del catálogo de skills (`agent/skill-library/`). */
 export function skillLibraryRoot(): string {
 	let dir = process.cwd();
@@ -95,20 +82,21 @@ export function skillLibraryRoot(): string {
 	return join(process.cwd(), "agent", "skill-library");
 }
 
-/** Prefijo que distingue rutas de `agent/skills/` dentro del API genérico de archivos. */
+/** Prefijo que distingue rutas del catálogo (`agent/skill-library/`) dentro del API genérico de archivos. */
 const AGENT_SKILLS_PREFIX = "agent-skills/";
 
 /**
  * Resuelve una ruta relativa (recibida del cliente) contra `company-twin/` (o,
- * si empieza con `agent-skills/`, contra `agent/skills/`) y verifica que no
- * escape del raíz correspondiente. Lanza si hay traversal.
+ * si empieza con `agent-skills/`, contra `agent/skill-library/` — el catálogo
+ * que carga el runtime) y verifica que no escape del raíz correspondiente.
+ * Lanza si hay traversal.
  */
 export function safeResolve(relPath: string): string {
 	if (relPath.startsWith(AGENT_SKILLS_PREFIX)) {
-		const root = agentSkillsRoot();
+		const root = skillLibraryRoot();
 		const full = resolve(root, relPath.slice(AGENT_SKILLS_PREFIX.length));
 		if (full !== root && !full.startsWith(root + sep)) {
-			throw new Error(`Ruta fuera de agent/skills: ${relPath}`);
+			throw new Error(`Ruta fuera de agent/skill-library: ${relPath}`);
 		}
 		return full;
 	}
@@ -687,46 +675,6 @@ export async function createAgentSkill(input: {
 	if (!slug) throw new Error("Nombre de skill inválido.");
 	const rel = join("companies", tenant, "agents", agent, "skills", slug, "SKILL.md");
 	if (existsSync(join(twinRoot(), rel))) throw new Error(`El skill '${slug}' ya existe.`);
-	const body = input.body?.trim() || `# ${input.name}\n\nDescribe cómo el agente debe ejecutar este skill.`;
-	const md = ["---", `description: ${JSON.stringify(input.description)}`, "---", "", body, ""].join("\n");
-	await writeTwinFile(rel, md);
-	return { slug, name: input.name, description: input.description, path: rel };
-}
-
-/**
- * Lista los skills GLOBALES (`agent/skills/<slug>/SKILL.md`, compilados por Eve,
- * cargados on-demand vía `load_skill` para CUALQUIER agente/tenant — a
- * diferencia de `listAgentSkills`, que son por-agente e inyectados siempre).
- */
-export async function listGlobalSkills(): Promise<AgentCapability[]> {
-	const dir = agentSkillsRoot();
-	if (!existsSync(dir)) return [];
-	const out: AgentCapability[] = [];
-	for (const entry of await readdir(dir, { withFileTypes: true })) {
-		if (!entry.isDirectory()) continue;
-		const full = join(dir, entry.name, "SKILL.md");
-		if (!existsSync(full)) continue;
-		const { fm, body } = parseFrontmatter(await readFile(full, "utf8"));
-		out.push({
-			slug: entry.name,
-			name: firstHeading(body) ?? entry.name,
-			description: str(fm.description),
-			path: `${AGENT_SKILLS_PREFIX}${entry.name}/SKILL.md`,
-		});
-	}
-	return out.sort((a, b) => a.slug.localeCompare(b.slug));
-}
-
-/** Crea un skill global en `agent/skills/<slug>/SKILL.md`. */
-export async function createGlobalSkill(input: {
-	name: string;
-	description: string;
-	body?: string;
-}): Promise<AgentCapability> {
-	const slug = slugify(input.name);
-	if (!slug) throw new Error("Nombre de skill inválido.");
-	const rel = `${AGENT_SKILLS_PREFIX}${slug}/SKILL.md`;
-	if (existsSync(safeResolve(rel))) throw new Error(`El skill '${slug}' ya existe.`);
 	const body = input.body?.trim() || `# ${input.name}\n\nDescribe cómo el agente debe ejecutar este skill.`;
 	const md = ["---", `description: ${JSON.stringify(input.description)}`, "---", "", body, ""].join("\n");
 	await writeTwinFile(rel, md);
