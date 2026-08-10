@@ -30,8 +30,9 @@ el objetivo es **siempre uno**.
 | **ERP Kernel** (`company-twin/erp-kernel/`) | *Declarativo universal de Intelisis*: entidades, campos, tipos, ciclo de vida, relaciones, **capacidades transversales del motor (OData)**. `tenant: null`. Jamás datos ni políticas de un cliente. | OKF (markdown + frontmatter) | Lento (release ERP) | Fábrica |
 | **Company Twin** (`company-twin/companies/<tenant>/`) | *Declarativo del tenant + políticas*: catálogos reales, límites de aprobación, aprobadores, calendarios, overrides. **Restringe** al kernel, nunca lo amplía. | OKF | Medio/rápido | Fábrica |
 | **State / memoria operativa** (`.../<tenant>/state/`) | *Buffer efímero*: aprendizajes crudos capturados en runtime, pendientes de clasificar. **NO es un destino, es una bandeja de entrada.** | markdown append-only | Tiempo real | **Runtime (hook)** — único caso en que el runtime escribe |
-| **Skills** (`agent/skills/`) | *Procedural*: cómo ejecutar secuencias (joins manuales, multi-aggregate, resumen ejecutivo, 3-way match). **Cero schema** — referencia al Twin. | markdown (SKILL.md) | Medio | Fábrica |
-| **Instructions** (`agent/instructions.md`) | *Identidad + ruteo (thin)*: quién es el agente y a qué fuente ir para cada necesidad. **Cero schema, cero procedural.** | markdown | Lento | Fábrica |
+| **Skills** (`agent/skill-library/`) | *Procedural*: cómo ejecutar secuencias (joins manuales, multi-aggregate, resumen ejecutivo, 3-way match). **Cero schema** — referencia al Twin. Visibilidad por tenant (frontmatter `tenant`); la membresía del agente se declara en `agent.md`. | markdown (SKILL.md) | Medio | Fábrica |
+| **Instructions** (`agent/instructions.md` + `companies/<tenant>/agents/<agente>/instructions.md`) | *Identidad + ruteo (thin)*: quién es el agente y a qué fuente ir para cada necesidad. **Cero schema, cero procedural.** Dos niveles: global (`agent/instructions.md`) y por agente activo (identidad del tenant). | markdown | Lento | Fábrica |
+| **Config runtime** (`company-twin/runtime.json` + `companies/<tenant>/profile.md` + `companies/<tenant>/agents/<agente>/agent.md`) | *Despliegue*: qué tenant/agente están activos, `mcp_url`, modelo, membresía de skills, allow-list `mcp_tools`. | JSON + frontmatter markdown | Medio | Fábrica |
 | **Runtime cableado** (`agent/instructions/*.ts`, `hooks/`, `tools/`) | *Overlays y captura*: inyección dinámica de contexto, captura de errores al buffer, tools custom. | TypeScript | Medio | Fábrica |
 
 **Regla de frontera clave:**
@@ -53,7 +54,7 @@ Matriz de "tipo de conocimiento → hogar canónico". Si lo encuentras en otro l
 | Schema de una entidad (campos, tipos, estatus, relaciones) | `erp-kernel/<entidad>.md` | instructions, skills, dab-config duplicado |
 | Enums/catálogos específicos del tenant | `companies/<tenant>/` | kernel |
 | Políticas (límites $, aprobadores, calendarios) | `companies/<tenant>/policies/` | kernel, skills |
-| Cómo ejecutar un flujo | `agent/skills/<x>/SKILL.md` | instructions, twin |
+| Cómo ejecutar un flujo | `agent/skill-library/<x>/SKILL.md` | instructions, twin |
 | Ruteo "para X usa fuente Y" | `agent/instructions.md` | todos los demás |
 
 **Corolario transversal:** lo que aplica a *todos* los módulos (p. ej. OData) va al **root
@@ -91,7 +92,7 @@ flowchart LR
     B -->|/promote-learnings| P[Clasifica cada learning]
     P --> K[erp-kernel/*]
     P --> T[companies/&lt;tenant&gt;/*]
-    P --> S[agent/skills/*]
+    P --> S[agent/skill-library/*]
     P --> I[agent/instructions.md]
     P --> D[dab-config.json]
     P -->|vacía| B

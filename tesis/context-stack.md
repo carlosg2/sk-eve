@@ -185,6 +185,13 @@ En producción, el `default_autonomy_level` arranca en L1 y el `max_autonomy_lev
 
 ## 8. Mapeo a Eve y al file system (decisión de implementación)
 
+> **⚠️ La estructura de carpetas de abajo es la materialización PREVISTA/ejemplo
+> conceptual.** La implementación real (2026-08-10) vive en `company-twin/`
+> (OKF markdown: `erp-kernel/` + `companies/<tenant>/`) y en
+> `agent/skill-library/` — ver la tabla de estado real en `tesis.md` §12.
+> **No crear `verticals/` ni `process-graphs/`** hasta que un eval demuestre que
+> hacen falta (ADR-004: conceptos sí, implementación pesada no).
+
 Las 5 capas, materializadas como file system hardcodeado en esta iteración:
 
 ```
@@ -237,4 +244,4 @@ Y la regla maestra que esto impone sobre el sistema:
 
 ---
 
-*Complemento de [`tesis.md`](./tesis.md) (v1). Define el modelo de contexto; la tesis principal define el modelo de ejecución (loops). Linaje original en [`tesis-v0.md`](./tesis-v0.md).*
+*Complemento de [`tesis.md`](./tesis.md) (v1). Define el modelo de contexto; la tesis principal define el modelo de ejecución (loops). Linaje original en [`legacy/tesis-v0.md`](./legacy/tesis-v0.md).*
