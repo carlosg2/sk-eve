@@ -153,6 +153,30 @@ provenance/trust/lifecycle (`verified`, `status`, `stale_after`, `usage_window`)
 
 ---
 
+## ADR-007 — El runtime se llama Eve en toda la documentación. "Harness" queda descartado.
+
+**Estado:** Aceptada (2026-08-10)
+
+### Contexto
+`tesis/tesis-7ago.md` renombró "Eve" → "Harness" (13 reemplazos) sin base en el
+código. La evidencia es unánime: el paquete instalado es `eve` (`node_modules/eve`,
+imports `from "eve"`, `eve/hooks`, `eve/skills`), ADR-001 dice "Eve es el runtime
+único" y la constitución §1 lo llama "Eve (agent framework)". El término "Harness"
+solo existe en un archivo huérfano que ningún documento referencia.
+
+### Decisión
+**El runtime se llama `Eve` en toda la documentación del proyecto.** "Harness" queda
+descartado como nombre del framework. Cualquier documento futuro que use otro nombre
+es un error de la fábrica y debe corregirse. Consecuencia inmediata: se elimina
+`tesis/tesis-7ago.md` (duplicado con rename a medias; el canónico es `tesis.md`).
+
+### Consecuencias
+- (+) Un solo nombre para el framework en docs, código y ADRs.
+- (+) Se elimina el archivo huérfano que confundía el linaje documental.
+- (−) Ninguna (es un rename documental; el código nunca usó "Harness").
+
+---
+
 ## Decisiones pendientes (por resolver)
 
 | # | Pregunta abierta | Bloquea |

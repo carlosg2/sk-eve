@@ -4,7 +4,7 @@ Tesis de investigación para un mini-AGI empresarial sobre Intelisis ERP, reform
 
 > **Cambio central respecto a v0:** Sigma AGI no es una colección de agentes que responden cuando se les habla. Es una colección de **loops empresariales persistentes** que observan, razonan y actúan sobre la operación de forma continua —incluso cuando nadie les está hablando— anclados a un **Company Twin** que recuerda entre corridas. Los agentes, los loops y el LLM son reemplazables. El estado persistente (Company Twin + Process Graph + Loop State) es el activo estratégico.
 
-> **Linaje:** Esta es la versión v1. La formulación original (Sigma AGI como capa de inteligencia con ERP Kernel, Company Twin, Trace2Skill, Agent Cortex, Execution Gateway, Governance) se conserva íntegra en [`tesis-v0.md`](./tesis-v0.md). v1 no descarta v0: lo reorienta. Toda la arquitectura por capas de v0 sigue vigente; lo que cambia es la **unidad de ejecución**: del *turno conversacional* al *loop con estado*.
+> **Linaje:** Esta es la versión v1. La formulación original (Sigma AGI como capa de inteligencia con ERP Kernel, Company Twin, Trace2Skill, Agent Cortex, Execution Gateway, Governance) se conserva íntegra en [`legacy/tesis-v0.md`](./legacy/tesis-v0.md). v1 no descarta v0: lo reorienta. Toda la arquitectura por capas de v0 sigue vigente; lo que cambia es la **unidad de ejecución**: del *turno conversacional* al *loop con estado*.
 
 > **Empieza por aquí:** El marco de nivel superior está en [`arquitectura.md`](./arquitectura.md) — las **tres abstracciones** (Meta-fábrica, Agente, Company Twin) + Governance transversal. Este documento (`tesis.md`) desarrolla en detalle **El Agente**: el modelo de ejecución por loops.
 
@@ -393,6 +393,30 @@ En una frase: **Sigma AGI es la memoria operativa continua de una empresa Inteli
 
 ---
 
+## 12. Estado de implementación (fuente de verdad del estado real)
+
+> **⚠️ Este documento describe la visión v1 (loops persistentes).** La tabla siguiente
+> distingue lo **implementado** de lo **aspiracional**. Usa esta tabla como fuente de
+> verdad del estado real del proyecto; no infieras que algo existe porque la tesis lo
+> describe. Verificada contra el código el 2026-08-10.
+
+| Componente | Estado | Dónde vive |
+|---|---|---|
+| Agente conversacional (Eve + SvelteKit) | ✅ implementado | `agent/`, `src/` |
+| Company Twin (OKF, multi-tenant) | ✅ implementado | `company-twin/` |
+| ERP Kernel (OKF) | ✅ implementado | `company-twin/erp-kernel/` |
+| Skills (catálogo por tenant) | ✅ implementado | `agent/skill-library/` (19 skills) |
+| Meta-fábrica (hook→buffer→promote) | ✅ implementado | `agent/hooks/memory.ts`, `.github/skills/promote-learnings/` |
+| Radiografía durable (SQLite) | ✅ implementado | `.data/sessions.sqlite3` |
+| Evals (gates de regresión) | ✅ implementado | `evals/` |
+| Config por tenant/agente (runtime.json) | ✅ implementado | `company-twin/runtime.json` + `companies/<tenant>/agents/` |
+| Loops persistentes (`agent/schedules/`) | 🔲 aspiración (tesis v1) | — |
+| Agent Cortex (subagents consultor/operador/validador) | 🔲 aspiración | — |
+| Process Graph / Event Ledger | 🔲 aspiración | — |
+| Dynamic surface generation | 🔲 north-star (ADR-005) | — |
+
+---
+
 ## Documentos relacionados
 
 - [`context-stack.md`](./context-stack.md) — Modelo de contexto: stack de 5 capas, regla ontológica, jerarquía de autoridad y context overlays. Complementa esta tesis (ejecución/loops) con el **qué contexto compone** Sigma.
@@ -400,8 +424,8 @@ En una frase: **Sigma AGI es la memoria operativa continua de una empresa Inteli
 - [`mercado.md`](./mercado.md) — Tesis de mercado y posicionamiento (Vertical AI > SaaS; Sigma como OS empresarial).
 - [`inteligencia-consultora.md`](./inteligencia-consultora.md) — Nivel meta: aplicar la inteligencia a la propia consultora (cross-client learning, el moat). Scope futuro.
 - [`glosario.md`](./glosario.md) — Vocabulario de referencia (Agentic Process Intelligence).
-- [`tesis-v0.md`](./tesis-v0.md) — Formulación original (request/response). Linaje preservado.
+- [`legacy/tesis-v0.md`](./legacy/tesis-v0.md) — Formulación original (request/response). Linaje preservado.
 
 ---
 
-*v1 — 2026-06-23. Sucesor de [`tesis-v0.md`](./tesis-v0.md). Reorienta la arquitectura por capas de v0 alrededor de loops persistentes, sin descartarla.*
+*v1 — 2026-06-23. Sucesor de [`legacy/tesis-v0.md`](./legacy/tesis-v0.md). Reorienta la arquitectura por capas de v0 alrededor de loops persistentes, sin descartarla.*
