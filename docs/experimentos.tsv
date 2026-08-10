@@ -1,0 +1,3 @@
+commit	métricas_antes	métricas_después	status	descripción
+(baseline)	0 hits FTS / sin tool	3,100 eventos indexados / búsqueda OK	keep	P1 memoria episódica: tool recordar_sesiones (FTS5 sobre events) + session-search.ts
+3a78ffb	—	E2E: 34 calls recordar_sesiones, loop de búsqueda obsesiva	discard→iterado	P1 v1: el modelo abusó de la tool (34 llamadas, 20+ queries reformuladas). Fix: descripción restrictiva (solo contexto explícito), máx 3 hits, nota anti-repetición, excludeSessionId (la sesión actual ya está en contexto)
