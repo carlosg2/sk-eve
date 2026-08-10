@@ -7,7 +7,7 @@ confirmado para otros tenants, por eso vive aquí y no en `erp-kernel/`.
 Este módulo calcula el **MRP** (Material Requirements Planning): explota demanda de
 ventas/forecast en requerimientos de materia prima/insumos por semana, y organiza el
 plan de producción por centro de trabajo. Los tools `faltante_insumos`/
-`faltante_materia_prima` (ver [skill gap-abasto](/agent/skills/gap-abasto/SKILL.md))
+`faltante_materia_prima` (ver [skill gap-abasto](/agent/skill-library/gap-abasto/SKILL.md))
 son la salida ya calculada de este proceso — la mayoría de las entidades de aquí son
 **tablas de trabajo internas del proceso**, no destinadas a lectura directa salvo que
 se necesite diagnosticar o construir un reporte nuevo.
@@ -27,4 +27,4 @@ con `read_records(<Entidad>, first: 1)` sin `select` para ver todos los campos.
 * [Presupuesto ganadero / VACA](mrp-vaca-ganadera.md) — `ArtDisponibleVaca`, `VacaPresupuestoVtaCon`, `VacaPresupuestoVtaConD`, `VentaTCalc`.
 * [Soporte y portal](mrp-soporte.md) — `Empresa`, `SerieLote`, `MensajeLista`, `PortalForecastLog`, `PushDispositivos`, `WebInicio`, `WebInicioHist`.
 
-Ver el patrón de uso procedural en [agent/skills/mrp/SKILL.md](/agent/skills/mrp/SKILL.md).
+Ver el patrón de uso procedural en [agent/skill-library/mrp/SKILL.md](/agent/skill-library/mrp/SKILL.md).

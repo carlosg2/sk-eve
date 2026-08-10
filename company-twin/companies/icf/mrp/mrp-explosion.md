@@ -21,7 +21,7 @@ Flujo: `ExplocionMatCF` (resultado crudo de la explosión) → se resume en
 `BalanceFC`/`ResumenPlaneacionCF` (ver [plan de producción](mrp-plan-produccion.md))
 → se traduce a reportes accionables `FaltanteInsumos`/`FaltanteMateriaPrima` (tools
 dedicados `faltante_insumos`/`faltante_materia_prima`, ver
-[skill gap-abasto](/agent/skills/gap-abasto/SKILL.md)).
+[skill gap-abasto](/agent/skill-library/gap-abasto/SKILL.md)).
 
 # Entidades
 

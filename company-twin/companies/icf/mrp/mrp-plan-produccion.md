@@ -14,7 +14,7 @@ mcp_tools: [read_records, aggregate_records]
 Entidades que traducen la explosión de materiales (ver [núcleo MRP](mrp-explosion.md))
 en un **plan de producción concreto por semana y centro de trabajo**. Es la capa
 más cercana a "qué se va a producir" (a diferencia de "qué falta comprar", que
-cubre [gap-abasto](/agent/skills/gap-abasto/SKILL.md)).
+cubre [gap-abasto](/agent/skill-library/gap-abasto/SKILL.md)).
 
 # Entidades
 

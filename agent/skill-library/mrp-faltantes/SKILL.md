@@ -36,7 +36,7 @@ un stored procedure distinto pero con la MISMA base de datos
 
 **Casos 1 y 2 (insumos / materia prima por artículo)** → usa **directamente**
 los tools dedicados `faltante_insumos`/`faltante_materia_prima` documentados en
-[gap-abasto](/agent/skills/gap-abasto/SKILL.md). No hay diferencia con lo que
+[gap-abasto](/agent/skill-library/gap-abasto/SKILL.md). No hay diferencia con lo que
 ya está implementado ahí.
 
 **Caso 3 (faltante de concentrado, agregado por familia)** — no existe un tool

@@ -1,3 +1,6 @@
+---
+okf_version: "0.2"
+---
 # ERP Kernel — Intelisis (universal)
 
 Conocimiento estructural de Intelisis, compartido por todos los clientes.

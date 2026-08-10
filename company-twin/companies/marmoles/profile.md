@@ -19,6 +19,6 @@ calcular cualquier sugerido de compra o MRP.
 
 El agente por defecto de este tenant es [Sugerido de Compra](agents/sugerido-compra/agent.md),
 construido a partir de las guías operativas de planeación entregadas por el equipo de negocio
-(cargadas mediante el skill global `sugerido-compra`, ver `agent/skills/sugerido-compra/SKILL.md`).
+(cargadas mediante el skill global `sugerido-compra`, ver `agent/skill-library/sugerido-compra/SKILL.md`).
 
 La política operativa vive en [Sugerido de Compra — Política](policies/sugerido-compra-policy.md).

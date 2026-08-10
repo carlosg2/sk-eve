@@ -68,4 +68,4 @@ Parámetros obligatorios: `Usuario`, `Ejercicio`, `Periodo`.
   siempre por default, sin preguntarlo ni pedir confirmación.
 - `Ejercicio`/`Periodo`: año y mes/periodo fiscal, enteros (ej. `2026`, `7`).
 
-Ver el patrón completo de uso en `agent/skills/gap-abasto/SKILL.md`.
+Ver el patrón completo de uso en `agent/skill-library/gap-abasto/SKILL.md`.

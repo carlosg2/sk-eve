@@ -9,7 +9,7 @@ generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-06T00:00:00Z }
 mcp_tools: [read_records, aggregate_records]
 sources:
   - id: reunion-2026-08-05
-    resource: icf/reunion.txt + icf/requerimientos-reunion-2026-08-05.md
+    resource: docs/icf/reunion.txt + docs/icf/requerimientos-reunion-2026-08-05.md
     title: Requerimientos de finanzas (R-FIN-06/07) - desviaciones de presupuesto de compra por periodo
     last_modified: 2026-08-05
   - id: verificacion-mcp-2026-08-06

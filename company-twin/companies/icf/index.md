@@ -1,3 +1,6 @@
+---
+okf_version: "0.2"
+---
 # Industrias Campo Fresco (ICF) — Company Twin
 
 Conocimiento específico de ICF. `tenant: icf`. Código ERP: **`INCF`**.
