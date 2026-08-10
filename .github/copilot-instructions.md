@@ -396,3 +396,28 @@ Un `throw` en un hook / instruction dinámica / middleware (ej. `ReferenceError:
 - El MCP ICF **NO publica** CXP/Tesorería/Cuentas bancarias: `CXP`, `CxpD`, `CxpConSaldo`, `CtaDinero`, `Dinero`, `DineroD` → `EntityNotFound`. Documentado en `companies/icf/modulos.md`. Ante preguntas de ese módulo en ICF → responder **"Dato no disponible"** sin probar variantes.
 - Campos DAB en **UPPERCASE** (`SEMANA`, no `semana`).
 - `describe_entities` es un catálogo incompleto (no lista `UV_QV_PPTOCOMPRA` que sí funciona); la disponibilidad real se valida con `read_records(entity, first:1)`.
+
+---
+
+## Skills de la fábrica (2026-08-10 — leer antes de tocar el sistema)
+
+La fábrica (Copilot) tiene DOS skills de operación avanzada:
+
+| Skill | Dónde | Para qué |
+|---|---|---|
+| **`stack-mastery`** | `.github/skills/stack-mastery/` | Mejora continua E2E del stack con patrón autoresearch (Karpathy): program.md (agenda), 6 manuales de dominio (Eve, DAB, SQL Server, Company Twin, multi-tenant, SvelteKit, AI Gateway), ratchet loop con evals/radiografía como juez. **Leer `program.md` antes de proponer cualquier mejora.** |
+| **`promote-learnings`** | `.github/skills/promote-learnings/` | Compilar el buffer `state/learnings.md` → hogar canónico (OKF/skills/instructions). |
+
+**Manuales de dominio** (en `stack-mastery/references/`): antes de tocar una capa,
+lee su manual — contiene el contrato verificado, los gotchas y las oportunidades
+(hipótesis para el programa de investigación). Los manuales se actualizan cuando
+un probe revela verdad nueva (nunca se quedan con teoría).
+
+**Fábrica del DAB** (repo hermano `sigma-dab` = `~/Documents/GitHub/data-api-builder`,
+remoto `carlosg2/sigma-dab`): el pipeline probes→config vive en
+`.github/skills/fabrica-dab/` + `tools/*.py` + `projects/joya/modules/*/config/`.
+La BD real del cliente (`Intelisis5000`, restaurada en `sv5-sqlserver`) y su
+`db-metadata.json` (13,143 objetos) están en
+`sigma-dab/projects/joya/db-metadata/db-metadata-intelisis5000.json` — el probe
+validó que las 23 entidades del kernel existen y encontró 265 vistas de negocio
+sin exponer (gap documentado en `sql-server-mastery.md` §8).

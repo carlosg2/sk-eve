@@ -1,8 +1,8 @@
 # Sigma AGI — Context Stack
 
-Documento complementario de [`tesis.md`](./tesis.md) (v1, loops persistentes).
+Documento complementario de [`tesis.md`](./tesis.md) (v2, enjambre gobernado).
 
-> **Relación con la tesis de loops:** La tesis principal responde **cómo ejecuta** Sigma (loops persistentes con estado, schedules, ladder de autonomía). Este documento responde **qué contexto compone** Sigma para actuar correctamente. No compiten: se complementan. En su paso `decide`, un loop **compone el context stack**; en su paso `act`, lo gobierna la **jerarquía de autoridad** definida aquí.
+> **Relación con la tesis v2:** La tesis principal responde **cómo ejecuta** Sigma (enjambre gobernado con watchdog+LLM bajo demanda, contratos entre agentes, ladder de autonomía). Este documento responde **qué contexto compone** Sigma para actuar correctamente. No compiten: se complementan. En su paso `decide`, un agente **compone el context stack** (curaduría determinista + búsqueda tipada); en su paso `act`, lo gobierna la **jerarquía de autoridad** definida aquí.
 
 > **Disciplina de implementación (importante):** Las ideas de este documento provienen de una exploración maximalista (que proponía neo4j, múltiples microservicios y montañas de YAML). **Adoptamos los conceptos, no esa implementación pesada** — ese exceso es justo lo que volvió complejo y se abandonó el proyecto anterior. Las capas se materializan primero como **carpetas de markdown/YAML hardcodeadas** (file system), en **shadow**, con **evals**. Solo migran a bases de datos o servicios cuando un eval demuestre que hace falta.
 
@@ -188,7 +188,7 @@ En producción, el `default_autonomy_level` arranca en L1 y el `max_autonomy_lev
 > **⚠️ La estructura de carpetas de abajo es la materialización PREVISTA/ejemplo
 > conceptual.** La implementación real (2026-08-10) vive en `company-twin/`
 > (OKF markdown: `erp-kernel/` + `companies/<tenant>/`) y en
-> `agent/skill-library/` — ver la tabla de estado real en `tesis.md` §12.
+> `agent/skill-library/` — ver la tabla de estado real en `tesis.md` §13.
 > **No crear `verticals/` ni `process-graphs/`** hasta que un eval demuestre que
 > hacen falta (ADR-004: conceptos sí, implementación pesada no).
 

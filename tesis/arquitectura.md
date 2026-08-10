@@ -142,7 +142,7 @@ Tres abstracciones es **memorable, vendible y completo**. Cuatro ya se siente ar
 ---
 
 ## Documentos relacionados
-- [`tesis.md`](./tesis.md) — El Agente (loops persistentes), modelo de ejecución.
+- [`tesis.md`](./tesis.md) — Los Agentes (enjambre gobernado), modelo de ejecución.
 - [`context-stack.md`](./context-stack.md) — Estructura interna del Company Twin.
 - [`inteligencia-consultora.md`](./inteligencia-consultora.md) — La Meta-fábrica a nivel cross-client.
 - [`decisiones.md`](./decisiones.md) — Decisiones arquitectónicas (ADRs).

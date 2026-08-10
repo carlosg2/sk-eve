@@ -125,7 +125,7 @@ Versión corta para pitch:
 ---
 
 ## Documentos relacionados
-- [`tesis.md`](./tesis.md) — Tesis técnica (loops persistentes).
+- [`tesis.md`](./tesis.md) — Tesis técnica (enjambre gobernado, v2).
 - [`context-stack.md`](./context-stack.md) — Modelo de contexto.
 - [`inteligencia-consultora.md`](./inteligencia-consultora.md) — El moat de aprendizaje entre implementaciones.
 - [`glosario.md`](./glosario.md) — Vocabulario.

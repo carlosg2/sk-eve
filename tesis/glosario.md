@@ -105,6 +105,24 @@ El **conocimiento procedural** es el más importante para Sigma: es lo que convi
 | Context overlays, jerarquía de autoridad, regla ontológica | [`context-stack.md`](./context-stack.md) |
 | Cross-client Pattern Engine, DRI artificial | [`inteligencia-consultora.md`](./inteligencia-consultora.md) |
 
+## 8. Términos v2 (tesis 2026-08-10, frontera de agentes)
+
+| Término | Qué es | En Sigma |
+|---|---|---|
+| **Enjambre gobernado** | Conjunto de agentes especialistas que se comunican por **contratos** (Task/Message/Artifact) bajo un orquestador de misión; contexto aislado por agente (anti-cascada). No es un swarm libre. | Los Agentes (§3.2 v2): consultor / operador / validador / DRI / explorador |
+| **Watchdog determinista** | Script/query barata que observa el estado y calcula un hash; solo despierta al LLM cuando el hash cambia (tick silencioso = costo ~0). | El disparador del loop v2 (ADR-008), no cron+LLM cada tick |
+| **Tarea durable** | Trabajo async long-running con pause/resume/hibernate y estado persistente (patrón Vercel Open Agents). | Cada loop/misión de Sigma en F6 |
+| **Agent Inbox** | Bandeja de tareas para HITL (notify/question/review) en vez de chat síncrono. | La UI de interacción principal v2 (§9) |
+| **Memory graph temporal (TKG)** | Memoria como grafo de hechos con **intervalos de validez** por arista; sabe *cuándo* algo fue verdadero. La operación clave es la **temporal supersession** (el hecho nuevo inactiva al viejo). | Event Ledger + Process Graph + Company Twin convergiendo (F5, ADR-010) |
+| **Temporal supersession** | Operación de memoria: un hecho nuevo que contradice a uno anterior lo **inactiva** (no conviven), con proveniencia y timestamp. | La regla ontológica de v1 formalizada (§3.4 v2) |
+| **Agent Card** | Documento JSON que publica capacidades, tools, auth y seguridad de un agente (descubrible en `/.well-known/agent-card.json`); en A2A v1.0 va **firmada criptográficamente**. | Registro de agentes con DRI humano (§7 v2) |
+| **Guardian agent** | Agente supervisor con monitoreo, gatekeeping y **kill-switch** sobre agentes operativos (Gartner: 40% de CIOs lo exigirá en 2027). | Contención de seguridad hecha infraestructura (§7 v2) |
+| **Agentic search** | El agente mismo decide qué recuperar y reformula consultas en un loop, confinado a sub-agentes con contexto limpio que devuelven resúmenes de 1-2K tokens. | Complementa (no sustituye) la curaduría determinista (ADR-012) |
+| **Plan-and-Execute** | Modelo de razonamiento planea; modelos baratos ejecutan (~90% de ahorro de costo). | Control de costo del contexto v2 (§3.3) |
+| **Indirect prompt injection** | Instrucciones maliciosas embebidas en **datos** (descripciones, notas, comentarios) que entran al contexto del agente sin validación. Vector #1 para ERP. | Pilar de seguridad §4 v2 (ADR-009) |
+| **Least agency** | Principio de seguridad: conceder al agente la mínima capacidad de acción, no solo el mínimo privilegio de acceso. | RBAC hard-gate sobre tools MCP (ADR-009) |
+| **Ambient agents / agents as services** | Agentes que no esperan mensajes humanos: escuchan un event stream, corren en background y entregan por inbox; pago por tarea/resultado. | El modelo de producto v2 (§9) |
+
 ---
 
 ## Frase central
