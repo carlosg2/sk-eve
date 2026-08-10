@@ -93,18 +93,10 @@ falta; usa `query_company_twin` para el schema.
 
 ## Reglas OData (DAB)
 
-- Parámetros **sin `$`**: `filter`, `select`, `first`, `orderby` (NO `$filter`).
-- **Casing por vista — NO generalices**: cada entidad/vista del DAB tiene SU
-  propio casing. Verificado: UPPERCASE en `ForecastPlanProduccion` (`SEMANA`,
-  `EJERCICIO`, `PORPRODUCIR`) y `UV_QV_PPTOCOMPRA`; camelCase en `CalendarioFC`
-  (`Ano`/`Semana`), `ResumenPlaneacionCF`, `ExplocionMatCF`, `Art`, `Venta`,
-  `Compra`. Usar el casing equivocado falla con `BadRequest: Invalid field`. Si
-  dudas, haz `read_records(entidad, first:1)` para ver los campos reales ANTES
-  de consultar.
-- Fechas **sin comillas**: `FechaEmision ge 2026-01-01`.
-- Strings **con comillas simples**: `Estatus eq 'PENDIENTE'`.
-- **`in` NO soportado** — usar `or` chains: `Mov eq 'Pedido' or Mov eq 'Factura'`.
-- **`contains` NO soportado** — para buscar por texto parcial usa el tool `buscar_registro` (LIKE en servidor). NUNCA traigas todas las filas para filtrar en cliente.
+Las reglas del motor OData (parámetros sin `$`, casing por vista, fechas sin
+comillas, strings con comillas simples, `in`/`contains` NO soportados) viven en la
+fuente canónica: `erp-kernel/index.md` § Capacidades OData. Consúltalas con
+`query_company_twin` antes de construir filtros si no las recuerdas con certeza.
 
 ## Última verificación antes de responder
 
