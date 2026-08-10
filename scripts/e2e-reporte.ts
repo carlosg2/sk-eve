@@ -6,12 +6,12 @@
 //
 // Uso:
 //   node --experimental-strip-types --import ./scripts/ts-hook.mjs scripts/e2e-reporte.ts
-//   OUT=icf/e2e-resultados-demo-2026-08-06.md  (default)
+//   OUT=docs/icf/e2e-resultados-demo-2026-08-06.md  (default)
 // ─────────────────────────────────────────────────────────────────────────────
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 const BASE = process.env.BASE ?? "http://localhost:5173";
-const OUT = process.env.OUT ?? "icf/e2e-resultados-demo-2026-08-06.md";
+const OUT = process.env.OUT ?? "docs/icf/e2e-resultados-demo-2026-08-06.md";
 const BATCHES = ["finanzas", "compras", "cs", "prod1", "prod2", "twin"];
 const RETEST = "/tmp/e2e-r-retest.jsonl";
 
