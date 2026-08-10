@@ -306,6 +306,33 @@ El sistema sigue la **constitución** (`tesis/constitucion.md`) y el **context s
 
 ---
 
+## Receta de probes de la meta-fábrica — validar un mini-AGI ANTES de construirlo (2026-08-06)
+
+Los **probes** son scripts TS de FÁBRICA (VS Code Copilot) que verifican un use case contra el
+MCP real **antes** de escribir el skill/twin. Quedan como referencia de construcción en
+`scripts/probe-*.ts`.
+
+> ⚠️ **REGLA DE SEPARACIÓN**: los probes son herramienta de la fábrica — el conocimiento del
+> agente (skills, erp-kernel, company twin, instructions) **NUNCA referencia los probes** ni su
+> ruta. El runtime no debe saber que existen.
+
+**Receta (validada construyendo el use case `control-compras`, 2026-08-06):**
+1. **Entidad + schema real**: `read_records(<Ent>, first: 1..5)` sin select (o con select) contra
+   `runtimeConfig.mcpUrl` → confirmar que existe y sus campos/casing reales (la verdad de runtime).
+2. **Rango de datos**: estatus reales, volúmenes, fechas máximas (agregados count/groupby).
+3. **Tubería del cruce**: agregados y joins manuales por ID exactamente como los hará el skill.
+4. **Cruce FINAL con caso real** (el "wow"): datos que demuestran valor accionable (ej. A6319
+   compró 4,366,000 vs presupuesto 3,002,400 → +45% 🔴).
+5. Medir la eficiencia del skill resultante vía `/api/audit/turns` (tokens/steps/calls/errores).
+
+**Cómo correrlos** (Node 24 + resolve-hook TS del repo):
+`nvm use 24 >/dev/null 2>&1; node --import ./scripts/ts-hook.mjs --experimental-strip-types scripts/probe-<x>.ts`
+Librería: `mcpCallTool(url, name, args)` de `agent/lib/mcp-client.ts` (no necesita el server Eve).
+Ejemplos de referencia: `scripts/probe-presupuesto*.ts` (1-5) — cada cabecera documenta qué validó,
+hallazgos verificados y cómo correrlo. Para uso como plantilla, copiar/adaptar, no borrar.
+
+---
+
 ## Operación y mantenimiento — GOTCHAS críticos (2026-08-04/05)
 
 ### ⚠️ NUNCA recargar la página durante un turno activo

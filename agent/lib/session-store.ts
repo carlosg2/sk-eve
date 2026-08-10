@@ -63,6 +63,8 @@ export interface SessionRecord {
   turns: number;
   /** true si el usuario la archivó — se oculta de la lista principal del sidebar. */
   archived: boolean;
+  /** origen: "chat" (humano en /chat) | "eval" (harness e2e-demo / evals). */
+  source: "chat" | "eval";
 }
 
 let db: DatabaseSync | undefined;
@@ -78,7 +80,8 @@ function getDb(): DatabaseSync {
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
       active INTEGER NOT NULL,
-      turns INTEGER NOT NULL
+      turns INTEGER NOT NULL,
+      source TEXT NOT NULL DEFAULT 'chat'
     );
     CREATE INDEX IF NOT EXISTS sessions_updatedAt ON sessions (updatedAt);
 
@@ -157,6 +160,9 @@ function getDb(): DatabaseSync {
   if (!cols.some((c) => c.name === "archived")) {
     db.exec("ALTER TABLE sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
   }
+  if (!cols.some((c) => c.name === "source")) {
+    db.exec("ALTER TABLE sessions ADD COLUMN source TEXT NOT NULL DEFAULT 'chat'");
+  }
   // Migración de `evaluaciones` (v2 del evaluador de calidad 2026-08-06):
   // columnas de métricas completas + hallazgos de minería.
   const ecols = db.prepare("PRAGMA table_info(evaluaciones)").all() as unknown as { name: string }[];
@@ -213,15 +219,21 @@ interface SessionRow {
   active: number;
   turns: number;
   archived: number;
+  source: string;
 }
 
 function toRecord(row: SessionRow): SessionRecord {
-  return { ...row, active: row.active === 1, archived: row.archived === 1 };
+  return {
+    ...row,
+    active: row.active === 1,
+    archived: row.archived === 1,
+    source: row.source === "eval" ? "eval" : "chat",
+  };
 }
 
 function defaultRecord(id: string): SessionRecord {
   const now = new Date().toISOString();
-  return { id, title: "Nueva conversación", createdAt: now, updatedAt: now, active: false, turns: 0, archived: false };
+  return { id, title: "Nueva conversación", createdAt: now, updatedAt: now, active: false, turns: 0, archived: false, source: "chat" };
 }
 
 // Solo `touchSessionStarted` puede CREAR una fila nueva. El resto ignora
@@ -237,11 +249,11 @@ function update(id: string, patch: (rec: SessionRecord) => SessionRecord, create
   const next = patch(existingRow ? toRecord(existingRow) : defaultRecord(id));
   conn
     .prepare(
-      `INSERT INTO sessions (id, title, createdAt, updatedAt, active, turns, archived) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO sessions (id, title, createdAt, updatedAt, active, turns, archived, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET title = excluded.title, updatedAt = excluded.updatedAt,
-         active = excluded.active, turns = excluded.turns, archived = excluded.archived`,
+         active = excluded.active, turns = excluded.turns, archived = excluded.archived, source = excluded.source`,
     )
-    .run(next.id, next.title, next.createdAt, next.updatedAt, next.active ? 1 : 0, next.turns, next.archived ? 1 : 0);
+    .run(next.id, next.title, next.createdAt, next.updatedAt, next.active ? 1 : 0, next.turns, next.archived ? 1 : 0, next.source);
 
   conn
     .prepare(
@@ -274,17 +286,32 @@ export async function markSessionIdle(id: string): Promise<void> {
 }
 
 /** Lista más recientes primero (por updatedAt). Por defecto excluye archivadas. */
-export async function listSessions(opts: { archived?: boolean } = {}): Promise<SessionRecord[]> {
+export async function listSessions(
+  opts: { archived?: boolean; source?: "chat" | "eval" } = {},
+): Promise<SessionRecord[]> {
   // Solo se reporta `active` si la última actividad es reciente; una sesión
   // "activa" sin tocar `updatedAt` en >1h es un turno huérfano y se lista
   // como inactiva (auto-curado si el proceso sigue vivo tras un crash).
   const cutoff = new Date(Date.now() - ACTIVE_STALE_MS).toISOString();
-  const rows = getDb()
-    .prepare(
-      "SELECT * FROM sessions WHERE archived = ? AND (active = 0 OR updatedAt > ?) ORDER BY updatedAt DESC",
-    )
-    .all(opts.archived ? 1 : 0, cutoff) as unknown as SessionRow[];
+  const conn = getDb();
+  let sql = "SELECT * FROM sessions WHERE archived = ? AND (active = 0 OR updatedAt > ?)";
+  const params: (string | number)[] = [opts.archived ? 1 : 0, cutoff];
+  if (opts.source === "chat" || opts.source === "eval") {
+    sql += " AND source = ?";
+    params.push(opts.source);
+  }
+  sql += " ORDER BY updatedAt DESC";
+  const rows = conn.prepare(sql).all(...params) as unknown as SessionRow[];
   return rows.map(toRecord);
+}
+
+/** Marca el origen de una sesión ("chat" humano en /chat | "eval" del harness). */
+export async function setSessionSource(id: string, source: "chat" | "eval"): Promise<void> {
+  try {
+    getDb().prepare("UPDATE sessions SET source = ? WHERE id = ?").run(source, id);
+  } catch {
+    // nunca romper por un fallo de marcado
+  }
 }
 
 /** Archiva/desarchiva una sesión existente; no toca `updatedAt` (no reordena la lista). */

@@ -4,6 +4,16 @@ Historial de promociones del Company Twin de ICF. Más nuevo primero.
 
 ## 2026-08-06
 
+- **Creation** `presupuesto-compras.md` — control de gasto de compras del periodo que
+  pide finanzas (reunión 2026-08-05, R-FIN-06/07): presupuesto por artículo
+  (`UV_QV_PPTOCOMPRA`, 601 artículos / 154 con `MAXCOMPRAKG > 0`, solo nivel ARTICULO),
+  compras del periodo por periodo fiscal (`Compra` `Ejercicio/Periodo`; NO fechas en
+  `CompraD` — Edm.Date falla), y regla de desviación 🔴🟡🟢⚪ con ejemplo verificado en
+  vivo (A6319 +45%, A5944 +347% sobre presupuesto en julio 2026). Nuevo skill
+  procedural `agent/skill-library/control-compras/SKILL.md` registrado en
+  `agents/asistente-erp/agent.md` (`skills: [..., control-compras]`). Fuente:
+  verificación en vivo contra el MCP ICF 2026-08-06 + transcripción de la reunión.
+
 - **Update** `mrp/mrp-plan-produccion.md` — `ForecastPlanProduccion`: campos del
   DAB son **UPPERCASE** (verificado en runtime 2026-08-06: `Semana eq 31` →
   BadRequest "Could not find a property named 'Semana'"; `SEMANA eq 31` → OK;

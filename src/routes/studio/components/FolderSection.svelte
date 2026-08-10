@@ -80,7 +80,7 @@
 	});
 </script>
 
-<div class="grid h-full min-h-0 grid-cols-[minmax(180px,240px)_1fr]">
+<div class="grid h-full min-h-0 grid-cols-[minmax(140px,min(220px,26vw))_minmax(0,1fr)]">
 	<div class="flex min-h-0 flex-col border-r border-border">
 		<div class="flex items-center gap-1 border-b border-border px-3 py-2">
 			<span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
@@ -107,7 +107,7 @@
 		</div>
 	</div>
 
-	<div class="min-h-0">
+	<div class="min-h-0 min-w-0">
 		{#if selected}
 			{#key selected}
 				<FileEditor path={selected} label={selected.split("/").pop()} />

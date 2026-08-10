@@ -88,7 +88,7 @@
 </script>
 
 {#if editing}
-	<div class="flex h-full min-h-0 flex-col">
+	<div class="flex h-full min-h-0 min-w-0 flex-col">
 		<div class="flex items-center gap-2 border-b border-border px-3 py-2">
 			<Button variant="ghost" size="sm" onclick={() => openSkill(null)}>
 				<ArrowLeftIcon class="size-3.5" /> Skills
@@ -97,7 +97,7 @@
 			<span class="text-[13px] font-medium">{editing.name}</span>
 			<span class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">skill</span>
 		</div>
-		<div class="min-h-0 flex-1">
+		<div class="min-h-0 min-w-0 flex-1">
 			<FileEditor path={editing.path} label={editing.name} placeholder="---\ndescription: …\n---\n" />
 		</div>
 	</div>

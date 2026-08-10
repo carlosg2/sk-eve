@@ -48,3 +48,9 @@ aquí cuando una tool falla; el agente las lee al inicio de sesión para no repe
 > SÍ existe en `ArtDisponibleDesc` (devuelve "Pz"). Lección ya cubierta por
 > `agent/skill-library/icf` (select corregido sin Apartado/DispMenosApartado) y
 > `mrp-cf` (ArtDisponible solo para agregados numéricos). No promover a UPPERCASE.
+- [fld-read_records-grupo] El campo 'Grupo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'GRUPO', no 'Grupo'. _(2026-08-06T11:27:55.232Z)_
+- [fld-read_records-descripcion] El campo 'Descripcion' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'DESCRIPCION', no 'Descripcion'. _(2026-08-07T00:12:25.548Z)_
+- [fld-read_records-periodo] El campo 'Periodo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'PERIODO', no 'Periodo'. _(2026-08-07T04:10:00.207Z)_
+- [fld-aggregate_records-ejercicio] El campo 'Ejercicio' no existe en 'aggregate_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'EJERCICIO', no 'Ejercicio'. _(2026-08-07T04:10:14.058Z)_
+- [fld-read_records-cantidad] El campo 'Cantidad' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'CANTIDAD', no 'Cantidad'. _(2026-08-07T04:11:15.524Z)_
+- [fld-read_records-centrotrabajo] El campo 'CentroTrabajo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'CENTROTRABAJO', no 'CentroTrabajo'. _(2026-08-07T04:11:33.565Z)_

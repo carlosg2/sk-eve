@@ -48,6 +48,13 @@ en vez del detalle por artículo (verificado 2026-08-06: `Arribos12S` tiene
 `S1..S12`/`A1..A12`; `ArribosSub12S` SOLO mapea artículo→familia
 (`ID,Usuario,Articulo,Familia`), sin semanas ni ajuste).
 
+⚠️⚠️ **NUNCA hagas un aggregate por columna semanal** (12 llamadas
+`aggregate_records(Arribos12S, sum, S1, groupby ["Familia"])` + `S2` + ...).
+Anti-patrón visto en E2E 2026-08-06 (23 calls / ~316k tokens). Si necesitas el
+desglose por familia, lee **UNA sola vez** `read_records(Arribos12S,
+select: "Familia,S1,S2,...,S12", filter: "Usuario eq 'CGARZA'", first: 200)`
+y suma/agrega client-side. Máximo 1-2 llamadas para el total.
+
 ## Patrón 2 — Cobertura por familia (regla de reorden real)
 
 La lógica de negocio real (`spWebCoberturaMateriaPrima`/`spWebCoberturaBBC`)

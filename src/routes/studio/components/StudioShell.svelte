@@ -243,7 +243,7 @@
 	});
 </script>
 
-<div class="grid h-screen grid-cols-[260px_200px_1fr] overflow-hidden bg-background text-foreground">
+<div class="grid h-screen grid-cols-[260px_200px_minmax(0,1fr)] overflow-hidden bg-background text-foreground">
 	<!-- Rail: tenants + agentes -->
 	<aside class="flex min-h-0 flex-col border-r border-border">
 		<div class="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -347,14 +347,14 @@
 	</nav>
 
 	<!-- Contenido -->
-	<main class="flex min-h-0 flex-col">
+	<main class="flex min-h-0 min-w-0 flex-col">
 		{#if !tenant}
 			<div class="flex flex-1 items-center justify-center text-sm text-muted-foreground">
 				Selecciona o crea un tenant.
 			</div>
 		{:else}
 			<!-- Cabecera de contexto -->
-			<div class="flex items-center gap-3 border-b border-border px-4 py-2.5">
+			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2.5">
 				<div class="min-w-0">
 					<div class="flex items-center gap-2 text-sm">
 						<span class="font-medium">{tenant.companyName}</span>
@@ -381,7 +381,7 @@
 				</Button>
 			</div>
 
-			<div class="min-h-0 flex-1">
+			<div class="min-h-0 min-w-0 flex-1">
 				{#key `${selectedTenant}/${selectedAgent}/${section}`}
 					{#if !agent}
 						<!-- Secciones a nivel tenant -->

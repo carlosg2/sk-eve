@@ -28,7 +28,14 @@
 		updatedAt: string;
 		active: boolean;
 		turns: number;
+		source?: 'chat' | 'eval';
 	};
+
+	// Filtro por origen: 'all' (todo), 'chat' (solo conversaciones humanas),
+	// 'eval' (solo sesiones creadas por el harness e2e-demo / evals).
+	const sourceOptions = ['all', 'chat', 'eval'] as const;
+	type SourceFilter = (typeof sourceOptions)[number];
+	let sourceFilter = $state<SourceFilter>('all');
 
 	let sessions = $state<SessionListItem[]>([]);
 	let showArchived = $state(false);
@@ -51,7 +58,11 @@
 
 	async function refreshSessions() {
 		try {
-			const res = await fetch(`/api/sessions${showArchived ? '?archived=1' : ''}`);
+			const params = new URLSearchParams();
+			if (showArchived) params.set('archived', '1');
+			if (sourceFilter !== 'all') params.set('source', sourceFilter);
+			const qs = params.toString();
+			const res = await fetch(`/api/sessions${qs ? `?${qs}` : ''}`);
 			if (!res.ok) return;
 			const body = (await res.json()) as { sessions?: SessionListItem[] };
 			sessions = body.sessions ?? [];
@@ -62,8 +73,9 @@
 	void refreshSessions();
 
 	$effect(() => {
-		// re-consulta de inmediato al alternar activas/archivadas
+		// re-consulta de inmediato al alternar activas/archivadas o filtro de origen
 		void showArchived;
+		void sourceFilter;
 		void refreshSessions();
 	});
 
@@ -74,6 +86,10 @@
 
 	function toggleArchivedView() {
 		showArchived = !showArchived;
+	}
+
+	function setSourceFilter(f: SourceFilter) {
+		sourceFilter = f;
 	}
 
 	async function setArchived(id: string, archived: boolean) {
@@ -213,6 +229,13 @@
 										></span>
 									{/if}
 									<span class="truncate">{s.title}</span>
+									{#if s.source === 'eval'}
+										<span
+											class="ml-auto shrink-0 rounded bg-purple-500/15 px-1 py-0.5 text-[0.6rem] font-semibold uppercase text-purple-400"
+											title="Sesión de evals/harness"
+											>Eval</span
+										>
+									{/if}
 								</span>
 								<span class="text-muted-foreground text-[0.7rem]">{formatRelative(s.updatedAt)}</span>
 							</button>
@@ -255,6 +278,18 @@
 		</Sidebar.Content>
 		<Sidebar.Footer class="gap-0 p-0">
 			<Separator />
+			<div class="flex items-center gap-1 px-3 py-1.5">
+				{#each sourceOptions as f (f)}
+					<button
+						type="button"
+						class="rounded-md px-2 py-1 text-xs transition-colors {sourceFilter === f ? 'bg-accent text-foreground font-medium' : 'text-muted-foreground hover:bg-accent/50'}"
+						aria-pressed={sourceFilter === f}
+						onclick={() => setSourceFilter(f)}
+					>
+						{f === 'all' ? 'Todas' : f === 'chat' ? 'Chat' : 'Evals'}
+					</button>
+				{/each}
+			</div>
 			<button
 				type="button"
 				class="text-muted-foreground flex items-center gap-1.5 px-3 py-2 text-xs hover:bg-accent"
