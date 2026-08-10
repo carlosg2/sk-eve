@@ -54,28 +54,65 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 ```
 agent/
-├── agent.ts                   # modelo: anthropic("claude-sonnet-4-5")
-├── instructions.md            # system prompt siempre activo
-├── channels/eve.ts            # auth channel (localDev + vercelOidc)
-├── connections/
-│   └── intelisis-dab.ts       # MCP → DAB en localhost:5050
-├── skills/
-│   └── cxp/SKILL.md           # playbook CXP/Tesorería/CtaDinero
+├── agent.ts                   # modelo default: deepseek/deepseek-v4-flash-0731 vía AI Gateway (dinámico por agent.md)
+├── instructions.md            # system prompt siempre activo (identidad + ruteo; cero schema)
+├── channels/
+│   ├── eve.ts                 # auth channel (localDev + vercelOidc)
+│   ├── twilio.ts              # canal Twilio
+│   └── whatsapp.ts.disabled   # canal WhatsApp (deshabilitado)
+├── hooks/
+│   ├── memory.ts              # captura errores de tools → buffer state/learnings.md
+│   └── session-log.ts
+├── instructions/
+│   ├── agent-active.ts        # instrucciones del agente activo (desde company-twin)
+│   ├── context-planner.ts     # overlay de planificación de contexto
+│   ├── memory.ts              # buffer de learnings inyectado en el prompt
+│   └── tenant.ts              # identidad del tenant
+├── lib/
+│   ├── runtime-config.ts      # resuelve tenant/agente/MCP desde company-twin/runtime.json + profile.md
+│   ├── context-budget.ts      # middleware: trunca tool-results >20k chars
+│   ├── mcp-client.ts          # cliente MCP (mcpCallTool para probes/fábrica)
+│   ├── session-store.ts       # radiografía SQLite (.data/sessions.sqlite3)
+│   ├── twin-memory.ts         # lectura del Company Twin
+│   └── ...                    # llm-io, context-planner
+├── skill-library/             # catálogo de skills (frontmatter `tenant` = visibilidad)
+│   ├── cxp/SKILL.md           # playbook CXP/Tesorería/CtaDinero (joyarock)
+│   ├── icf/SKILL.md           # skills del tenant ICF
+│   ├── mrp*/SKILL.md          # familia MRP (producción, inventario, arribos, forecast…)
+│   └── control-compras/SKILL.md # use case control de compras vs presupuesto
+├── skills/library.ts          # catálogo (membresía por tenant/agente)
 └── tools/
-    └── get_weather.ts         # tool de ejemplo (zod schema)
+    ├── erp.ts                 # tools de ejecución ERP
+    ├── query_company_twin.ts  # consulta al Company Twin
+    ├── get_weather.ts         # tool de ejemplo (zod schema)
+    ├── bash.ts / glob.ts      # DESHABILITADOS (disableTool)
 ```
 
-### Conexión MCP (`agent/connections/intelisis-dab.ts`)
+### Configuración por tenant/agente — Company Twin (`company-twin/`)
 
-```typescript
-defineMcpClientConnection({
-  url: "http://localhost:5050/mcp",
-  tools: { allow: ["describe_entities","read_records","aggregate_records",
-                   "create_record","update_record","delete_record","execute_entity"] }
-})
+La conexión MCP, el modelo y las skills **NO viven en `agent/connections/`** (ya no
+existe): se resuelven dinámicamente desde el Company Twin vía `agent/lib/runtime-config.ts`:
+
+- `company-twin/runtime.json` → `activeTenant` + `activeAgent` (hoy: `icf` / `asistente-erp`)
+- `company-twin/companies/<tenant>/profile.md` → `company_name`, `erp_company`, **`mcp_url`**
+- `company-twin/companies/<tenant>/agents/<agente>/agent.md` → `model`, `skills` (membresía
+  del catálogo), `kernel` (scope erp-kernel), `mcp_tools` (allow-list efectiva)
+- `company-twin/companies/<tenant>/agents/<agente>/instructions.md` → instrucciones del agente
+
+```yaml
+# company-twin/companies/icf/agents/asistente-erp/agent.md (frontmatter)
+model: deepseek/deepseek-v4-flash-0731
+skills: [icf, mrp, mrp-cf, gap-abasto, cxp, control-compras, ...]
+kernel: "*"
+mcp_tools: [read_records, aggregate_records, buscar_registro, faltante_insumos,
+            faltante_materia_prima, create_record, update_record, execute_entity,
+            afectar, cambiar_situacion]
 ```
 
-Los tools se llaman con prefijo: `intelisis-dab__read_records`, `intelisis-dab__aggregate_records`, etc.
+**`describe_entities` NO está en el allow-list** — se removió por diseño (catálogo
+incompleto; el schema se consulta vía `query_company_twin`). Las skills del catálogo
+se cargan con frontmatter `tenant` (visibilidad por tenant, intersección con la
+membresía del agente en `agent.md`).
 
 ---
 
@@ -135,7 +172,10 @@ Eve SÍ hace hot-rebuild: editar `agent/*.ts`, `agent/instructions/*`, skills o 
 `clean:eve` es un FALLBACK (no rutina) para estos fallos reales:
 1. **Tras subir la versión de Eve**: el schema del manifest compilado cambia → 500 `LoadCompiledManifestError` (manifest stale). La poda en background (30min/5) no cubre el cambio de schema → hay que purgar.
 2. **"Meltdown" por churn de HMR**: tras muchas rebuilds rápidas el dev-runtime tira 500 `Development runtime generation is unavailable` (snapshots stale acumulados más rápido de lo que la poda background los limpia).
-3. **Cambios en `agent/connections/*.ts`/channels**: la conexión se instancia al arrancar y NO se hot-recarga → requiere reinicio del dev server (a veces basta restart sin purgar).
+3. **Cambios en la conexión MCP** (`company-twin/companies/<tenant>/profile.md` → `mcp_url`,
+   o `company-twin/runtime.json` → tenant/agente activos) o en `agent/channels/*`: la conexión
+   se instancia al arrancar y NO se hot-recarga → requiere reinicio del dev server (a veces
+   basta restart sin purgar).
 
 Uso (purga SEGURA, no borra conversaciones):
 ```bash
@@ -299,7 +339,9 @@ El sistema sigue la **constitución** (`tesis/constitucion.md`) y el **context s
 - **Tools restringidos**: `agent/tools/bash.ts` y `glob.ts` → `disableTool()`; `describe_entities` fuera del allow-list del agente (`agent.md`).
 - **Trace store**: `src/lib/server/trace-store.ts` + `src/routes/api/traces` — persiste un resumen por turno en `.eve/traces.jsonl`; el inspector muestra la tendencia.
 - **Guard de contexto** (`agent/lib/context-budget.ts`): trunca tool-results >20k chars con aviso; blindado con try/catch.
-- **Anti-duplicados** (`agent/instructions/duplicates.ts`): escanea tool-calls del historial (part `tool-call` usa `input`, NO `args` — verificado en llm-io.jsonl) y avisa al prompt si repite el mismo input.
+- **Anti-duplicados**: el runtime detecta tool-calls repetidas con el mismo input
+  (part `tool-call` usa `input`, NO `args` — verificado en llm-io.jsonl) y avisa al prompt
+  si repite el mismo input. Lógica en el contexto de turno (no hay un `duplicates.ts` standalone).
 - **Linter de conocimiento**: `npm run lint:knowledge` (= `node scripts/check-knowledge.ts`). Valida entidades/campos de skills+twin contra el MCP REAL con `read_records(ent, first:1)` — la verdad de runtime (`describe_entities` es catálogo INCOMPLETO). Detectó 17 entidades no usables en ICF (CXP, CtaDinero, Dinero, DimTiempoSemana, UtLogEjcProMrp, ArtPrototipo*, ProgramaTraspaso, TraspasoSemanal, MRPAlmArribos, ArtAlm, EmpresaCfg2, PlanArtOP, TipoImpuesto1, UtMrpPrevioMateriaPrima).
 - **Clasificación por familia del sistema Forecast CF (2026-08-05, validado)**: para "qué variedades de <producto> tenemos" usar `ArtFamFC.Familia` (familias FC finas: "Frijol Negro", "Frijol negro americano"...) + `ResumenPlaneacionCF.FamiliaCF/VariedadCF` (mapeo articulo→familia FC, 1 fila por artículo, S1..S54/P1..P54) — NO `Art.Familia` (genérica). `FamArtCF` NO existe. Patrón en `agent/skill-library/icf/SKILL.md` Patrón 0.2. `primero` de `buscar_registro` SIEMPRE NÚMERO (string no limita → cientos de filas, ~524k chars). `ArtMaterial` (BOM) = `result.value[]`, 0 filas = sin BOM.
 - **Gotcha de validación**: cada sesión Eve toma un SNAPSHOT del source en `session.started` — editar skills/kernel no se refleja en la sesión activa. Para validar cambios: terminar el turno → "Reiniciar conversación" (nueva sesión). El inspector de `/chat` tiene ventana deslizante (últimos 300 eventos, outputs truncados a 2k) para no bloquear el hilo con turnos largos.

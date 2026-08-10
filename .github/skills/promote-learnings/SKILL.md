@@ -35,7 +35,7 @@ capacidad. Elegir la capa correcta ES el trabajo.
 | Fuente cruda (entrada) | | Capa de capacidad compilada (salida) | Artefacto |
 |---|---|---|---|
 | Buffer de aprendizajes `state/learnings.md` (errores capturados por el hook) | → | **Declarativa (conocimiento)** — "qué es verdad" | OKF en `company-twin/erp-kernel/` (universal) o `companies/<tenant>/` (local) |
-| Trazas de ejecución, patrones repetidos de tool-calls | → | **Procedural (cómo hacer)** — secuencias reutilizables | `agent/skills/<x>/SKILL.md` |
+| Trazas de ejecución, patrones repetidos de tool-calls | → | **Procedural (cómo hacer)** — secuencias reutilizables | `agent/skill-library/<x>/SKILL.md` |
 | Fricciones del modelo con las tools (llama `describe_entities` de más, malinterpreta un filtro) | → | **Ejecución (qué puede la máquina + cómo se le describe)** | `dab/dab-config.json` (`object-description`) o descripciones de tools del DAB (C#) |
 | Confusión de ruteo ("no supe a qué fuente ir") | → | **Identidad/ruteo (thin)** | `agent/instructions.md` |
 | **Radiografía durable** (`.data/sessions.sqlite3`: `events`/`llm_inputs`/`turn_summaries`; `/api/audit/turns`, `/api/audit/llm`) — métricas y trayectorias para decidir qué promover y validar impacto | → | **Evidencia para evaluar** (no una capa: la usa la fábrica para clasificar y medir antes/después) | consultas SQL/endpoints — ver `tesis/protocolo-pruebas.md` |
@@ -58,7 +58,7 @@ Antes de compilar, ten presente el stack completo y quién posee qué (Constituc
   campos, ciclo de vida, capacidades del motor. Universal, cambia lento.
 - **Company Twin** `company-twin/companies/<tenant>/` — bundle **OKF** del tenant. Catálogos
   reales, políticas (`policies/`), overrides. Restringe al kernel, no lo amplía.
-- **Skills** `agent/skills/<x>/SKILL.md` — procedural. Cero schema (referencia al Twin).
+- **Skills** `agent/skill-library/<x>/SKILL.md` — procedural. Cero schema (referencia al Twin).
 - **Instructions** `agent/instructions.md` — identidad + ruteo. Cero schema, cero procedural.
 - **dab-config** `dab/dab-config.json` — `object-description` que el modelo lee para
   planificar sin `describe_entities`. Cambios requieren **rebuild + restart** del DAB.
@@ -125,7 +125,8 @@ confirmación por cada entrada; resume al final y pide aprobación antes de vaci
 si algún destino quedó ambiguo.
 
 1. **Lee** el buffer `company-twin/companies/<tenant>/state/learnings.md`
-   (default `joyarock-300326`). Si solo tiene encabezado → termina: "buffer vacío".
+   (default `icf` — el tenant activo en `company-twin/runtime.json`; revisa ese archivo
+   si dudas). Si solo tiene encabezado → termina: "buffer vacío".
 0. **Contexto con evidencia** (si el buffer tiene entradas): consulta la radiografía para
    entender el costo real de cada problema antes de compilar — `curl http://localhost:5173/api/audit/turns`
    y SQL sobre `.data/sessions.sqlite3` (ver `tesis/protocolo-pruebas.md` §1). Un error
