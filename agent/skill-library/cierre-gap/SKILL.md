@@ -41,8 +41,7 @@ la lista completa en cada llamada; incluye siempre las restantes con su estado):
 ```
 todo({ todos: [
   { content: "Investigar faltantes y cobertura", priority: "high", status: "in_progress" },
-  { content: "Definir proveedor", priority: "high", status: "pending" },
-  { content: "Definir cantidad", priority: "high", status: "pending" },
+  { content: "Definir decisiones de la requisición (proveedor, cantidad y demás del batch)", priority: "high", status: "pending" },
   { content: "Presentar requisición y obtener autorización", priority: "high", status: "pending" },
   { content: "Entregar sábana de cierre", priority: "medium", status: "pending" }
 ] })
@@ -113,9 +112,12 @@ Presenta la tabla de decisión (superficie limpia):
 | Artículo | Descripción | Faltante | Urgencia | Llega en ~ | Consolidación |
 |---|---|---|---|---|---|
 
-## Fase 1 — Batch multistep: SOLO las preguntas que construyen la propuesta · [todo: proveedor/cantidad → in_progress]
+## Fase 1 — Batch multistep: SOLO las preguntas que construyen la propuesta · [todo: decisiones → in_progress]
 
-En el MISMO turno, emite `ask_question` UNA por decisión, solo si es relevante:
+**Un SOLO todo cubre todo el batch**: `Definir decisiones de la requisición`. Márcalo
+`in_progress` al emitir el batch y `completed` SOLO cuando el usuario haya respondido TODAS
+las preguntas (no una a una, no lo dejes "parado" en mitad). El batch se emite en el MISMO
+turno, con `ask_question` UNA por decisión, solo si es relevante:
 
 ### P1 — Proveedor (SIEMPRE)
 ```
