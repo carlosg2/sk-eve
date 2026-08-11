@@ -74,18 +74,36 @@ Por debajo es procedural (investigas, cruzas, calculas), pero NUNCA muestras la 
 
 ## Fase 0 — Investigación + resoluciones (sin HITL) · [todo: investigar → completed]
 
-Ejecuta todo en silencio (acotado, en paralelo cuando se pueda):
+Ejecuta todo en silencio. **Presupuesto EXACTO: máximo 8 consultas, en este orden, y en
+paralelo cuando se pueda.** NO añadas ninguna consulta más (ni verificación de schema, ni
+reintento con variantes, ni `ResumenPlaneacionCF`, ni reads por artículo): si una falla,
+declara el dato "no disponible" y continúa con lo que tienes.
 
-1. `faltante_insumos(Usuario: "CGARZA", Ejercicio, Periodo)` + `faltante_materia_prima(...)`.
-2. Clasifica con semáforo: 🔴 sin nada en trámite (frena línea) / 🟡 en trámite / 🟢 cubierto.
-3. Inventario: `ArtDisponibleDesc` acotado (or-chain de artículos con faltante).
-4. Lead time: `Art` (Familia) + `ArtFamFC` (TiempoEntrega) → "llega en ~N semanas".
-5. Consolidación: faltantes del mismo grano/producto → una sola línea.
-6. Proveedores del periodo: `aggregate_records(Compra, sum Importe, groupby Proveedor)` +
-   `read_records(Prov)`. Si el grueso es grano, recomendado = beneficiadora del top.
-7. Costos: `CompraD` acotado → importe estimado (anómalo → gemelo o "no estimable").
-8. Presupuesto: `UV_QV_PPTOCOMPRA` acotado (UPPERCASE) → topes; si la requisición supera un
-   tope, la autorización "requiere aprobación de finanzas".
+1. `faltante_insumos(Usuario: "CGARZA", Ejercicio, Periodo)` + `faltante_materia_prima(...)`
+   (2 llamadas).
+2. Inventario: `read_records(ArtDisponibleDesc, filter: "Articulo eq '<X1>' or ...",
+   select: "Articulo,Descripcion1,Disponible,Almacen")` (1, or-chain de los artículos con
+   faltante).
+3. Lead time: `read_records(Art, filter: "Articulo eq '<X1>' or ...", select:
+   "Articulo,Familia")` (1) + `read_records(ArtFamFC, select: "Familia,TiempoEntrega",
+   first: 200)` (1) → "llega en ~N semanas". Si la familia no está en ArtFamFC → "sin
+   tiempo de entrega estimado".
+4. Proveedores del periodo: `aggregate_records(Compra, sum Importe, groupby: ["Proveedor"],
+   filter: "Ejercicio eq <año> and Periodo eq <mes>", orderby: "desc", first: 10)` (1) +
+   `read_records(Prov, select: "Proveedor,Nombre", filter: "Proveedor eq '<top1>' or ...")`
+   (1, or-chain solo de los top 3-4).
+   **Si el aggregate del periodo sale VACÍO** (aún no hay compras del mes): NO deliberes ni
+   rompas el presupuesto — haz directo `buscar_registro(Prov, campo: "Nombre", termino:
+   "<grano/producto principal>", primero: 5)` (fallback autorizado, cuenta como la consulta
+   4b) y usa el proveedor con `Estatus eq 'ALTA'` como recomendado.
+5. Costos: `aggregate_records(CompraD, avg Costo, groupby: ["Articulo"], filter:
+   "Articulo eq '<X1>' or ...", first: 10)` (1) → costo promedio por artículo para el
+   importe estimado. Anómalo (< $1) → usa el de un gemelo o "no estimable".
+6. Presupuesto: `read_records(UV_QV_PPTOCOMPRA, filter: "ARTICULO eq '<X1>' or ...",
+   select: "ARTICULO,INVMINIMOKG,INVMAXIMOKG,MAXCOMPRAKG")` (1) — campos UPPERCASE.
+
+Clasifica con semáforo (🔴 sin nada en trámite / 🟡 en trámite / 🟢 cubierto) y detecta la
+consolidación (mismo grano → una sola línea).
 
 **Resuelve SOLO (decláralo, no preguntes):** periodo/usuario, alcance si no hay mezcla
 (todos críticos → inclúyelos), consolidación, proveedor recomendado, importe, topes.
