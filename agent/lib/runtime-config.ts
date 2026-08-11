@@ -165,6 +165,8 @@ export type ActiveAgent = {
   kernel: string[] | "*";
   /** Allow-list efectiva de tools MCP para este agente (subset del superset del tenant). */
   mcpTools: string[];
+  /** Memoria episódica: inyección automática de contexto de sesiones previas (OFF por defecto, editable en /studio). */
+  episodicMemory: boolean;
 };
 
 export type ScopedSkill = {
@@ -214,6 +216,7 @@ export function loadActiveAgent(): ActiveAgent | null {
     skills: asList(fm.skills),
     kernel,
     mcpTools: asList(fm.mcp_tools),
+    episodicMemory: String(fm.episodic_memory ?? "").toLowerCase() === "true",
   };
 }
 

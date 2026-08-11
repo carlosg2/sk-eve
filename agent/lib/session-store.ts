@@ -128,6 +128,35 @@ function getDb(): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS turn_summaries_session ON turn_summaries (sessionId, id);
 
+    -- Estado mínimo del runtime CROSS-REALM: los authored modules de Eve (hooks/
+    -- instructions vs. el middleware del modelo) corren en realms distintos
+    -- (un tracker en globalThis NO cruza). SQLite es el punto común (ambos
+    -- escriben/leen el MISMO .data/sessions.sqlite3), así que el sessionId
+    -- actual se persiste aquí para que context-budget.ts lo lea (exclusión de
+    -- la sesión actual + radiografía de inyecciones).
+    CREATE TABLE IF NOT EXISTS runtime_state (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    -- Radiografía de inyecciones de contexto (lóbulo frontal + memoria episódica).
+    -- llm_inputs captura el prompt PRE-middleware (por eso planTag sale null); estas
+    -- inyecciones las registra el propio middleware (context-budget.ts) al inyectar,
+    -- para que sean analizables/evaluables en el tiempo: qué se inyectó, cuándo,
+    -- cuánto pesó y de qué sesiones previas salió la memoria.
+    CREATE TABLE IF NOT EXISTS prompt_injections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sessionId TEXT NOT NULL,
+      at TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      chars INTEGER NOT NULL,
+      hits INTEGER,
+      message TEXT,
+      sources TEXT
+    );
+    CREATE INDEX IF NOT EXISTS prompt_injections_session ON prompt_injections (sessionId, id);
+
     -- Evaluaciones de CALIDAD de respuestas (fábrica, para graduación): cada
     -- corrida de una pregunta evaluada guarda invariantes verificados,
     -- congruencia vs. otras corridas y métricas. Auditable: alimenta la
@@ -436,6 +465,122 @@ export async function listLlmInputs(
     at: String(r.at),
     instructions: r.instructions ? JSON.parse(String(r.instructions)) : null,
     messages: r.messages ? JSON.parse(String(r.messages)) : null,
+  }));
+}
+
+// ── Estado mínimo del runtime (cross-realm) ────────────────────────────────
+// Ver nota en el DDL de `runtime_state`. Tanto hooks como el middleware del
+// modelo resuelven el MISMO archivo SQLite vía getDb() (resolveRoot()), por lo
+// que este key-value cruza los realms sin importar dónde se escriba/lea.
+
+export function setRuntimeState(key: string, value: string | null): void {
+  try {
+    if (value == null) {
+      getDb().prepare("DELETE FROM runtime_state WHERE key = ?").run(key);
+    } else {
+      getDb()
+        .prepare(
+          "INSERT INTO runtime_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )
+        .run(key, value);
+    }
+  } catch {
+    // nunca romper por el estado del runtime
+  }
+}
+
+export function getRuntimeState(key: string): string | null {
+  try {
+    const row = getDb().prepare("SELECT value FROM runtime_state WHERE key = ?").get(key) as
+      | { value: string }
+      | undefined;
+    return row?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Última sesión que emitió `session.started` en el espejo de eventos. Fuente
+ * CROSS-REALM confiable para el middleware de context-budget: el hook escribe
+ * los eventos en el MISMO `.data/sessions.sqlite3` que lee el middleware, sin
+ * depender de globalThis ni de tablas auxiliares que algún bundle pueda no ver.
+ */
+export function getLastStartedSessionId(): string | null {
+  try {
+    const row = getDb()
+      .prepare("SELECT sessionId FROM events WHERE type = 'session.started' ORDER BY id DESC LIMIT 1")
+      .get() as { sessionId: string } | undefined;
+    return row?.sessionId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Una inyección de contexto registrada por el middleware (plan o memoria). */
+export interface PromptInjectionRecord {
+  sessionId: string;
+  at: string;
+  kind: "plan" | "memory";
+  tag: string;
+  chars: number;
+  hits?: number;
+  message?: string;
+  sources?: Array<{ sessionId: string; type: string }>;
+}
+
+/** Persiste una inyección de contexto (durable; llm_inputs no la captura). */
+export async function appendPromptInjection(rec: PromptInjectionRecord): Promise<void> {
+  try {
+    getDb()
+      .prepare(
+        `INSERT INTO prompt_injections (sessionId, at, kind, tag, chars, hits, message, sources)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        rec.sessionId,
+        rec.at,
+        rec.kind,
+        rec.tag,
+        rec.chars,
+        rec.hits ?? null,
+        rec.message ? String(rec.message).slice(0, 300) : null,
+        rec.sources ? JSON.stringify(rec.sources) : null,
+      );
+  } catch {
+    // nunca romper el turno por un fallo de persistencia
+  }
+}
+
+/** Lee inyecciones de contexto, más recientes primero. */
+export async function listPromptInjections(
+  opts: { sessionId?: string; kind?: "plan" | "memory"; limit?: number } = {},
+): Promise<PromptInjectionRecord[]> {
+  const limit = Math.max(1, Math.min(500, opts.limit ?? 100));
+  const where: string[] = [];
+  const params: Array<string | number | null> = [];
+  if (opts.sessionId) {
+    where.push("sessionId = ?");
+    params.push(opts.sessionId);
+  }
+  if (opts.kind) {
+    where.push("kind = ?");
+    params.push(opts.kind);
+  }
+  let sql = "SELECT * FROM prompt_injections";
+  if (where.length) sql += " WHERE " + where.join(" AND ");
+  sql += " ORDER BY id DESC LIMIT ?";
+  params.push(limit);
+  const rows = getDb().prepare(sql).all(...params) as unknown as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    sessionId: String(r.sessionId),
+    at: String(r.at),
+    kind: String(r.kind) as "plan" | "memory",
+    tag: String(r.tag),
+    chars: Number(r.chars),
+    hits: r.hits == null ? undefined : Number(r.hits),
+    message: r.message == null ? undefined : String(r.message),
+    sources: r.sources ? JSON.parse(String(r.sources)) : undefined,
   }));
 }
 

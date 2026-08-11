@@ -24,6 +24,13 @@
     reasoning: string; planTag: string | null; hitl: string[];
     timeline: TlItem[];
   };
+  // Inyecciones de contexto (lóbulo frontal + memoria episódica) — radiografía
+  // durable del middleware: llm_inputs las captura PRE-middleware, por eso aquí.
+  type Injection = {
+    sessionId: string; at: string; kind: "plan" | "memory";
+    tag: string; chars: number; hits?: number; message?: string;
+    sources?: Array<{ sessionId: string; type: string }>;
+  };
   // Evaluaciones de CALIDAD (fábrica, para graduación de skills).
   type Evaluacion = {
     id: number; at: string; caso: string; skill: string; pregunta: string;
@@ -54,6 +61,8 @@
   let turns = $state<TurnRow[]>([]);
   let selectedTurnId = $state<string | null>(null);
   let detail = $state<TurnDetail | null>(null);
+  let injections = $state<Injection[]>([]);
+  let injectionsLoading = $state(false);
   let loading = $state(false);
   let error = $state<string | null>(null);
   let expanded = $state<Set<number>>(new Set());
@@ -184,6 +193,20 @@
     }
   }
 
+  async function loadInjections() {
+    if (!selectedSession) return;
+    injectionsLoading = true;
+    try {
+      const res = await fetch(`/api/audit/injections?session=${encodeURIComponent(selectedSession)}&limit=100`);
+      const j = await res.json();
+      injections = j.injections ?? [];
+    } catch {
+      injections = [];
+    } finally {
+      injectionsLoading = false;
+    }
+  }
+
   async function loadEvaluaciones() {
     evalLoading = true;
     evalError = null;
@@ -205,7 +228,10 @@
   });
 
   $effect(() => {
-    if (selectedSession) void loadTurns();
+    if (selectedSession) {
+      void loadTurns();
+      void loadInjections();
+    }
   });
 </script>
 
@@ -297,6 +323,52 @@
             </ul>
           {:else if !loading}
             <p class="py-4 text-center text-xs text-zinc-600">Sin turnos espejados para esta sesión.</p>
+          {/if}
+        </div>
+
+        <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+          <h2 class="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            Inyecciones de contexto {injections.length ? `(${injections.length})` : ""}
+          </h2>
+          <p class="mb-2 text-[10px] leading-relaxed text-zinc-600">
+            Lóbulo frontal (plan) + memoria episódica — no visibles en llm_inputs (pre-middleware).
+          </p>
+          {#if injectionsLoading}
+            <p class="py-3 text-center text-[11px] text-zinc-600">Cargando…</p>
+          {:else if injections.length}
+            <ul class="max-h-[40vh] space-y-1.5 overflow-y-auto pr-1">
+              {#each injections as inj, i (i)}
+                <li class="rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold ${inj.kind === 'plan' ? 'bg-violet-950 text-violet-300 border border-violet-800/60' : 'bg-cyan-950 text-cyan-300 border border-cyan-800/60'}">
+                      {inj.kind === "plan" ? "plan" : "memoria"}
+                    </span>
+                    <span class="font-mono text-[10px] text-zinc-500">{inj.tag}</span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-2 text-[10px] tabular-nums text-zinc-500">
+                    <span>{fmtK(inj.chars)} chars</span>
+                    {#if inj.kind === "memory"}
+                      <span>{inj.hits} hits</span>
+                    {/if}
+                    <span>{new Date(inj.at).toLocaleTimeString()}</span>
+                  </div>
+                  {#if inj.sources?.length}
+                    <div class="mt-1 flex flex-wrap gap-1">
+                      {#each inj.sources as src}
+                        <span class="rounded bg-zinc-800 px-1 py-0.5 font-mono text-[9px] text-zinc-400">{src.type}·{String(src.sessionId).slice(-8)}</span>
+                      {/each}
+                    </div>
+                  {/if}
+                  {#if inj.message}
+                    <div class="mt-1 truncate text-[10px] text-zinc-600" title={inj.message}>{inj.message}</div>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="py-3 text-center text-[11px] text-zinc-600">
+              Sin inyecciones registradas para esta sesión.
+            </p>
           {/if}
         </div>
       </aside>

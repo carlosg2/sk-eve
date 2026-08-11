@@ -1,8 +1,9 @@
 import type { LanguageModelMiddleware } from "ai";
-import { loadSearchProjections } from "./runtime-config.js";
+import { loadActiveAgent, loadSearchProjections } from "./runtime-config.js";
 import { planContextSync, planMarkdown, lastUserText } from "./context-planner.js";
 import { getEpisodicContext } from "./session-search.js";
 import { getCurrentSessionId } from "./current-session.js";
+import { appendPromptInjection } from "./session-store.js";
 
 // Reduce el contexto antes de cada llamada sin intervenir en prompt caching.
 // Eve 0.29.2 administra nativamente los breakpoints de Anthropic para tools,
@@ -228,6 +229,17 @@ function injectContextPlan(prompt: Array<{ role?: string; content?: unknown }>):
     if (JSON.stringify(prompt).includes(tag)) return; // ya inyectado para este mensaje
     if (DEBUG_PLAN) console.log(`[context-budget] plan inyectado tag=${tag} chars=${markdown.length}`);
     lastPlanTag = tag;
+    // Radiografía durable: llm_inputs captura el prompt PRE-middleware (por eso
+    // planTag sale null en /api/audit/llm). Esta inyección se registra AQUÍ para
+    // poder analizarla/evaluarla después (qué se inyectó, cuándo, cuánto pesó).
+    void appendPromptInjection({
+      sessionId: getCurrentSessionId() ?? "",
+      at: new Date().toISOString(),
+      kind: "plan",
+      tag,
+      chars: markdown.length,
+      message,
+    });
     prompt.unshift({
       role: "system",
       content: `## Plan de contexto (precargado — evita rediscovery)\n${tag}\n${markdown}`,
@@ -289,6 +301,9 @@ let lastMemTag: string | undefined;
 
 function injectEpisodicMemory(prompt: Array<{ role?: string; content?: unknown }>): void {
   try {
+    // Flag por agente (`episodic_memory` en agent.md, OFF por defecto, editable en /studio).
+    // Con OFF el runtime ni busca en el historial ni inyecta nada.
+    if (!loadActiveAgent()?.episodicMemory) return;
     const message = lastUserText(prompt as ReadonlyArray<{ role?: string; content?: unknown }>);
     if (!message.trim()) return;
     const currentSession = getCurrentSessionId();
@@ -323,6 +338,20 @@ function injectEpisodicMemory(prompt: Array<{ role?: string; content?: unknown }
     );
 
     lastMemTag = tag;
+    // Radiografía durable de la memoria episódica (mismo gotcha que el plan:
+    // llm_inputs captura PRE-middleware, esta inyección NO aparece en
+    // /api/audit/llm). Registrarla aquí permite analizarla/evaluarla después:
+    // qué sesiones previas aportaron, cuántos hits, cuánto contexto añadió.
+    void appendPromptInjection({
+      sessionId: getCurrentSessionId() ?? "",
+      at: new Date().toISOString(),
+      kind: "memory",
+      tag,
+      chars: parts.join("\n").length,
+      hits: hits.length,
+      message,
+      sources: hits.map((h) => ({ sessionId: h.sessionId, type: h.type })),
+    });
     prompt.unshift({ role: "system", content: `${parts.join("\n")}\n${tag}` });
   } catch {
     // blindado: nunca romper la llamada al modelo por la memoria episódica

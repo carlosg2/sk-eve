@@ -522,6 +522,8 @@ export type AgentManifest = {
 	skills: string[];
 	kernel: string[] | "*";
 	mcpTools: string[];
+	/** Memoria episódica habilitada (inyección automática de contexto de sesiones previas). */
+	episodicMemory: boolean;
 };
 
 function asStrList(v: string | string[] | null | undefined): string[] {
@@ -542,7 +544,7 @@ export function agentMdPath(tenant: string, agent: string): string {
 /** Lee el manifest de capacidades (`skills`/`kernel`/`mcp_tools`) de un `agent.md`. */
 export async function readAgentManifest(tenant: string, agent: string): Promise<AgentManifest> {
 	const full = join(twinRoot(), agentDefPath(tenant, agent));
-	if (!existsSync(full)) return { skills: [], kernel: "*", mcpTools: [] };
+	if (!existsSync(full)) return { skills: [], kernel: "*", mcpTools: [], episodicMemory: false };
 	const { fm } = parseFrontmatter(await readFile(full, "utf8"));
 	const kernelRaw = fm.kernel;
 	const kernel: string[] | "*" =
@@ -552,7 +554,12 @@ export async function readAgentManifest(tenant: string, agent: string): Promise<
 		(Array.isArray(kernelRaw) && kernelRaw.includes("*"))
 			? "*"
 			: asStrList(kernelRaw);
-	return { skills: asStrList(fm.skills), kernel, mcpTools: asStrList(fm.mcp_tools) };
+	return {
+		skills: asStrList(fm.skills),
+		kernel,
+		mcpTools: asStrList(fm.mcp_tools),
+		episodicMemory: String(fm.episodic_memory ?? "").toLowerCase() === "true",
+	};
 }
 
 /** Serializa un valor de manifest como línea YAML inline (lista o `"*"`). */
@@ -575,12 +582,13 @@ export function applyManifestToAgentMd(raw: string, next: AgentManifest): string
 	const rest = raw.slice(end); // "\n---...resto"
 	const lines = fmBlock.split("\n").filter((line) => {
 		const m = line.match(/^([A-Za-z0-9_]+):/);
-		return !m || !["skills", "kernel", "mcp_tools"].includes(m[1]);
+		return !m || !["skills", "kernel", "mcp_tools", "episodic_memory"].includes(m[1]);
 	});
 	lines.push(
 		manifestLine("skills", next.skills),
 		manifestLine("kernel", next.kernel),
 		manifestLine("mcp_tools", next.mcpTools),
+		`episodic_memory: ${next.episodicMemory ? "true" : "false"}`,
 	);
 	return `---\n${lines.join("\n").replace(/\n+$/, "")}${rest}`;
 }
@@ -603,6 +611,7 @@ export async function writeAgentManifest(
 		skills: patch.skills ?? current.skills,
 		kernel: patch.kernel ?? current.kernel,
 		mcpTools: patch.mcpTools ?? current.mcpTools,
+		episodicMemory: patch.episodicMemory ?? current.episodicMemory,
 	};
 	await writeFile(full, applyManifestToAgentMd(raw, next), "utf8");
 	return next;

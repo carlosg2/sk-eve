@@ -6,6 +6,7 @@ import {
   markSessionIdle,
   appendEvent,
 } from "../lib/session-store.js";
+import { setCurrentSessionId } from "../lib/current-session.js";
 
 // Registro de sesiones para el sidebar de "conversaciones anteriores" en
 // /chat (observe-only, mismo patrón que agent/hooks/memory.ts — nunca
@@ -31,6 +32,12 @@ export default defineHook({
   events: {
     async "session.started"(event, ctx) {
       try {
+        // Registrar la sesión actual para el tracker de la memoria episódica
+        // (el middleware de context-budget la excluye de la búsqueda y la
+        // registra en la radiografía). El hook es la fuente confiable de
+        // ctx.session.id; el resolver de instructions (agent-active.ts) lo
+        // hace también por si corre en otro realm.
+        setCurrentSessionId(ctx.session.id);
         const invocation = (event as { data?: { invocation?: { kind?: string } } }).data?.invocation;
         if (invocation?.kind === "subagent") {
           subagentSessions.add(ctx.session.id);

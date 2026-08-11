@@ -7,6 +7,7 @@
 	import ProfileSection from "./ProfileSection.svelte";
 	import McpToolsSection from "./McpToolsSection.svelte";
 	import SkillsSection from "./SkillsSection.svelte";
+	import CapabilitiesSection from "./CapabilitiesSection.svelte";
 	import BuildingIcon from "@lucide/svelte/icons/building-2";
 	import BotIcon from "@lucide/svelte/icons/bot";
 	import PlusIcon from "@lucide/svelte/icons/plus";
@@ -26,6 +27,7 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import MessageSquareIcon from "@lucide/svelte/icons/message-square";
 	import CpuIcon from "@lucide/svelte/icons/cpu";
+	import BrainIcon from "@lucide/svelte/icons/brain";
 
 	type Agent = {
 		slug: string;
@@ -116,6 +118,7 @@
 	const AGENT_SECTIONS = [
 		{ id: "modelo", label: "Modelo", icon: CpuIcon, ready: true },
 		{ id: "instructions", label: "Instructions", icon: FileTextIcon, ready: true },
+		{ id: "capabilities", label: "Capabilities", icon: BrainIcon, ready: true },
 		{ id: "skills", label: "Skills", icon: BookIcon, ready: true },
 		{ id: "tools", label: "Tools", icon: WrenchIcon, ready: true },
 		{ id: "connections", label: "Connections", icon: PlugIcon, ready: false },
@@ -402,6 +405,8 @@
 								label="Instructions"
 								placeholder="# Instrucciones del agente…"
 							/>
+						{:else if section === "capabilities"}
+							<CapabilitiesSection tenant={tenant.slug} agent={agent.slug} />
 						{:else if section === "skills"}
 							<SkillsSection
 								tenant={tenant.slug}

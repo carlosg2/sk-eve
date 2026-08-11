@@ -8,6 +8,7 @@ tenant: icf
 skills: [icf, mrp, mrp-cf, mrp-arribos, mrp-articulos, mrp-concentrado, mrp-dashboard, mrp-faltantes, mrp-forecast, mrp-indicadores, mrp-inicio, mrp-inventario, mrp-modelado-centros, mrp-produccion, mrp-traspasos, gap-abasto, cxp, control-compras]
 kernel: "*"
 mcp_tools: [read_records, aggregate_records, buscar_registro, faltante_insumos, faltante_materia_prima, create_record, update_record, execute_entity, afectar, cambiar_situacion]
+episodic_memory: false
 ---
 
 # Asistente ERP

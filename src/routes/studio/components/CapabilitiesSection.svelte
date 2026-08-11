@@ -6,10 +6,11 @@
 	import Loader2Icon from "@lucide/svelte/icons/loader-2";
 	import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import BrainIcon from "@lucide/svelte/icons/brain";
 
 	type CatalogSkill = { slug: string; name: string; description: string | null; tenant: string[] | null };
 	type KernelConcept = { id: string; title: string; description: string | null };
-	type Manifest = { skills: string[]; kernel: string[] | "*"; mcpTools: string[] };
+	type Manifest = { skills: string[]; kernel: string[] | "*"; mcpTools: string[]; episodicMemory: boolean };
 	type McpTool = { name: string; description: string | null };
 
 	let { tenant, agent }: { tenant: string; agent: string } = $props();
@@ -21,7 +22,7 @@
 
 	let catalog = $state<CatalogSkill[]>([]);
 	let kernel = $state<KernelConcept[]>([]);
-	let manifest = $state<Manifest>({ skills: [], kernel: "*", mcpTools: [] });
+	let manifest = $state<Manifest>({ skills: [], kernel: "*", mcpTools: [], episodicMemory: false });
 
 	let mcpTools = $state<McpTool[]>([]);
 	let mcpDetail = $state<string | null>(null);
@@ -151,6 +152,34 @@
 		{#if loading}
 			<div class="text-sm text-muted-foreground">Cargando…</div>
 		{:else}
+			<!-- Memoria episódica -->
+			<section class="mb-6">
+				<div class="mb-2 flex items-center gap-2">
+					<BrainIcon class="size-4 text-muted-foreground" />
+					<h3 class="text-[13px] font-semibold">Memoria episódica</h3>
+					<span class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+						{manifest.episodicMemory ? "ON" : "OFF"}
+					</span>
+				</div>
+				<p class="mb-2 text-[11px] text-muted-foreground">
+					Inyección automática de contexto de sesiones previas (FTS5 sobre el historial). Desactivada por defecto.
+				</p>
+				<label class="flex cursor-pointer items-start gap-2 rounded-md border border-border p-2 hover:bg-muted/40">
+					<input
+						type="checkbox"
+						class="mt-0.5 size-4 accent-emerald-500"
+						checked={manifest.episodicMemory}
+						onchange={() => persist({ episodicMemory: !manifest.episodicMemory })}
+					/>
+					<div class="min-w-0">
+						<div class="text-[12px] font-medium">Inyectar memoria episódica</div>
+						<div class="text-[11px] text-muted-foreground">
+							El runtime busca en el historial y lo inyecta como contexto interno; el usuario solo ve la respuesta de negocio.
+						</div>
+					</div>
+				</label>
+			</section>
+
 			<!-- Skills -->
 			<section class="mb-6">
 				<div class="mb-2 flex items-center gap-2">

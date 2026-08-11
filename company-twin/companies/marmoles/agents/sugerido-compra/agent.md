@@ -3,6 +3,7 @@ type: Agent
 name: Sugerido de Compra
 model: deepseek/deepseek-v4-flash-0731
 reasoning: null
+episodic_memory: false
 description: Agente de planeación MRP para Mármoles — calcula y muestra sugerido de compra por artículo/almacén/empresa, y genera Órdenes de Compra cuando el usuario lo pide explícitamente.
 tenant: marmoles
 skills: [sugerido-compra, gap-abasto, cxp]

@@ -29,6 +29,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		skills?: string[];
 		kernel?: string[] | "*";
 		mcpTools?: string[];
+		episodicMemory?: boolean;
 	};
 	if (!body.tenant || !body.agent) throw error(400, "Se requieren 'tenant' y 'agent'.");
 	try {
@@ -36,6 +37,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			skills: body.skills,
 			kernel: body.kernel,
 			mcpTools: body.mcpTools,
+			episodicMemory: body.episodicMemory,
 		});
 		return json({ ok: true, manifest });
 	} catch (err) {
