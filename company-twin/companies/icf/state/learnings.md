@@ -54,3 +54,6 @@ aquí cuando una tool falla; el agente las lee al inicio de sesión para no repe
 - [fld-aggregate_records-ejercicio] El campo 'Ejercicio' no existe en 'aggregate_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'EJERCICIO', no 'Ejercicio'. _(2026-08-07T04:10:14.058Z)_
 - [fld-read_records-cantidad] El campo 'Cantidad' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'CANTIDAD', no 'Cantidad'. _(2026-08-07T04:11:15.524Z)_
 - [fld-read_records-centrotrabajo] El campo 'CentroTrabajo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'CENTROTRABAJO', no 'CentroTrabajo'. _(2026-08-07T04:11:33.565Z)_
+- [fld-read_records-variedad] El campo 'Variedad' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'VARIEDAD', no 'Variedad'. _(2026-08-10T08:42:33.274Z)_
+- [fld-read_records-articulo] El campo 'Articulo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'ARTICULO', no 'Articulo'. _(2026-08-11T08:42:16.444Z)_
+- [fld-read_records-fecha] El campo 'Fecha' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'FECHA', no 'Fecha'. _(2026-08-11T08:47:47.282Z)_

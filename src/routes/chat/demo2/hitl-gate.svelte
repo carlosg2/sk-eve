@@ -29,11 +29,13 @@
 	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		const data = new FormData(event.currentTarget as HTMLFormElement);
-		const choice = String(data.get("respuesta") ?? "");
-		const free = String(data.get("otra") ?? "").trim();
+		// El campo libre comparte name="respuesta": es una ALTERNATIVA a las
+		// opciones (al escribir, el root limpia la opción marcada y la respuesta
+		// libre queda como valor del item) — así escribir libre cuenta como respuesta.
+		const value = String(data.get("respuesta") ?? "");
 		summary = {
-			answer: choices.find((c) => c.value === choice)?.label ?? choice,
-			freeform: free,
+			answer: choices.find((c) => c.value === value)?.label ?? value,
+			freeform: "",
 		};
 		submitted = true;
 		onsubmit(data);
@@ -66,7 +68,7 @@
 				>{/each}
 				{#if freeform}<Questionnaire.Input
 						aria-label="Otra respuesta"
-						name="otra"
+						name="respuesta"
 						placeholder="Otra respuesta (texto libre)…"
 					/>{/if}</Questionnaire.Choices
 			><Questionnaire.Error /></Questionnaire.Item

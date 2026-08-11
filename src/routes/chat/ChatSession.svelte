@@ -14,7 +14,10 @@
 	import * as Reasoning from '$lib/components/ai-elements/reasoning/index.js';
 	import * as Tool from '$lib/components/ai-elements/tool/index.js';
 	import MessageAnimated from '$lib/components/message-animated.svelte';
+	import MessageParts from '$lib/components/ai-elements/message-parts.svelte';
 	import { watch } from 'runed';
+	import type { UserContent } from 'ai';
+	import type { InputResponse } from 'eve/client';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import MessageCircleDashedIcon from '@lucide/svelte/icons/message-circle-dashed';
@@ -25,6 +28,8 @@
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import FileWarningIcon from '@lucide/svelte/icons/file-warning';
+	import PaperclipIcon from '@lucide/svelte/icons/paperclip';
+	import XIcon from '@lucide/svelte/icons/x';
 
 	// Props de rehidratación: al abrir una sesión pasada desde el sidebar, el
 	// shell (+page.svelte) carga { session, events } vía GET /api/sessions/[id]
@@ -68,6 +73,53 @@
 	}
 
 	let text = $state('');
+
+	// Adjuntos del composer: archivos locales (dataURL) que se envían como parts
+	// `file` de UserContent. Sin subida: FileReader → dataURL → agent.send.
+	type ComposerFile = { id: string; name: string; mediaType: string; data: string };
+	let composerFiles = $state<ComposerFile[]>([]);
+	let fileInput = $state<HTMLInputElement | null>(null);
+
+	function addComposerFiles(list: FileList | File[]) {
+		for (const file of Array.from(list)) {
+			if (composerFiles.some((f) => f.name === file.name && f.mediaType === file.type)) continue;
+			const reader = new FileReader();
+			reader.onload = () => {
+				composerFiles = [
+					...composerFiles,
+					{ id: crypto.randomUUID(), name: file.name, mediaType: file.type, data: String(reader.result) },
+				];
+			};
+			reader.readAsDataURL(file);
+		}
+	}
+
+	function removeComposerFile(id: string) {
+		composerFiles = composerFiles.filter((f) => f.id !== id);
+	}
+
+	function onFileChange(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		if (input.files?.length) addComposerFiles(input.files);
+		input.value = '';
+	}
+
+	function onComposerPaste(event: ClipboardEvent) {
+		const items = event.clipboardData?.items;
+		if (!items) return;
+		const files: File[] = [];
+		for (const item of Array.from(items)) {
+			if (item.kind === 'file') {
+				const file = item.getAsFile();
+				if (file) files.push(file);
+			}
+		}
+		if (files.length) {
+			event.preventDefault();
+			addComposerFiles(files);
+		}
+	}
+
 	let showDebug = $state(false);
 	let devFilter = $state<'all' | 'llm' | 'tool' | 'step' | 'flow'>('all');
 	let expandedRows = $state(new Set<number>());
@@ -75,6 +127,15 @@
 	const messages = $derived(agent.data.messages);
 	const isBusy = $derived(agent.status === 'submitted' || agent.status === 'streaming');
 	let elapsedMs = $state(0);
+
+	// Dot de estado del header (patrón de la referencia de Eve): verde pulsante
+	// cuando el agente trabaja, neutral en ready, rojo en error.
+	const statusDot = $derived.by(() => {
+		const s = agent.status;
+		if (s === 'submitted' || s === 'streaming') return { live: true, tone: 'bg-emerald-500' };
+		if (s === 'error') return { live: false, tone: 'bg-destructive' };
+		return { live: false, tone: s === 'ready' ? 'bg-muted-foreground' : 'bg-muted-foreground/50' };
+	});
 
 	// ── Feed de actividad POR TURNO (tool calls + razonamiento) ────────────
 	// Se reconstruye desde los eventos del stream (append-only, en orden) y se
@@ -502,8 +563,42 @@
 				case 'step.completed': lines.push(`[step.completed] finish=${d.finishReason}`); break;
 				case 'turn.completed': lines.push('[turn.completed]'); break;
 				case 'turn.failed':    lines.push(`[turn.failed] ${d.message}`); break;
-				case 'input.requested': lines.push('[hitl.request]'); break;
+				case 'input.requested': {
+					const reqs = (d.requests ?? []) as Record<string, unknown>[];
+					for (const req of reqs) {
+						const kind = req.kind ?? '?';
+						const prompt = String(req.prompt ?? '');
+						const opts = ((req.options as { label?: string }[]) ?? [])
+							.map((o) => o.label ?? '')
+							.join(' | ');
+						lines.push(`[hitl.request] kind=${kind} id=${req.requestId ?? ''} prompt=${traceBlock(prompt)}`);
+						if (opts) lines.push(`  options: ${traceBlock(opts)}`);
+					}
+					if (!reqs.length) lines.push('[hitl.request]');
+					break;
+				}
 				default: break;
+			}
+		}
+		// Parts HITL del último mensaje assistant: dynamic-tool con input request
+		// (pregunta del agente). El transcript los renderiza vía MessageParts;
+		// aquí quedan inspeccionables para la meta-fábrica (estado, prompt,
+		// opciones y respuesta si la hubo).
+		const lastAssistant = agent.data.messages
+			.filter((m) => m.role === 'assistant')
+			.at(-1);
+		if (lastAssistant) {
+			for (const part of lastAssistant.parts) {
+				if (part.type !== 'dynamic-tool') continue;
+				const req = part.toolMetadata?.eve?.inputRequest;
+				if (!req) continue;
+				const res = part.toolMetadata?.eve?.inputResponse;
+				lines.push(`[hitl.part] ${part.toolName} state=${part.state} requestId=${req.requestId}`);
+				lines.push(`  prompt: ${traceBlock(req.prompt)}`);
+				lines.push(
+					`  options: ${(req.options ?? []).map((o) => o.label).join(' | ') || '—'}${req.allowFreeform ? ' · libre' : ''}`
+				);
+				if (res) lines.push(`  response: ${res.optionId ?? res.text ?? '—'}`);
 			}
 		}
 		return lines.join('\n');
@@ -704,14 +799,23 @@
 
 	async function submit() {
 		const value = text.trim();
-		if (!value || isBusy) return;
+		if ((!value && composerFiles.length === 0) || isBusy) return;
 		text = '';
+		const files = composerFiles;
+		composerFiles = [];
 		const needsRecoveryContext = recovered && !recoveryContextSent;
 		if (needsRecoveryContext) recoveryContextSent = true;
-		await agent.send({
-			message: value,
-			...(needsRecoveryContext ? { clientContext: buildRecoveryContext() } : {}),
-		});
+		const clientContext = needsRecoveryContext ? { clientContext: buildRecoveryContext() } : {};
+		if (files.length === 0) {
+			await agent.send({ message: value, ...clientContext });
+			return;
+		}
+		const parts: UserContent = [];
+		if (value) parts.push({ text: value, type: 'text' });
+		for (const f of files) {
+			parts.push({ data: f.data, filename: f.name, mediaType: f.mediaType, type: 'file' });
+		}
+		await agent.send({ message: parts, ...clientContext });
 	}
 
 	function onKeydown(event: KeyboardEvent) {
@@ -728,6 +832,14 @@
 		<div class="flex items-center gap-2">
 			<MessageSquare class="text-muted-foreground size-4" />
 			<span class="text-sm font-medium">Chat IA</span>
+			<span class="relative flex size-2" aria-hidden="true">
+				{#if statusDot.live}
+					<span
+						class="absolute inline-flex size-full animate-ping rounded-full opacity-75 {statusDot.tone}"
+					></span>
+				{/if}
+				<span class="relative inline-flex size-2 rounded-full transition-colors {statusDot.tone}"></span>
+			</span>
 		</div>
 		<div class="flex items-center gap-0.5">
 			<Tooltip.Root>
@@ -835,6 +947,14 @@
 									scrollAnchor={message.role === 'user'}
 									collapsible={i < messages.length - 1}
 								/>
+								{#if message.role === 'assistant'}
+									<MessageParts
+										{message}
+										canRespond={!isBusy}
+										onInputResponse={(response) => void agent.send({ inputResponses: [response] })}
+										onRespondAll={(responses) => void agent.send({ inputResponses: responses })}
+									/>
+								{/if}
 							{/each}
 							{#if showLiveMarker && liveStatus}
 								<MessageScroller.Item messageId="live-status">
@@ -900,14 +1020,54 @@
 					</p>
 				{/if}
 				<form onsubmit={(event) => { event.preventDefault(); void submit(); }}>
+					{#if composerFiles.length}
+						<div class="mb-2 flex flex-wrap gap-2">
+							{#each composerFiles as f (f.id)}
+								<span
+									class="flex max-w-full items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1 text-xs"
+								>
+									<PaperclipIcon class="size-3 shrink-0 text-muted-foreground" />
+									<span class="truncate">{f.name}</span>
+									<button
+										type="button"
+										aria-label="Quitar {f.name}"
+										class="text-muted-foreground hover:text-foreground"
+										onclick={() => removeComposerFile(f.id)}
+									>
+										<XIcon class="size-3" />
+									</button>
+								</span>
+							{/each}
+						</div>
+					{/if}
+					<input
+						bind:this={fileInput}
+						type="file"
+						multiple
+						class="hidden"
+						aria-label="Adjuntar archivos"
+						onchange={onFileChange}
+					/>
 					<InputGroup.Root>
 						<InputGroup.Textarea
 							bind:value={text}
 							placeholder="Escribe tu mensaje…"
 							rows={2}
 							onkeydown={onKeydown}
+							onpaste={onComposerPaste}
 						/>
 						<InputGroup.Addon align="block-end" class="pt-1">
+							<InputGroup.Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="ml-auto"
+								aria-label="Adjuntar"
+								disabled={isBusy}
+								onclick={() => fileInput?.click()}
+							>
+								<PaperclipIcon />
+							</InputGroup.Button>
 							{#if isBusy}
 								<InputGroup.Button
 									type="button"
@@ -924,7 +1084,7 @@
 									type="submit"
 									variant="default"
 									size="icon-sm"
-									disabled={!text.trim()}
+									disabled={!text.trim() && composerFiles.length === 0}
 									class="ml-auto"
 								>
 									<ArrowUpIcon />

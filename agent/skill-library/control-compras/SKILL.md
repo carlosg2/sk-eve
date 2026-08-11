@@ -169,3 +169,49 @@ Ordenar por desviación descendente. Los 🔴 primero.
   proveedores: 15; artículos: 30).
 - Encadena pasos independientes en paralelo dentro del mismo step cuando se pueda.
 - Si el usuario pide un periodo sin mes/año, usar el periodo fiscal actual (`2026`/`7`).
+
+## Decisiones del usuario (HITL) — gates de este use case
+
+Cuando el usuario pide la **revisión de desviaciones** ("revisa el presupuesto y dime qué
+desviaciones hay") y no define el enfoque, el flujo TIENE una decisión de negocio con
+opciones excluyentes: usa la tool `ask_question` (regla general: nunca en texto plano).
+Si el usuario ya definió el enfoque en su mensaje, NO preguntes: ejecuta directamente.
+
+### Gate A — Enfoque de la revisión de desviaciones (cuando no lo define)
+
+```
+ask_question({
+  question: "¿Con qué enfoque revisamos las desviaciones del presupuesto?",
+  choices: [
+    "Solo los críticos (Recomendado)",   // desviación > +150% → Patrón 3
+    "Causa raíz",                        // cruce con faltantes del MRP → Patrón 3 + gap-abasto
+    "Por proveedor",                     // top del gasto → Patrón 1/2
+  ]
+})
+```
+
+- **"Solo los críticos"** → ejecuta Patrón 3 y muestra SOLO los 🔴 sobre +150% (lo que
+  pidió finanzas: "no me enseñes todo el chorizo").
+- **"Causa raíz"** → ejecuta Patrón 3 y cruza los artículos sobre presupuesto contra los
+  faltantes del MRP (`gap-abasto`) para explicar por qué se desvió.
+- **"Por proveedor"** → ejecuta Patrón 1 (gasto por proveedor) y la sábana (Patrón 2).
+
+### Gate B — Proveedor de una requisición/OC (cuando hay que fincar)
+
+Si el flujo requiere fincar una orden con proveedor y hay historial, ofrece el top real:
+
+```
+ask_question({
+  question: "¿Con qué proveedor cotizamos?",
+  choices: ["<proveedor top 1 (Recomendado)>", "<top 2>", "<top 3>"]  // del historial del periodo
+})
+```
+
+El campo libre lo añade la UI (para "otro proveedor"). Responde según el proveedor elegido.
+
+### Reglas de la gate en este módulo
+
+- Una pregunta por llamada; la recomendada primero con "(Recomendado)"; lenguaje de negocio.
+- El approval gate (escritura) NO aplica aquí: este módulo es SOLO LECTURA (regla 6).
+- Si el usuario no responde (timeout), continúa con la opción recomendada y decláralo.
+- Las opciones exactas viven en ESTE skill (por use case), no en el prompt global.
