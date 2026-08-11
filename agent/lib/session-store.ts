@@ -94,6 +94,26 @@ function getDb(): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS events_session ON events (sessionId, id);
 
+    -- Respuestas HITL (ask_question / approvals) enviadas por el usuario. El
+    -- reducer del cliente marca una gate como respondida con el evento LOCAL
+    -- 'client.input.responded', que NUNCA viaja por el stream de Eve ni llega
+    -- a 'events' (ver eve-agent-store.js #x). Sin persistirlas aparte, al
+    -- reabrir una sesión terminada el transcript se reconstruye desde 'events'
+    -- y todas las gates vuelven a 'approval-requested' (parecen sin responder).
+    -- GET /api/sessions/[id] re-inyecta estas respuestas como eventos
+    -- sintéticos 'client.input.responded' después del 'input.requested'
+    -- correspondiente para reconstruir fielmente el estado respondido.
+    CREATE TABLE IF NOT EXISTS input_responses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sessionId TEXT NOT NULL,
+      requestId TEXT NOT NULL,
+      response TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS input_responses_session_request
+      ON input_responses (sessionId, requestId);
+
+
     -- Radiografía durable del self-improvement: el INPUT real al LLM (lo que
     -- se le mandó en cada step) y el resumen de cada turno. Viven AQUÍ (no en
     -- .eve/llm-io.jsonl ni .eve/traces.jsonl) para sobrevivir el purge
@@ -411,6 +431,51 @@ export async function listEvents(sessionId: string): Promise<StoredEvent[]> {
     data: row.data ? JSON.parse(row.data) : undefined,
     meta: { id: row.id, at: row.emittedAt },
   }));
+}
+
+// ── Respuestas HITL (para reconstruir gates respondidas al reabrir) ────────
+// El reducer del cliente marca una gate como respondida con `client.input.
+// responded` (evento LOCAL, nunca llega al stream de Eve). Para que al reabrir
+// una sesión terminada las preguntas respondidas NO vuelvan a `approval-
+// requested`, se persisten aquí (desde un endpoint POST) y GET /api/sessions/
+// [id] las re-inyecta como eventos sintéticos tras el `input.requested`.
+
+export interface StoredInputResponse {
+  requestId: string;
+  optionId?: string;
+  text?: string;
+}
+
+/** Persiste respuestas HITL (upsert por sessionId+requestId, idempotente). */
+export async function appendInputResponses(
+  sessionId: string,
+  responses: StoredInputResponse[],
+): Promise<void> {
+  try {
+    const stmt = getDb().prepare(
+      `INSERT INTO input_responses (sessionId, requestId, response, createdAt)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (sessionId, requestId) DO UPDATE SET response = excluded.response`,
+    );
+    const now = new Date().toISOString();
+    for (const r of responses) {
+      stmt.run(sessionId, r.requestId, JSON.stringify(r), now);
+    }
+  } catch {
+    // nunca romper el flujo por un fallo de persistencia
+  }
+}
+
+/** Lee las respuestas HITL persistidas de una sesión, en orden de inserción. */
+export async function listInputResponses(sessionId: string): Promise<StoredInputResponse[]> {
+  try {
+    const rows = getDb()
+      .prepare("SELECT response FROM input_responses WHERE sessionId = ? ORDER BY id ASC")
+      .all(sessionId) as unknown as Array<{ response: string }>;
+    return rows.map((row) => JSON.parse(row.response) as StoredInputResponse);
+  } catch {
+    return [];
+  }
 }
 
 // ── Radiografía durable (llm_inputs + turn_summaries) ─────────────────────

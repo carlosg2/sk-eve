@@ -72,6 +72,24 @@
 		return s.sessionId ?? s.id;
 	}
 
+	// Persiste las respuestas HITL en el servidor (tabla `input_responses` de
+	// session-store). El reducer marca la gate como respondida con el evento
+	// LOCAL `client.input.responded` — que nunca llega al stream de Eve — así
+	// que sin persistirlas aparte, al reabrir la sesión las preguntas vuelven a
+	// "approval-requested" (aparecen sin responder). Este POST corre en
+	// paralelo con `agent.send({ inputResponses })` (fire-and-forget).
+	function persistInputResponses(responses: InputResponse[]) {
+		const id = currentSessionId();
+		if (!id || responses.length === 0) return;
+		void fetch(`/api/sessions/${encodeURIComponent(id)}/input-response`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ responses }),
+		}).catch(() => {
+			// silencioso: el turno sigue aunque falle la persistencia
+		});
+	}
+
 	let text = $state('');
 
 	// Adjuntos del composer: archivos locales (dataURL) que se envían como parts
@@ -951,8 +969,14 @@
 									<MessageParts
 										{message}
 										canRespond={!isBusy}
-										onInputResponse={(response) => void agent.send({ inputResponses: [response] })}
-										onRespondAll={(responses) => void agent.send({ inputResponses: responses })}
+										onInputResponse={(response) => {
+											persistInputResponses([response]);
+											void agent.send({ inputResponses: [response] });
+										}}
+										onRespondAll={(responses) => {
+											persistInputResponses(responses);
+											void agent.send({ inputResponses: responses });
+										}}
 									/>
 								{/if}
 							{/each}
