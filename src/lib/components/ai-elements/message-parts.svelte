@@ -1,9 +1,10 @@
 <script lang="ts">
-	import type { EveMessage } from 'eve/svelte';
+	import type { EveMessage, EveDynamicToolPart } from 'eve/svelte';
 	import type { InputResponse } from 'eve/client';
 	import Authorization from './authorization/authorization.svelte';
 	import InputRequest from './input-request/input-request.svelte';
 	import InputRequestGroup from './input-request/input-request-group.svelte';
+	import InputRequestSummary from './input-request/input-request-summary.svelte';
 
 	// Renderiza los parts NO textuales de un mensaje assistant que la UI principal
 	// (MessageAnimated) no dibuja: `authorization` (retos OAuth) y `dynamic-tool`
@@ -58,7 +59,31 @@
 	);
 	const pendingFirstIndex = $derived(pendingGates[0]?.index ?? -1);
 	const pendingRequests = $derived(
-		pendingGates.map(({ part }) => part.toolMetadata.eve.inputRequest as never)
+		pendingGates.map(({ part }) => (part as EveDynamicToolPart).toolMetadata?.eve?.inputRequest as never)
+	);
+
+	// Gates HITL ya respondidas de ESTE mensaje: si el batch tenía varias preguntas
+	// (grupo multistep) y todas fueron respondidas, se vuelven a agrupar en una sola
+	// tarjeta resumen (Q/A juntas) en vez de renderizarse individuales.
+	const respondedGates = $derived(
+		message.parts
+			.map((part, index) => ({ part, index }))
+			.filter(
+				({ part }) =>
+					part.type === 'dynamic-tool' &&
+					part.toolMetadata?.eve?.inputRequest &&
+					part.toolMetadata?.eve?.inputResponse
+			)
+	);
+	const respondedFirstIndex = $derived(respondedGates[0]?.index ?? -1);
+	const respondedItems = $derived(
+		respondedGates.map(({ part }) => {
+			const toolPart = part as EveDynamicToolPart;
+			return {
+				request: toolPart.toolMetadata?.eve?.inputRequest as never,
+				response: toolPart.toolMetadata?.eve?.inputResponse as never,
+			};
+		})
 	);
 </script>
 
@@ -70,15 +95,22 @@
 			</div>
 		{:else if part.type === 'dynamic-tool' && part.toolMetadata?.eve?.inputRequest}
 			{#if part.toolMetadata?.eve?.inputResponse}
-				<!-- Gate respondida (turnos previos): resumen Q/A individual -->
-				<div class="mb-3">
-					<InputRequest
-						request={part.toolMetadata.eve.inputRequest}
-						response={part.toolMetadata.eve.inputResponse}
-						{canRespond}
-						onRespond={onInputResponse}
-					/>
-				</div>
+				<!-- Gate(s) respondida(s): si el batch era de varias preguntas, se agrupan
+				     en UNA tarjeta resumen (Q/A juntas); si era una sola, individual. -->
+				{#if respondedGates.length > 1 && i === respondedFirstIndex}
+					<div class="mb-3">
+						<InputRequestSummary items={respondedItems} />
+					</div>
+				{:else if respondedGates.length === 1}
+					<div class="mb-3">
+						<InputRequest
+							request={part.toolMetadata.eve.inputRequest}
+							response={part.toolMetadata.eve.inputResponse}
+							{canRespond}
+							onRespond={onInputResponse}
+						/>
+					</div>
+				{/if}
 			{:else if pendingGates.length > 1 && i === pendingFirstIndex}
 				<!-- Varias gates pendientes del mismo turno: grupo multistep (envío único) -->
 				<div class="mb-3">
