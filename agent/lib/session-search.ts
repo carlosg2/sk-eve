@@ -189,6 +189,81 @@ export interface MemoryHit {
   score: number;
 }
 
+export interface EpisodicContext {
+  sessionId: string;
+  type: string;
+  content: string;
+  ageRank: number;
+}
+
+/**
+ * Contexto episódico para inyección automática (P1.5): a diferencia de
+ * searchEpisodicMemory (snippets truncados a 24 tokens, útiles para inspección),
+ * devuelve el CONTENIDO COMPLETO de los hits relevantes (acotado por char) para
+ * que el runtime lo inyecte al prompt como contexto de sesiones previas.
+ * Diseño: la memoria episódica es un mecanismo INTERNO — el usuario nunca ve
+ * estos fragmentos; solo ve la respuesta de negocio final.
+ */
+export function getEpisodicContext(
+  query: string,
+  opts: { limit?: number; maxChars?: number; excludeSessionId?: string } = {},
+): EpisodicContext[] {
+  try {
+    ensureFts();
+    reindexSearchableEvents();
+    const limit = Math.max(1, Math.min(5, opts.limit ?? 3));
+    const maxChars = opts.maxChars ?? 1_600;
+    const conn = getDb();
+
+    const terms = query
+      .replace(/["']/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length > 2)
+      .slice(0, 8);
+    if (terms.length === 0) return [];
+    const ftsQuery = terms.map((t) => `"${t}"`).join(" AND ");
+
+    const params: unknown[] = [ftsQuery];
+    let excludeClause = "";
+    if (opts.excludeSessionId) {
+      excludeClause = " AND sessionId != ?";
+      params.push(opts.excludeSessionId);
+    }
+    params.push(limit * 4); // traer más candidatos y filtrar por calidad
+
+    const rows = conn
+      .prepare(
+        `SELECT sessionId, turnId, type, content FROM events_fts
+         WHERE events_fts MATCH ?${excludeClause}
+         ORDER BY rank
+         LIMIT ?`,
+      )
+      .all(...params) as unknown as Array<{
+      sessionId: string;
+      turnId: string;
+      type: string;
+      content: string;
+    }>;
+
+    // La memoria episódica de VALOR es la de mensajes y razonamiento (cómo se
+    // resolvió algo: schema, filtros, procedimiento). Los action.result/
+    // actions.requested son JSON crudo de tool calls — ruido técnico, se filtran.
+    const VALUE_TYPES = new Set(["message.completed", "reasoning.completed", "message.received"]);
+    const ranked = rows
+      .filter((r) => VALUE_TYPES.has(r.type) && r.content.length > 60)
+      .slice(0, limit);
+
+    return ranked.map((r, i) => ({
+      sessionId: r.sessionId,
+      type: r.type,
+      content: r.content.slice(0, maxChars),
+      ageRank: i,
+    }));
+  } catch {
+    return []; // blindado: nunca romper la llamada al modelo
+  }
+}
+
 /**
  * Búsqueda de memoria episódica: top N fragmentos del historial que matchean.
  * Devuelve el contexto histórico relevante para el turno actual.

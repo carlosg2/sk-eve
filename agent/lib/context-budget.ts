@@ -1,6 +1,8 @@
 import type { LanguageModelMiddleware } from "ai";
 import { loadSearchProjections } from "./runtime-config.js";
 import { planContextSync, planMarkdown, lastUserText } from "./context-planner.js";
+import { getEpisodicContext } from "./session-search.js";
+import { getCurrentSessionId } from "./current-session.js";
 
 // Reduce el contexto antes de cada llamada sin intervenir en prompt caching.
 // Eve 0.29.2 administra nativamente los breakpoints de Anthropic para tools,
@@ -276,6 +278,57 @@ function warnRepeatedToolCalls(prompt: Array<{ role?: string; content?: unknown 
   }
 }
 
+// ── Memoria episódica (P1.5): inyección automática ──────────────────────────
+// Mecanismo INTERNO, invisible al usuario final: el middleware toma el mensaje
+// del usuario, busca en el historial de sesiones PREVIAS (FTS5 sobre events) y
+// si hay hits relevantes los inyecta como contexto de sesiones previas. El
+// modelo lo usa para no redescubrir cómo se hizo algo antes; la respuesta final
+// es SOLO el resultado de negocio (nunca muestra fragmentos de memoria).
+const MEM_TAG_PREFIX = "[mem:";
+let lastMemTag: string | undefined;
+
+function injectEpisodicMemory(prompt: Array<{ role?: string; content?: unknown }>): void {
+  try {
+    const message = lastUserText(prompt as ReadonlyArray<{ role?: string; content?: unknown }>);
+    if (!message.trim()) return;
+    const currentSession = getCurrentSessionId();
+    const hits = getEpisodicContext(message, {
+      limit: 3,
+      maxChars: 1_600,
+      excludeSessionId: currentSession ?? undefined,
+    });
+    if (hits.length === 0) return;
+
+    const tag = `${MEM_TAG_PREFIX}${(Number(stableHash(message)) >>> 0).toString(16).slice(0, 8)}]`;
+    if (lastMemTag === tag) return; // mismo mensaje: ya inyectado
+    if (JSON.stringify(prompt).includes(tag)) return;
+    if (DEBUG_PLAN) console.log(`[context-budget] memoria episódica inyectada tag=${tag} hits=${hits.length}`);
+
+    const parts = [
+      "## Contexto de sesiones previas (memoria episódica — auto)",
+      "",
+      "Fragmentos relevantes de conversaciones ANTERIORES del agente. Úsalos para recordar",
+      " cómo se resolvió antes algo similar (schema, filtros, procedimiento) y evita",
+      " redescubrirlo. Son contexto histórico: los DATOS actuales se consultan con las",
+      " tools del ERP (read_records/aggregate_records/buscar_registro).",
+      "",
+    ];
+    for (const h of hits) {
+      parts.push(`### ${h.type} (sesión ${h.sessionId.slice(-8)})`, "", h.content, "");
+    }
+    parts.push(
+      "No menciones al usuario que usaste memoria episódica ni muestres estos fragmentos:",
+      " úsalos internamente y responde con el resultado de negocio.",
+      "",
+    );
+
+    lastMemTag = tag;
+    prompt.unshift({ role: "system", content: `${parts.join("\n")}\n${tag}` });
+  } catch {
+    // blindado: nunca romper la llamada al modelo por la memoria episódica
+  }
+}
+
 function truncateSchemaDescriptions(schema: unknown): unknown {
 	if (!schema || typeof schema !== "object") return schema;
 	if (Array.isArray(schema)) return schema.map(truncateSchemaDescriptions);
@@ -320,6 +373,7 @@ export const contextBudgetMiddleware: LanguageModelMiddleware = {
         dedupeRepeatedResults(prompt);
         warnRepeatedToolCalls(prompt);
         injectContextPlan(prompt);
+        injectEpisodicMemory(prompt);
         truncateLargeToolResults(prompt);
       } catch {
         // nunca romper la llamada al modelo por el guard de contexto

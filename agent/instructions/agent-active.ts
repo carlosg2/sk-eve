@@ -1,5 +1,6 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
 import { loadActiveAgent } from "../lib/runtime-config.js";
+import { setCurrentSessionId } from "../lib/current-session.js";
 
 // Composición runtime del harness por agente: al iniciar sesión inyecta el
 // `instructions.md` del agente activo (tenant + agente en runtime.json), editado
@@ -8,7 +9,11 @@ import { loadActiveAgent } from "../lib/runtime-config.js";
 // Devuelve null cuando no hay agente activo, dejando el prompt base intacto.
 export default defineDynamic({
   events: {
-    "session.started": async () => {
+    "session.started": async (ctx) => {
+      // Registrar la sesión actual para la memoria episódica (P1.5): el
+      // middleware de contexto la excluye de la búsqueda (la sesión en curso
+      // ya está en el prompt; la memoria es de sesiones PREVIAS).
+      setCurrentSessionId((ctx as { session?: { id?: string } })?.session?.id);
       const agent = loadActiveAgent();
       if (!agent?.instructions.trim()) return null;
       const parts = [
