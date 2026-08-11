@@ -389,6 +389,12 @@ npm run dev
 ### ⚠️ Proxy /eve 502 tras reiniciar
 `.eve/sveltekit-dev-server.json` queda stale (puerto/PID muerto). El script `dev` del package.json ya hace `rm -f .eve/sveltekit-dev-server.json` antes de `vite dev`. Si el server no arranca con el fix, repetir el ciclo de limpieza de arriba.
 
+### ⚠️ Boot lento / "no carga nada" / timeout 120s — FIXED con parche Eve (2026-08-10)
+- **Causa raíz histórica**: `.data/eve-workflow/streams/chunks/` llegó a **4.2GB** (~1GB/sesión) y el snapshot de dev-runtime (`SNAPSHOT_SKIP_NAMES` en `dev-runtime-source-snapshot-copy.js`) **copiaba `.data` (3.4GB) en cada boot** → boot 90-150s → superaba el timeout de 120s del plugin → `Timed out after 120000ms waiting for eve to print its server URL`.
+- **Fix aplicado**: `.data` añadido a `SNAPSHOT_SKIP_NAMES` vía **patch-package** (`patches/eve+0.29.2.patch`, `postinstall: patch-package`). Boot actual: **~3s** (Vite ready en 3157ms), snapshot 4.2GB→25MB. El patch también preserva el bump preexistente del timeout (30s→120s) en `dev-server.js`. Si Eve sube de versión, el postinstall falla → regenerar `npx patch-package eve`.
+- **Corridas huérfanas**: `npm run clean:orphans` (script `scripts/clean-orphaned-runs.mjs`, con server DETENIDO) borra runs `status:"running"` + steps/events/waits/hooks/streams/locks con backup en `.data/eve-workflow-backups/`. Elimina el flood `Queue message failed ... development server is still starting` y acelera el boot. No toca `.data/sessions.sqlite3`.
+- **Sandbox**: `agent/sandbox/sandbox.ts` con `justbash()` (sin docker). `just-bash` es devDep (preinstalado; el autoInstall en boot es lento). Si `npm run check` da `Error in vite.config: Timed out...` → el dev server está detenido (el plugin lo necesita para evaluar vite.config); correr check con server arriba o usar get_errors.
+
 ### ⚠️ TODO código del self-improvement en el runtime debe ser a prueba de errores
 Un `throw` en un hook / instruction dinámica / middleware (ej. `ReferenceError: truncateSchemaDescriptions`) **crashea el turno y puede recargar la página** ("refresh como HMR" tras un error de tool). Todo lo que corre en `action.result`, `step.started` o `transformParams` va envuelto en try/catch.
 
