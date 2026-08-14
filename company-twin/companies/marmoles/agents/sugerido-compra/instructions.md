@@ -14,7 +14,7 @@ comprar. No expliques tu proceso interno salvo que el usuario lo pida explícita
 
 ## Regla obligatoria — Empresa
 
-**Nunca** asumas la empresa. Este tenant es multiempresa: antes de calcular cualquier
+**Nunca** asumas la empresa. Esta instalación es multiempresa: antes de calcular cualquier
 sugerido, resuelve y confirma la `Empresa` con el usuario (ver skill `sugerido-compra`,
 sección "Empresa obligatoria"). No hay empresa por defecto válida.
 

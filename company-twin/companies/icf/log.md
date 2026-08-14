@@ -2,6 +2,19 @@
 
 Historial de promociones del Company Twin de ICF. Más nuevo primero.
 
+## 2026-08-13
+
+- **Delete** `art-icf.md` — higiene de conocimiento: el concepto Delta (conteos
+  cross-tenant, "vs kernel") es metadata de la fábrica y contaminaba al runtime. El
+  conocimiento operativo de estatus de Art en ICF (ALTA/BAJA/BLOQUEADO/PROTOTIPO,
+  `AlmacenROP` en uso) pasa a `modulos.md` sin números.
+- **Evidencia de fábrica (no runtime)**: `dbo.Art` en ICF verificado en vivo 2026-08-13 —
+  **338 campos**, estatus `ALTA` 16,998 / `BAJA` 4,881 / `BLOQUEADO` 774 / `PROTOTIPO` 5
+  (rango de ejemplo A6326–A6397), `AlmacenROP` en uso (27 valores distinct),
+  `Descripcion1` varchar(100), **22,658 artículos**. Conteos para auditoría de la
+  fábrica; el agente ve solo los estatus válidos.
+- **Creation** (previo, misma fecha) `art-icf.md` — ver Delete arriba; la evidencia de la
+  verificación quedó registrada en esta entrada.
 ## 2026-08-06
 
 - **Creation** `presupuesto-compras.md` — control de gasto de compras del periodo que

@@ -4,7 +4,7 @@ description: >
   Use when the user asks about MRP, explosión de materiales, forecast de venta,
   arribos proyectados, plan o programa de producción, capacidad de centros,
   presupuesto VACA, indicadores de cumplimiento, o cualquier
-  funcionalidad del portal MRP legacy (sigma-icf) del tenant ICF, y no está
+  funcionalidad del portal MRP legacy (sigma-icf) de la empresa ICF, y no está
   claro todavía cuál de los 12 skills específicos de ruta aplica. Este skill es
   un ÍNDICE — enruta a los skills mrp-* especializados, no reemplaza su
   contenido detallado.
@@ -15,10 +15,10 @@ description: >
 > **Este skill es SOLO un índice/orquestador.** El detalle procedural de cada
 > funcionalidad vive en 12 skills especializados (`agent/skill-library/mrp-*/SKILL.md`),
 > uno por cada ruta real del portal MRP legacy (sigma-icf). El schema de cada
-> entidad vive en el Company Twin:
-> [company-twin/companies/icf/mrp/index.md](/company-twin/companies/icf/mrp/index.md).
+> entidad vive en el Company Twin (`mrp-soporte`, `mrp-explosion`, etc.).
 
-Conexión MCP: **`intelisis-dab`** (remoto, tenant ICF). Tools: `read_records`,
+
+Conexión MCP: **`intelisis-dab`** (remoto). Tools: `read_records`,
 `aggregate_records`. `Usuario` fijo para todo el módulo FC: **`"CGARZA"`** (no
 preguntarlo al usuario del chat ni inventar otro valor — todas las tablas de
 trabajo del módulo son scratch **por usuario ERP que corre el proceso**, no por
@@ -77,7 +77,7 @@ del año calendario (depende de cuándo se capturó el forecast).
   ERP (`PR_MRP_GENERA_OS`, ver detalle en `mrp-inicio`) — nunca intentar
   replicar esa escritura.
 - **Columnas no verificadas por inspección directa**: a diferencia de
-  `erp-kernel/*`, las entidades de este módulo vienen de `describe_entities`
+  las entidades de este módulo vienen de `describe_entities`
   remoto contra ICF, que no expone tipos/PK reales. Si un `read_records` con
   `select` falla, usar `read_records(<Entidad>, first: 1)` sin `select` para
   descubrir el schema real antes de reintentar.

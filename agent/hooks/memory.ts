@@ -80,7 +80,7 @@ function deriveLearning(
       entity || message.match(/entity\s+'?([A-Za-z0-9_]+)'?/i)?.[1] || short;
     return {
       key: `ent-inexistente-${ent}`,
-      text: `La entidad '${ent}' NO existe en el MCP del tenant activo (${type}). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada.`,
+      text: `La entidad '${ent}' NO existe en el MCP de esta empresa (${type}). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada.`,
     };
   }
 

@@ -3,8 +3,7 @@ okf_version: "0.2"
 ---
 # Industrias Campo Fresco (ICF) — Company Twin
 
-Conocimiento específico de ICF. `tenant: icf`. Código ERP: **`INCF`**.
-Cambia medio/rápido. **Restringe, nunca amplía** lo que el ERP Kernel permite.
+Conocimiento específico de ICF. Código ERP: **`INCF`**.
 
 Negocio: distribución y procesamiento de productos perecederos secos (granos, semillas, avena, frijol).
 Empresa ERP: **`INCF`**

@@ -1,28 +1,17 @@
 ---
 type: Intelisis Module Reference
 title: MCP de ICF — módulos disponibles
-description: Cobertura del MCP de ICF: qué módulos expone y cuáles NO (CXP/tesorería/cuentas bancarias no está disponible → EntityNotFound). Restringe al kernel.
+description: Cobertura del MCP de ICF: qué módulos expone y cuáles NO (CXP/tesorería/cuentas bancarias no está disponible → EntityNotFound).
 layer: company
 tenant: icf
 tags: [icf, mcp, cobertura, modulos, restriccion]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-05T00:00:00Z }
 mcp_tools: [read_records, aggregate_records]
-sources:
-  - id: learnings-icf
-    resource: /companies/icf/state/learnings.md
-    title: Trazas de runtime del hook de memoria (keys ent-inexistente-*)
-    last_modified: 2026-08-05
-  - id: lint-knowledge
-    resource: scripts/check-knowledge.ts
-    title: Linter de conocimiento — read_records(first:1) contra el MCP ICF
-    last_modified: 2026-08-05
 ---
 
 # MCP de ICF — módulos disponibles
 
-Cobertura del endpoint MCP del tenant **ICF** (`https://api2.maserp.mx/icf/mcp`).
-Este documento **restringe** al [ERP Kernel](/erp-kernel/index.md): el kernel describe el
-ERP universal de Intelisis; aquí se registra qué publica **este** tenant.
+Cobertura del endpoint MCP de la empresa **ICF** (`https://api2.maserp.mx/icf/mcp`).
+Este documento registra qué publica **esta** empresa y qué no está disponible.
 
 ## Módulos disponibles
 
@@ -31,7 +20,7 @@ ERP universal de Intelisis; aquí se registra qué publica **este** tenant.
   `UV_QV_PPTOCOMPRA`, `ArtDisponibleDesc`, `ArtDisponible`, `ArtMaterial`, `CentroFCTemp`,
   etc. Ver [mrp](/companies/icf/mrp/index.md).
 - **Catálogos core** — `Art`, `Alm`, `Prov`, `Almacen*` y demás entidades expuestas por el
-  DAB del tenant (verificar con `describe_entities` / `read_records(first:1)`).
+  DAB de la empresa (verificar con `describe_entities` / `read_records(first:1)`).
 
 ## No disponible en ICF (EntityNotFound verificado en runtime)
 
@@ -52,3 +41,12 @@ la entidad no existe en la configuración del DAB de ICF.
   (ej. `UV_QV_PPTOCOMPRA` no aparece y sí funciona en `read_records`). La disponibilidad real
   se valida con `read_records(entity, first: 1)` (regla del linter `npm run lint:knowledge`).
 - Un `EntityNotFound` significa "no está publicado en el MCP de ICF", no que el dato sea cero.
+
+## Detalles operativos del catálogo `Art` en ICF
+
+- **Estatus de artículo:** además de `ALTA` y `BAJA`, ICF usa **`BLOQUEADO`** (artículo
+  bloqueado, no opera) y **`PROTOTIPO`** (artículo en desarrollo — no es un artículo final
+  de compra/producción). Al consultar disponibilidad/compras, filtrar por `Estatus eq 'ALTA'`
+  salvo que el usuario pida explícitamente los otros.
+- **`AlmacenROP`:** en uso en ICF. Distingue compra vs distribución en la planeación de
+  compras (`Art.AlmacenROP = PlanArtOP.Almacen` → compra; distinto → distribución).

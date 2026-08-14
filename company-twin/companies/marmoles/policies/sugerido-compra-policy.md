@@ -15,7 +15,7 @@ sources:
 
 # Resumen
 
-Este tenant expone un ERP Intelisis **multiempresa** (una sola base `MARMOLES`, varias
+Esta instalación expone un ERP Intelisis **multiempresa** (una sola base `MARMOLES`, varias
 empresas activas). El agente `sugerido-compra` restringe lo que el kernel/ERP permite con
 las siguientes reglas de negocio.
 

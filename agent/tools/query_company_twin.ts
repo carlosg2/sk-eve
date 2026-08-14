@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { resolveCompanyTwinRoot, loadRuntimeConfig, loadActiveAgent } from "../lib/runtime-config.js";
+import { cleanTwinBody, cleanTwinText } from "../lib/twin-clean.js";
 
 const BUNDLE_ROOT = resolveCompanyTwinRoot();
 
@@ -193,21 +194,23 @@ function score(c: Concept, terms: string[]): number {
   return s;
 }
 
+// Devuelve el nombre corto de un concepto (último segmento del id). El agente
+// ve nombres planos ("cxp"), nunca rutas internas de la fábrica
+// ("erp-kernel/cxp", "companies/icf/modulos").
+function shortId(id: string): string {
+  return id.split("/").pop() ?? id;
+}
+
 export default defineTool({
   description:
-    "Consulta el Company Twin (bundle OKF con conocimiento en capas: erp-kernel, company). " +
-    "Sin `concept` hace búsqueda con progressive disclosure y devuelve solo metadata (id, tipo, capa, descripción). " +
-    "Con `concept` devuelve el cuerpo completo de ese concepto. Filtra por `layer` y `tenant` para respetar el Context Stack. " +
-    "OKF v0.2: cada concepto trae `status` (draft/stable/deprecated), `stale` (bool) y `trust` (unverified/machine-confirmed/human-reviewed). " +
-    "Prefiere conceptos no-stale; avisa si un dato viene de un concepto deprecated o sin verificar humano.",
+    "Consulta el conocimiento del sistema (Company Twin): schema de entidades, estatus válidos, " +
+    "políticas y reglas operativas de la empresa activa. " +
+    "Sin `concept` hace una búsqueda y devuelve solo la lista de conceptos coincidentes (título + descripción). " +
+    "Con `concept` devuelve el cuerpo completo del concepto (puedes usar el nombre corto, ej. 'cxp').",
   inputSchema: z.object({
     query: z.string().optional().describe("Búsqueda en lenguaje natural (ej: 'límite de aprobación CXP')"),
-    concept: z.string().optional().describe("ID de concepto OKF para leer su cuerpo completo (ej: 'erp-kernel/cxp')"),
-    layer: z
-      .enum(["erp-kernel", "vertical", "company", "skill"])
-      .optional()
-      .describe("Filtrar por capa del Context Stack"),
-    limit: z.number().int().min(1).max(20).default(5).describe("Máximo de coincidencias de metadata"),
+    concept: z.string().optional().describe("Concepto a leer completo (nombre corto o id, ej: 'cxp')"),
+    limit: z.number().int().min(1).max(20).default(5).describe("Máximo de coincidencias"),
   }),
   async execute({ query, concept, layer, limit }) {
     const concepts = await loadConcepts();
@@ -225,56 +228,59 @@ export default defineTool({
       return true;
     });
 
-    // Modo lectura: cuerpo completo de un concepto.
+    // Modo lectura: cuerpo completo de un concepto. Acepta id completo
+    // (`erp-kernel/cxp`), nombre corto (`cxp`) o el título (`Art — Artículos`).
+    // El agente solo ve nombres cortos y títulos; las rutas de la fábrica son
+    // un detalle interno.
     if (concept) {
-      const found = visible.find((candidate) => candidate.id === concept);
+      // Normalización compartida para id y título: minúsculas, sin puntuación,
+      // espacios colapsados. Permite resolver por nombre corto, ruta o título
+      // ("ICF — Política de operaciones" → "icf política de operaciones").
+      const norm = (s: string) =>
+        s
+          .toLowerCase()
+          .replace(/[^a-z0-9áéíóúñü\s]/gi, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      const normalized = norm(concept);
+      const found = visible.find((candidate) => {
+        if (norm(candidate.id) === normalized) return true;
+        if (norm(candidate.id.split("/").pop() ?? "") === normalized) return true;
+        const normTitle = norm(candidate.title ?? "");
+        return (
+          (normTitle === normalized || normTitle.includes(normalized)) &&
+          normalized.length > 3
+        );
+      });
       if (!found) {
-        return { error: `Concepto '${concept}' no encontrado para el tenant activo` };
+        return { error: `Concepto '${concept}' no encontrado para esta empresa` };
       }
       return {
-        id: found.id,
-        type: found.type,
-        layer: found.layer,
-        tenant: found.tenant,
-        tags: found.tags,
-        status: found.status,
-        stale: found.stale,
-        trust: found.trust,
-        generated: found.generated,
-        verified: found.verified,
-        sources: found.sources,
-        body: found.body,
+        id: shortId(found.id),
+        title: cleanTwinText(found.title ?? found.id),
+        body: cleanTwinBody(found.body),
       };
     }
 
-    // Modo búsqueda: progressive disclosure (solo metadata, no cuerpos).
-    let pool = visible;
-    if (layer) pool = pool.filter((c) => c.layer === layer);
-
+    // Modo búsqueda: progressive disclosure (solo títulos y descripciones,
+    // sin metadata de fábrica: capas, tenant, status, trust, provenance).
     const terms = (query ?? "").toLowerCase().split(/\s+/).filter((t) => t.length > 1);
     const ranked =
       terms.length === 0
-        ? pool
-        : pool
+        ? visible
+        : visible
             .map((c) => ({ c, s: score(c, terms) }))
             .filter((x) => x.s > 0)
             .sort((a, b) => b.s - a.s)
             .map((x) => x.c);
 
     return {
-      tenant: activeTenant,
       matches: ranked.slice(0, limit).map((c) => ({
-        id: c.id,
-        type: c.type,
-        layer: c.layer,
-        tenant: c.tenant,
-        description: c.description,
-        tags: c.tags,
-        status: c.status,
-        stale: c.stale,
-        trust: c.trust,
+        id: shortId(c.id),
+        title: cleanTwinText(c.title ?? c.id),
+        description: cleanTwinText(c.description ?? ""),
       })),
-      hint: "Usa `concept` con un id para leer el cuerpo completo.",
+      hint: "Usa `concept` con un nombre para leer el cuerpo completo.",
     };
   },
 });

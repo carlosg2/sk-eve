@@ -9,9 +9,9 @@ description: >
 
 # Skill: MRP — Inventario Semanal (presupuesto VACA + lotes PEPS)
 
-> **Este skill es SOLO procedural.** Schema: [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md)
-> y [mrp-explosion.md](/company-twin/companies/icf/mrp/mrp-explosion.md)
-> (`UtMrpPrevioMateriaPrima`), [mrp-soporte.md](/company-twin/companies/icf/mrp/mrp-soporte.md) (`SerieLote`).
+> **Este skill es SOLO procedural.** Schema: [mrp-vaca.md](`mrp-vaca`)
+> y [mrp-explosion.md](`mrp-explosion`)
+> (`UtMrpPrevioMateriaPrima`), [mrp-soporte.md](`mrp-soporte`) (`SerieLote`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 `Usuario` fijo: **`"CGARZA"`**.
@@ -63,7 +63,7 @@ read_records(UtMrpPrevioMateriaPrima,
 ```
 
 Si se necesita el detalle de existencia real por lote (antes de la
-asignación), usar `SerieLote` (erp-kernel, solo lectura).
+asignación), usar `SerieLote` (del sistema, solo lectura).
 
 ## Limitaciones
 

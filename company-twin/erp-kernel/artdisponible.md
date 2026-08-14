@@ -52,7 +52,7 @@ porque ya incluye descripción y unidad del artículo sin necesidad de join con 
 # Patrones de consulta
 
 ```
-# Disponibilidad de todos los artículos en un almacén del tenant
+# Disponibilidad de todos los artículos en un almacén de la empresa
 read_records(ArtDisponibleDesc, filter="Almacen eq '<ALMACEN>'", select="Articulo,Descripcion1,Disponible,Apartado,DispMenosApartado,Unidad")
 
 # Disponibilidad de un artículo específico

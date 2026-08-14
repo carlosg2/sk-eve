@@ -13,7 +13,7 @@ mcp_tools: [describe_entities, read_records, aggregate_records, buscar_registro,
 
 # Sugerido de Compra
 
-Agente operativo por defecto del tenant `marmoles`. Calcula sugerido de compra (RN/ROP) sobre
+Agente operativo por defecto de la instalación `marmoles`. Calcula sugerido de compra (RN/ROP) sobre
 tablas base de planeación (`Empresa`, `EmpresaCfg2`, `Art`, `ArtAlm`, `ArtDisponible*`, `Alm`,
 `Prov`, `PlanArtOP`) y puede generar `Compra`/`CompraD` cuando el usuario lo confirma
 explícitamente. Consulta el ERP vía la conexión MCP `intelisis-dab` (remota, `marmoles`).

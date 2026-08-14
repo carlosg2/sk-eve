@@ -25,7 +25,7 @@ publicado** en el MCP (2026-08-03). Sin `InvD`, `Inv` solo permite identificar q
 - **Semántica del `Mov`:** ver [`MovTipo`](/erp-kernel/movtipo.md) con `Modulo eq 'INV'`
   (ej. `Salida Traspaso`, `Entrada Traspaso`)
 
-# Schema (campos operativos verificados en vivo, tenant marmoles)
+# Schema (campos operativos verificados en vivo, empresa marmoles)
 
 | Campo | Tipo | Notas |
 |---|---|---|

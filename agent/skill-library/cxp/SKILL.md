@@ -2,13 +2,13 @@
 tenant: null
 description: >
   Use when the user asks explicitly about Cuentas por Pagar (CXP), tesorería
-  (Dinero), o cuentas bancarias (CtaDinero) en un tenant con esos módulos.
+  (Dinero), o cuentas bancarias (CtaDinero) en una empresa con esos módulos.
 ---
 # Skill: Módulo CXP / Tesorería — patrones de ejecución
  
 > **Este skill es SOLO procedural** (cómo ejecutar secuencias). El **schema** de las
 > entidades (campos, tipos, estatus, relaciones) vive en el Company Twin:
-> `query_company_twin({ query, layer: "erp-kernel" })` → `{ concept: "erp-kernel/<entidad>" }`.
+> `query_company_twin({ query })` → `{ concept: "<nombre>" }`.
 > No dupliques schema aquí; consúltalo cuando lo necesites.
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`,
@@ -16,9 +16,9 @@ Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`,
 
 ## Recordatorios rápidos
 
-- **Contrato de tools** (verificado): `read_records` usa `select` (**string** coma-sep, ej. `"ID,Saldo"`) y `orderby` **array** (`["Saldo desc"]`); `aggregate_records` usa `orderby` **string** (`"desc"`) y soporta `having` nativo. Detalle: [Contrato de MCP tools](../../../company-twin/erp-kernel/mcp-tools.md).
+- **Contrato de tools** (verificado): `read_records` usa `select` (**string** coma-sep, ej. `"ID,Saldo"`) y `orderby` **array** (`["Saldo desc"]`); `aggregate_records` usa `orderby` **string** (`"desc"`) y soporta `having` nativo. Detalle: [Contrato de MCP tools](../../..`mcp-tools`).
 - **Fechas OData sin comillas**: `Vencimiento le 2026-12-31` (NO `'2026-12-31'`). Rango: `Vencimiento ge 2026-06-24 and Vencimiento le 2026-07-01`.
-- **Estatus pendiente de pago = `PENDIENTE`** (ciclo `SINAFECTAR → PENDIENTE → CONCLUIDO`/`CANCELADO`). Detalle en el Twin (`erp-kernel/cxp`, `erp-kernel/afectar`).
+- **Estatus pendiente de pago = `PENDIENTE`** (ciclo `SINAFECTAR → PENDIENTE → CONCLUIDO`/`CANCELADO`). Detalle en el Twin (`cxp`, `afectar`).
 - **Antes de create/update**: consulta el schema en el Twin, valida límites varchar e incluye campos requeridos. `create_record` usa `data` (object); `update`/`delete` usan `keys`.
 - **Transiciones de estatus**: SP `Afectar` vía `execute_entity`, no `update_record`.
 
@@ -137,13 +137,13 @@ aggregate_records(CXP, sum, Saldo, filter: "Estatus eq 'PENDIENTE'", groupby: [P
 
 ## Reglas de eficiencia
 
-1. **Nunca llames `describe_entities`** — el schema está en el Company Twin (`layer: erp-kernel`). Consúltalo con `query_company_twin` si dudas de un campo.
+1. **Nunca llames `describe_entities`** — el schema está en el Company Twin (el Company Twin). Consúltalo con `query_company_twin` si dudas de un campo.
 2. **`connection_search`**: si es el único tool disponible al inicio de sesión, llámalo en silencio (sin narrar) y luego usa los tools directamente.
 3. **Usa `aggregate_records` para métricas** — no leas todos los registros y calcules en memoria. Para contar, usa `function: count, field: "*"`.
 4. **Paraleliza** llamadas independientes.
 5. **Limita campos con `select`** (string coma-sep) y resultados con `first` (default `first: 20`).
 6. **Fechas sin comillas** en OData: `Vencimiento ge 2026-06-24`.
-7. **Si un filtro por Estatus devuelve 0**, haz `read_records(CXP, first: 3, select: "ID,Estatus")` para ver los valores reales y ajustar (o consulta `erp-kernel/cxp` en el Twin).
+7. **Si un filtro por Estatus devuelve 0**, haz `read_records(CXP, first: 3, select: "ID,Estatus")` para ver los valores reales y ajustar (o consulta `cxp` en el Twin).
 8. **Para joins**, encadena: FK en paso 1, entidad dependiente en paso 2 con `field eq 'v1' or field eq 'v2'`.
 9. **`AFECTADO` no es un Estatus** — es la acción del SP `Afectar`. Si el usuario lo pide, usa `Estatus eq 'CONCLUIDO'` y explica el ajuste.
 

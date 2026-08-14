@@ -10,8 +10,8 @@ description: >
 
 # Skill: MRP — Validación de Insumos (produccion)
 
-> **Este skill es SOLO procedural.** Schema: [mrp-explosion.md](/company-twin/companies/icf/mrp/mrp-explosion.md)
-> (`ExplocionMatCF`) y [mrp-plan-produccion.md](/company-twin/companies/icf/mrp/mrp-plan-produccion.md)
+> **Este skill es SOLO procedural.** Schema: [mrp-explosion.md](`mrp-explosion`)
+> (`ExplocionMatCF`) y [mrp-plan-produccion.md](`mrp-plan-produccion`)
 > (`ResumenPlaneacionCF`, `ForecastPlanSemanal`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.

@@ -13,9 +13,9 @@ description: >
 # Skill: Cierre del gap de abasto — requisición controlada
 
 > **Este skill es SOLO procedural.** El schema de entidades vive en el Company Twin:
-> `query_company_twin({ query, layer: "erp-kernel" })` y `layer: "company"`.
+> `query_company_twin({ query })`.
 
-Conexión MCP: **`intelisis-dab`** (tenant ICF). Tools: **`faltante_insumos`**,
+Conexión MCP: **`intelisis-dab`** (empresa ICF). Tools: **`faltante_insumos`**,
 **`faltante_materia_prima`** (SPs del backend que ya calculan el gap), más `read_records`,
 `aggregate_records`, `buscar_registro` para el cruce de inventario, presupuesto y proveedor.
 

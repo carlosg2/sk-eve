@@ -2,7 +2,7 @@
 tenant: icf
 description: >
   Use when the user asks sobre el sistema MRP/Forecast de Campo Fresco
-  (MRPCF5000) del tenant ICF: ¿tenemos materia prima suficiente?, stock de
+  (MRPCF5000) de la empresa ICF: ¿tenemos materia prima suficiente?, stock de
   seguridad o inventario mínimo/máximo, cobertura de inventario, plan de
   producción vs. disponible, estado del MRP, faltantes de producción,
   cumplimiento de producción, "¿cuánto frijol/concentrado tenemos?", "¿qué nos
@@ -14,13 +14,13 @@ description: >
 # Skill: MRP CF Analyst (Campo Fresco / ICF)
 
 > **Este skill es SOLO procedural.** El schema de entidades vive en el Company
-> Twin: [mrp-explosion.md](/company-twin/companies/icf/mrp/mrp-explosion.md),
-> [mrp-plan-produccion.md](/company-twin/companies/icf/mrp/mrp-plan-produccion.md),
-> [mrp-centros-estaciones.md](/company-twin/companies/icf/mrp/mrp-centros-estaciones.md),
-> [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md)
-> y `erp-kernel` (`ArtDisponible`, `Art`, `Alm`, `Prod`, `ProdD`).
+> Twin: [mrp-explosion.md](`mrp-explosion`),
+> [mrp-plan-produccion.md](`mrp-plan-produccion`),
+> [mrp-centros-estaciones.md](`mrp-centros-estaciones`),
+> [mrp-vaca.md](`mrp-vaca`)
+> y del sistema (`ArtDisponible`, `Art`, `Alm`, `Prod`, `ProdD`).
 
-Conexión MCP: **`intelisis-dab`** (remoto, tenant ICF). Tools: `read_records`,
+Conexión MCP: **`intelisis-dab`** (remoto). Tools: `read_records`,
 `aggregate_records`. `Usuario` fijo del módulo FC: **`"CGARZA"`** (los snapshots
 de este módulo son por usuario ERP que corrió el proceso, no por quien chatea).
 
@@ -30,7 +30,7 @@ Dada una pregunta de negocio sobre producción, inventario o materia prima:
 
 1. Identifica qué entidades del módulo MRP/FC responden la pregunta.
 2. Construye la consulta mínima y suficiente (DAB/OData, NO SQL).
-3. Ejecútala contra el MCP del tenant ICF.
+3. Ejecútala contra el MCP de la empresa ICF.
 4. Interpreta el resultado en términos de negocio (no jerga técnica).
 5. Señala explícitamente si los datos son de un ejercicio anterior al actual.
 
@@ -63,7 +63,7 @@ CalendarioFC          — Calendario de semanas por usuario/año (Ano, Semana,
                         MCP ICF (EntityNotFound) — usar SIEMPRE CalendarioFC.
 UV_QV_PPTOCOMPRA      — Stock mínimo/máximo y máx. de compra por artículo/familia (materia prima)
 CentroFCTemp / EstacionTFCTemp — Centros/estaciones y capacidades (sesión de usuario)
-Prod / ProdD          — Producción real transaccional (erp-kernel)
+Prod / ProdD          — Producción real transaccional (del sistema)
 VentaTCalc            — Ventas reales para comparar vs. forecast
 ```
 
@@ -108,7 +108,7 @@ parámetro configurado — no asumir 0.
    usuarios. ⚠️ `ForecastPlanProduccion` es una vista consolidada **SIN
    `Usuario`** (verificado): filtrarla por Usuario da `BadRequest`; filtrar
    por `EJERCICIO`/`SEMANA`/`SITUACION`.
-5. Para inventario: `Almacen eq '<ALM>'` (política del tenant) y `Disponible gt 0`.
+5. Para inventario: `Almacen eq '<ALM>'` (política de la empresa) y `Disponible gt 0`.
 6. `UtLogEjcProMrp` NO existe en el MCP ICF — no intentar verificar la corrida
    con ella; usar los snapshots directamente y advertir si parecen vacíos.
 7. **NUNCA llamar `describe_entities`**: el schema vive en el Company Twin y

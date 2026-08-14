@@ -12,5 +12,5 @@ tags: [perfil, runtime, conexion]
 
 # Industrias Campo Fresco
 
-Perfil activo del tenant ICF. La política operativa vive en
+Perfil activo de la empresa ICF. La política operativa vive en
 [Operaciones](policies/operaciones-policy.md).

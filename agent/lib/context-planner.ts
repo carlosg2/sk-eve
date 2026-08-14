@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadActiveAgent, loadScopedSkills, resolveCompanyTwinRoot, type ActiveAgent } from "./runtime-config.js";
+import { cleanTwinBody, cleanTwinText } from "./twin-clean.js";
 
 // ── "Lóbulo frontal": planificador de contexto ────────────────────────────────
 // Construye un índice de ruteo (conceptos del Company Twin + skills del agente
@@ -43,6 +44,13 @@ export type ConceptEntry = {
   tags: string[];
   layer?: string;
   tenant?: string | null;
+  // Ciclo de vida temporal (ADR-010 / acción A5): se evalúa en TIEMPO DE PLAN
+  // (no al construir el índice) para que `stale_after`/`superseded_at` se
+  // respeten aunque el índice esté cacheado a nivel de módulo.
+  status?: string;
+  staleAfter?: string;
+  supersededAt?: string;
+  supersededBy?: string;
 };
 export type SkillEntry = { slug: string; description: string };
 
@@ -72,6 +80,10 @@ function buildConceptIndex(): ConceptEntry[] {
         tags: asList(fm.tags),
         layer: typeof fm.layer === "string" ? fm.layer : undefined,
         tenant: fm.tenant as string | null | undefined,
+        status: typeof fm.status === "string" ? fm.status : undefined,
+        staleAfter: typeof fm.stale_after === "string" ? fm.stale_after : undefined,
+        supersededAt: typeof fm.superseded_at === "string" ? fm.superseded_at : undefined,
+        supersededBy: typeof fm.superseded_by === "string" ? fm.superseded_by : undefined,
       });
     }
     return out;
@@ -81,6 +93,29 @@ function buildConceptIndex(): ConceptEntry[] {
 }
 
 const CONCEPTS = buildConceptIndex();
+
+// ── Guard de contexto stale (acción A5, patrón RASTeR) ──────────────────────
+// Un concepto superseded (ADR-010) o con `stale_after` vencido NO debe
+// precargarse al prompt: el modelo descartaría conocimiento inactivo por
+// contexto vencido (el bug ABIERTO→PENDIENTE es la evidencia de que ya pasó).
+// Las fechas se evalúan en tiempo de plan (no al construir el índice).
+export function isEntryActive(c: ConceptEntry, now: number = Date.now()): boolean {
+  try {
+    if (c.supersededAt) {
+      const t = Date.parse(c.supersededAt);
+      if (!Number.isNaN(t) && t <= now) return false;
+    }
+    const status = c.status?.trim().toLowerCase();
+    if (status === "superseded" || status === "deprecated" || status === "archived") return false;
+    if (c.staleAfter) {
+      const t = Date.parse(c.staleAfter);
+      if (!Number.isNaN(t) && t <= now) return false;
+    }
+    return true;
+  } catch {
+    return true; // blindado: ante cualquier error, tratar como activo
+  }
+}
 
 function visibleFor(agent: ActiveAgent, c: ConceptEntry): boolean {
   // Visibilidad por tenant (null = universal) + kernel scope del agente activo.
@@ -119,7 +154,7 @@ const REL_SCORE = 0.5;
 
 export type ContextPlan = {
   skills: { slug: string; description: string; score: number }[];
-  concepts: { id: string; body: string; score: number }[];
+  concepts: { id: string; title: string; body: string; score: number }[];
 };
 
 export async function planContext(message: string): Promise<ContextPlan> {
@@ -149,8 +184,8 @@ export function planContextSync(message: string): ContextPlan {
       .filter((s) => s.score >= MIN_SCORE && s.score >= Math.ceil(skillTop * REL_SCORE))
       .slice(0, MAX_SKILLS);
 
-    // Conceptos visibles matcheados contra el mensaje.
-    const ranked = CONCEPTS.filter((c) => visibleFor(agent, c))
+    // Conceptos visibles y ACTIVOS (guard stale RASTeR) matcheados contra el mensaje.
+    const ranked = CONCEPTS.filter((c) => visibleFor(agent, c) && isEntryActive(c))
       .map((c) => ({
         c,
         score: scoreText(terms, `${c.id} ${c.title} ${c.description} ${c.tags.join(" ")}`),
@@ -164,17 +199,16 @@ export function planContextSync(message: string): ContextPlan {
 
     // Lee los bodies (pocos archivos, FS local) y construye el plan acotado.
     const root = resolveCompanyTwinRoot();
-    const concepts: { id: string; body: string; score: number }[] = [];
+    const concepts: { id: string; title: string; body: string; score: number }[] = [];
     let budget = MAX_PLAN_CHARS;
     for (const { c, score } of top) {
       if (budget <= 0) break;
       try {
-        const body = parseFrontmatter(readFileSync(join(root, `${c.id}.md`), "utf8"))
-          .body.trim()
-          .slice(0, MAX_CONCEPT_BODY_CHARS);
-        if (!body) continue;
-        const kept = body.slice(0, budget);
-        concepts.push({ id: c.id, body: kept, score });
+        const { fm, body } = parseFrontmatter(readFileSync(join(root, `${c.id}.md`), "utf8"));
+        const clean = cleanTwinBody(body.trim()).slice(0, MAX_CONCEPT_BODY_CHARS);
+        if (!clean) continue;
+        const kept = clean.slice(0, budget);
+        concepts.push({ id: c.id, title: cleanTwinText(typeof fm.title === "string" ? fm.title : c.id), body: kept, score });
         budget -= kept.length;
       } catch {
         // archivo ilegible: saltar este concepto
@@ -219,7 +253,7 @@ export function planMarkdown(plan: ContextPlan): string | null {
   }
 
   for (const c of plan.concepts) {
-    parts.push(`### ${c.id}`, "", c.body, "");
+    parts.push(`### ${c.title}`, "", c.body, "");
   }
 
   if (plan.concepts.length) {
@@ -235,16 +269,10 @@ export function planMarkdown(plan: ContextPlan): string | null {
 }
 
 // ── Mapa de ruteo estático (fase A del "lóbulo frontal") ─────────────────────
-// Precarga en `session.started` el mapa de qué conceptos existen en el kernel y
-// el twin del tenant (id + título + descripción, SIN cuerpos) para que el modelo
-// sepa QUÉ hay disponible y lea el concepto correcto en 1-2 llamadas dirigidas
-// en vez de buscar a ciegas con query_company_twin.
-//
-// Fase B (planificador por mensaje: planContextSync/planMarkdown) queda listo en
-// este módulo pero NO se inyecta por overlay: en Eve 0.29.2 las instrucciones
-// dinámicas de `turn.started` no tienen acceso al mensaje del usuario (ctx.
-// messages vacío; evento solo con turnId; el hook de message.received corre
-// DESPUÉS del dispatch de turn.started — carrera verificada en vivo).
+// Precarga en `session.started` el mapa de qué conceptos existen (título +
+// descripción, SIN cuerpos) para que el modelo sepa QUÉ hay disponible y lea el
+// concepto correcto en 1-2 llamadas dirigidas en vez de buscar a ciegas con
+// query_company_twin.
 const MAX_ROUTING_ENTRIES = 40;
 const MAX_ROUTING_CHARS = 9_000;
 
@@ -252,27 +280,26 @@ export function buildRoutingMarkdown(): string | null {
   try {
     const agent = loadActiveAgent();
     if (!agent) return null;
-    const visible = CONCEPTS.filter((c) => visibleFor(agent, c)).slice(0, MAX_ROUTING_ENTRIES);
+    const visible = CONCEPTS.filter((c) => visibleFor(agent, c) && isEntryActive(c)).slice(0, MAX_ROUTING_ENTRIES);
     if (visible.length === 0) return null;
 
     const parts = [
       "## Mapa del Company Twin (ruteo — lo que existe)",
       "",
-      "Conceptos disponibles para este agente (id — descripción). Cuando necesites schema," +
-        " lee el concepto correcto con `query_company_twin({ concept: \"<id>\" })`; no busques a ciegas:",
+      "Conceptos disponibles (título — descripción). Cuando necesites schema o política," +
+        " lee el concepto correcto con `query_company_twin` (usa su nombre o título); no busques a ciegas:",
       "",
     ];
     let budget = MAX_ROUTING_CHARS;
     for (const c of visible) {
-      const line = `- \`${c.id}\` — ${c.description || c.title}`;
+      const line = `- ${cleanTwinText(c.title)} — ${cleanTwinText(c.description ?? "")}`;
       if (line.length > budget) break;
       parts.push(line);
       budget -= line.length;
     }
     parts.push(
       "",
-      "Regla: `layer: company` restringe a `layer: erp-kernel`. Si un concepto del tenant" +
-        " prohíbe o exige algo, gana sobre el kernel.",
+      "Si un concepto de la empresa prohíbe o exige algo, gana sobre el conocimiento general del sistema.",
     );
     return parts.join("\n");
   } catch {

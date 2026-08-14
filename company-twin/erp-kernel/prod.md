@@ -21,11 +21,11 @@ mcp_tools: [read_records, aggregate_records]
 - **FK:** `ProdD.ID` → `Prod.ID`; `ProdD.Articulo` → [Art](/erp-kernel/art.md)
 
 > ⚠️ **Schema no verificado en vivo.** `describe_entities` no devuelve lista de campos
-> para estas dos entidades (`fields: []`), y en el tenant `marmoles` **no hay registros
+> para estas dos entidades (`fields: []`), y en la empresa `marmoles` **no hay registros
 > actuales** (`read_records` con `first=1` sin filtro devuelve `value: []` para ambas).
 > Esto es consistente con el giro de negocio (mármoles/cantera: compra y vende, no
 > produce) — lo más probable es que `Art.SeProduce = 0` para prácticamente todo el
-> catálogo de este tenant, y por lo tanto `OP` **siempre será `0`** en la práctica.
+> catálogo de esta empresa, y por lo tanto `OP` **siempre será `0`** en la práctica.
 > No inventar nombres de campo: si en algún momento aparecen registros, confirmar el
 > schema real con una consulta `read_records(Prod, first=1)` antes de construir un
 > patrón de consulta concreto (se espera un patrón análogo a

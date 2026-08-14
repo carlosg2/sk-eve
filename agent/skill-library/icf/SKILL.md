@@ -9,14 +9,14 @@ description: >
 # Skill: Operaciones Intelisis — Ventas, Compras, Inventario
 
 > **Este skill es SOLO procedural.** El schema de entidades vive en el Company Twin:
-> `query_company_twin({ query, layer: "erp-kernel" })`.
+> `query_company_twin({ query })`.
 
 Conexión MCP: **`intelisis-dab`**.
 Tools: `read_records`, `aggregate_records`, `create_record`, `update_record`, `delete_record`, `execute_entity`, **`buscar_registro`** (búsqueda texto parcial).
 
 ## Recordatorios críticos
 
-- **Empresa, almacenes y defaults** — obtenerlos de la política `company` del tenant activo; nunca asumir valores de otro cliente.
+- **Empresa, almacenes y defaults** — obtenerlos de la política `company` del empresa activa; nunca asumir valores de otro cliente.
 - **Parámetros sin `$`**: `filter`, `select`, `first`, `orderby` (NO `$filter`, `$select`, etc.).
 - **`in` NO soportado** — usar `or` chains: `Mov eq 'Pedido' or Mov eq 'Factura'`.
 - **Búsqueda texto parcial → `buscar_registro`** (tool MCP nativo, ver Patrón 0). Respuesta en `result.value.value[]`.
@@ -157,7 +157,7 @@ PASO 2: read_records(Art, filter="Familia eq 'Frijol' and Estatus eq 'ALTA'", se
 
 ## Patrón 2 — Ventas pendientes (VTAS.P)
 
-Resolver los movimientos `VTAS.P` con `MovTipo` o con la política del tenant. No reutilizar listas de otra empresa.
+Resolver los movimientos `VTAS.P` con `MovTipo` o con la política de la empresa. No reutilizar listas de otra empresa.
 
 > ⚠️ `VTAS.P` es una CLAVE de MovTipo. El campo `Mov` en Venta NUNCA contiene 'VTAS.P'.
 
@@ -192,7 +192,7 @@ PASO 3 (opcional): read_records(Art,
 
 ## Patrón 3 — Ventas en firme / facturadas (VTAS.F)
 
-Resolver los movimientos `VTAS.F` con `MovTipo` o con la política del tenant.
+Resolver los movimientos `VTAS.F` con `MovTipo` o con la política de la empresa.
 
 > ⚠️ `VTAS.F` es una CLAVE. NUNCA usar `Mov eq 'VTAS.F'`.
 
@@ -219,7 +219,7 @@ aggregate_records(Venta,
 
 ## Patrón 4 — Compras pendientes (COMS.O)
 
-Resolver los movimientos `COMS.O` con `MovTipo` o con la política del tenant.
+Resolver los movimientos `COMS.O` con `MovTipo` o con la política de la empresa.
 
 > ⚠️ `COMS.O` es una CLAVE. NUNCA usar `Mov eq 'COMS.O'`.
 
@@ -251,7 +251,7 @@ PASO 3 (opcional): read_records(Art, filter="...", select="Articulo,Descripcion1
 
 ## Patrón 5 — Compras en firme (COMS.F)
 
-Resolver los movimientos `COMS.F` con `MovTipo` o con la política del tenant.
+Resolver los movimientos `COMS.F` con `MovTipo` o con la política de la empresa.
 
 > ⚠️ `COMS.F` es una CLAVE. NUNCA usar `Mov eq 'COMS.F'`. Los Movs son los nombres listados arriba.
 
@@ -267,7 +267,7 @@ read_records(Compra,
 ## Reglas de eficiencia
 
 1. **`ArtDisponibleDesc` sobre `ArtDisponible`** — ya incluye Descripcion1 sin join adicional.
-2. **Usar la política del tenant si contiene MovTipo verificado**; si no, resolverlo con `read_records(MovTipo, ...)`.
+2. **Usar la política de la empresa si contiene MovTipo verificado**; si no, resolverlo con `read_records(MovTipo, ...)`.
 3. **`aggregate_records` para métricas** — nunca leer todos y calcular en memoria.
 4. **Paralelizar** pasos independientes (cabecero + lookup de Prov/Cte simultáneos).
 5. **Limitar con `select` y `first`** siempre.

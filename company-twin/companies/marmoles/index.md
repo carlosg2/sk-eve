@@ -2,7 +2,6 @@
 okf_version: "0.2"
 type: Tenant Index
 tenant: marmoles
-layer: company
 ---
 
 # Mármoles
@@ -14,9 +13,9 @@ Tenant de Intelisis multiempresa, enfocado en planeación/MRP y sugerido de comp
   obligatoria, 2 fases (análisis/escritura), proveedor y estatus de OC.
 * [Agente — Sugerido de Compra](agents/sugerido-compra/agent.md) — agente por defecto.
 
-Schema de entidades: ver `erp-kernel` — [Empresa](/erp-kernel/empresa.md),
-[EmpresaCfg2](/erp-kernel/empresacfg2.md), [Art](/erp-kernel/art.md),
-[ArtAlm](/erp-kernel/artalm.md), [ArtDisponible/Desc](/erp-kernel/artdisponible.md),
-[Alm](/erp-kernel/alm.md), [Prov](/erp-kernel/prov.md), [Compra](/erp-kernel/compra.md),
-[CompraD](/erp-kernel/comprad.md), [PlanArtOP](/erp-kernel/planartop.md),
-[PlaneacionMRP](/erp-kernel/planeacion-mrp.md).
+Schema de entidades: [Empresa](empresa.md),
+[EmpresaCfg2](empresacfg2.md), [Art](art.md),
+[ArtAlm](artalm.md), [ArtDisponible/Desc](artdisponible.md),
+[Alm](alm.md), [Prov](prov.md), [Compra](compra.md),
+[CompraD](comprad.md), [PlanArtOP](planartop.md),
+[PlaneacionMRP](planeacion-mrp.md).

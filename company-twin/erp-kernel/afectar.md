@@ -1,7 +1,7 @@
 ---
 type: Intelisis Stored Procedure
 title: Afectar — Transiciones de estatus
-description: SP universal que procesa transiciones de estatus de movimientos en todos los módulos.
+description: SP que procesa transiciones de estatus de movimientos en todos los módulos.
 resource: dbo.spAfectar
 layer: erp-kernel
 tenant: null
@@ -12,7 +12,7 @@ mcp_tools: [afectar, execute_entity]
 
 # Resumen
 
-Stored procedure **universal** que procesa transiciones de estatus de movimientos en
+Stored procedure que procesa transiciones de estatus de movimientos en
 TODOS los módulos del ERP (GAS, COMS, CXP, DIN, VTAS, INV, CONT, PROD). Es la única forma
 correcta de cambiar el estatus de un documento (no usar `update_record` sobre `Estatus`).
 
@@ -74,4 +74,4 @@ afectar(
 # Governance
 
 Escritura de alto impacto. Todo `AFECTAR`/`CANCELAR` debe pasar por approval gate según
-la política del tenant (ver overlays en `companies/<tenant>/policies/`).
+la política de la empresa (ver las políticas operativas en `policies/`).

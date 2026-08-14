@@ -3,10 +3,6 @@ type: Intelisis Entity
 title: Art — Artículos (catálogo maestro)
 description: Catálogo maestro de artículos/productos del ERP.
 resource: dbo.Art
-layer: erp-kernel
-tenant: null
-tags: [art, articulos, maestro, inventario]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-30T00:00:00Z }
 mcp_tools: [read_records, aggregate_records, create_record, update_record]
 ---
 
@@ -15,8 +11,9 @@ mcp_tools: [read_records, aggregate_records, create_record, update_record]
 Catálogo maestro de productos. Referenciado por Compra, Venta, Inv, y las vistas de disponibilidad.
 
 - **PK:** `Articulo` (varchar)
-- **Tabla:** `dbo.Art` (380 campos)
-- **Estatus:** `ALTA` (activo) | `BAJA`
+- **Tabla:** `dbo.Art`
+- **Estatus:** `ALTA` (activo) | `BAJA` (inactivo). Algunas instalaciones usan estatus adicionales
+  (documentados en la empresa correspondiente).
 
 # Schema (campos operativos)
 
@@ -31,10 +28,10 @@ Catálogo maestro de productos. Referenciado por Compra, Venta, Inv, y las vista
 | `Linea` | varchar | Línea de producto |
 | `Familia` | varchar | Familia de producto |
 | `Unidad` | varchar | Unidad de medida base |
-| `Estatus` | varchar | `ALTA` \| `BAJA` |
+| `Estatus` | varchar | `ALTA` \| `BAJA` (y los estatus adicionales de la empresa) |
 | `SeCompra` | lógico | Default `Verdadero` |
 | `SeProduce` | lógico | Si el artículo se produce (no solo se compra) |
-| `AlmacenROP` | varchar | **Almacén de Orden** (default para punto de reorden). Se usa en [PlaneacionMRP](planeacion-mrp.md)/[PlanArtOP](planartop.md) para distinguir compra (`Art.AlmacenROP = PlanArtOP.Almacen`) de distribución (`Art.AlmacenROP != PlanArtOP.Almacen`). **No existe como campo en `PlanArtOP`** — solo en `Art`. |
+| `AlmacenROP` | varchar | **Almacén de Orden** (default para punto de reorden). Se usa en [PlaneacionMRP](planeacion-mrp.md)/[PlanArtOP](planartop.md) para distinguir compra (`Art.AlmacenROP = PlanArtOP.Almacen`) de distribución (`Art.AlmacenROP != PlanArtOP.Almacen`). **No existe como campo en `PlanArtOP`** — solo en `Art` |
 
 > ⚠️ `contains`/`LIKE` no soportado en filtros OData. Para buscar por nombre parcial,
 > traer candidatos y filtrar client-side, o usar la clave exacta.

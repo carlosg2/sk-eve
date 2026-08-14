@@ -17,7 +17,7 @@ aplicación a documentos vive en [DineroD](/erp-kernel/dinerod.md).
 
 - **PK:** `ID` (int)
 - **Tabla:** `dbo.Dinero` (106 campos; aquí los operativos)
-- **Estatus (ciclo universal de movimientos):** `SINAFECTAR` (borrador) → `PENDIENTE` → `CONCLUIDO` · `CANCELADO`. Transición vía [Afectar](/erp-kernel/afectar.md).
+- **Estatus (ciclo de movimientos):** `SINAFECTAR` (borrador) → `PENDIENTE` → `CONCLUIDO` · `CANCELADO`. Transición vía [Afectar](/erp-kernel/afectar.md).
 
 # Schema
 
@@ -64,7 +64,7 @@ Los movimientos "afectados/aplicados" están en `CONCLUIDO`.
 - **`Mov`** (debe existir en MovTipo del módulo DIN; valores observados en JoyaRock):
   `Solicitud Cheque`, `Cheque Electronico`, `Solicitud Deposito`, `Abono Bancario`,
   `Cargo Bancario`. **No inventes valores de `Mov`** — usa uno de la lista o consulta
-  `aggregate_records(Dinero, count, *, groupby:[Mov])` para el catálogo real del tenant.
+  `aggregate_records(Dinero, count, *, groupby:[Mov])` para el catálogo real de la empresa.
 
 # Cómo crear (recipe)
 
@@ -72,7 +72,7 @@ Campos **requeridos**: `Mov` (de la lista de arriba), `Empresa` (clave de empres
 `JMAR`), `Moneda` (ej. `Pesos`), `FechaEmision` (fecha ISO). Opcionales útiles: `CtaDinero`,
 `Importe`, `Concepto`. Defaults: `Estatus` → `SINAFECTAR` (borrador). Gotcha: el campo
 `Empresa` es **requerido** y suele olvidarse — resuélvelo de la cuenta (`CtaDinero.Empresa`)
-o de la config del tenant. El ID lo asigna el ERP; `Saldo` es calculado (no se envía).
+o de la config de la empresa. El ID lo asigna el ERP; `Saldo` es calculado (no se envía).
 
 # Capacidades OData (DAB)
 

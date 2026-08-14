@@ -10,8 +10,8 @@ description: >
 # Skill: MRP — Programa de Arribos (cobertura y arribos proyectados)
 
 > **Este skill es SOLO procedural.** El schema vive en el Company Twin:
-> [mrp-forecast-arribos.md](/company-twin/companies/icf/mrp/mrp-forecast-arribos.md)
-> y [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md).
+> [mrp-forecast-arribos.md](`mrp-forecast-arribos`)
+> y [mrp-vaca.md](`mrp-vaca`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 `Usuario` fijo: **`"CGARZA"`** (mismo criterio que `gap-abasto`/`mrp`).
@@ -101,10 +101,10 @@ read_records(CalendarioFC, filter: "Usuario eq 'CGARZA'",
   las mismas tablas base pero con filtros de línea de negocio VACA/PDB — el
   detalle exacto de esos filtros no se verificó línea por línea; si el usuario
   pregunta específicamente por "arribos VACA", cruza con
-  [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md)
+  [mrp-vaca.md](`mrp-vaca`)
   y declara la limitación si el resultado no cuadra.
 - **Ambigüedad "arribos"**: si la pregunta no distingue entre arribo
   proyectado (este skill) y recepción de compra transaccional real
-  (`Compra`/`CompraD`, erp-kernel), preferir este skill solo si se menciona
+  (`Compra`/`CompraD`, del sistema), preferir este skill solo si se menciona
   "forecast", "proyectado", "12 semanas" o "cobertura" explícitamente (mismo
   criterio que el skill `mrp` general).

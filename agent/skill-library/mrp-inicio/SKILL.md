@@ -9,8 +9,8 @@ description: >
 
 # Skill: MRP — Programa Mensual (inicio / ocupación por centro)
 
-> **Este skill es SOLO procedural.** Schema: [mrp-soporte.md](/company-twin/companies/icf/mrp/mrp-soporte.md)
-> (`WebInicio`) y [mrp-plan-produccion.md](/company-twin/companies/icf/mrp/mrp-plan-produccion.md)
+> **Este skill es SOLO procedural.** Schema: [mrp-soporte.md](`mrp-soporte`)
+> (`WebInicio`) y [mrp-plan-produccion.md](`mrp-plan-produccion`)
 > (`ForecastPlanSemanal`/`ForecastPlanProduccion`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
@@ -92,5 +92,5 @@ hacerlo desde el portal MRP directamente.
 
 - `WebInicio` tiene ~5 filas duplicadas conocidas por calidad de datos
   histórica — deduplicar o advertirlo si se usa para un reporte (ver
-  [mrp-soporte.md](/company-twin/companies/icf/mrp/mrp-soporte.md)).
+  [mrp-soporte.md](`mrp-soporte`)).
 - Fuerte solape de datos con la ruta `dashboard` — ver skill `mrp-dashboard`.

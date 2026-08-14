@@ -14,7 +14,7 @@ mcp_tools: [read_records, aggregate_records]
 Tablas centrales del proceso de **explosión de materiales (MRP)** del módulo
 Forecast/Planeación (FC). El proceso corre **por `Usuario`** (no hay un MRP único
 global — cada usuario ERP que corre el proceso tiene su propia corrida/snapshot).
-Para el tenant ICF, el valor estático usado es `Usuario: "CGARZA"` (ver
+Para la empresa ICF, el valor estático usado es `Usuario: "CGARZA"` (ver
 [operaciones-policy.md](../policies/operaciones-policy.md)).
 
 Flujo: `ExplocionMatCF` (resultado crudo de la explosión) → se resume en
@@ -47,8 +47,8 @@ como llave lógica. Al 2026-07-31 la tabla no tenía datos en ICF.
 
 ## `UtLogEjcProMrp`
 ⚠️ **NO existe en el MCP de ICF** (EntityNotFound verificado 2026-08-06). Era
-la bitácora de ejecución del MRP (`LOG_ID`, `LOG_FYH`, `ORG`, `PRM`) del
-proyecto sigma-icf, pero no está publicada. **No intentar leerla** — causa un
+la bitácora de ejecución del MRP (`LOG_ID`, `LOG_FYH`, `ORG`, `PRM`), pero no
+está publicada. **No intentar leerla** — causa un
 `EntityNotFound` en runtime. Para saber si el MRP se corrió, usar como proxy:
 `aggregate_records(ExplocionMatCF, function: "count", field: "*")` o
 `CalendarioFC` (si traen filas, la corrida existe).

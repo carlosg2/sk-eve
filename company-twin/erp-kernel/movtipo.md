@@ -44,7 +44,7 @@ semántica. Esencial para filtrar ventas/compras por su categoría (pendiente/fi
 | `COMS.F` | En firme (recibido) |
 
 > ⚠️ **NUNCA usar la Clave como valor de `Mov`**. Los nombres concretos de
-> movimiento varían por tenant y se resuelven con `MovTipo` o su overlay company.
+> movimiento varían por empresa y se resuelven con `MovTipo` o su overlay company.
 
 # Patrones de consulta
 

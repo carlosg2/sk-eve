@@ -27,8 +27,7 @@ Los stored procedures fuente identificados por nombre en el código de la UI
 `spCambiarSituacionArtPrototipo`, `spRechazarSituacionArtPrototipo`) **NO
 están presentes en `sp-mrp.sql`** (el único archivo `.sql` fuente disponible
 del proyecto sigma-icf) — no se pudo verificar su lógica de negocio real, y no
-hay ninguna entidad `ArtPrototipo*` documentada actualmente en el Company Twin
-(`company-twin/companies/icf/mrp/*`).
+hay ninguna entidad `ArtPrototipo*` documentada actualmente en el Company Twin.
 
 ## Qué hacer si el usuario pregunta por esto
 
@@ -50,7 +49,7 @@ hay ninguna entidad `ArtPrototipo*` documentada actualmente en el Company Twin
    usuario explícitamente que esta información (prototipos de artículo,
    costeo, autorización) no está disponible todavía a través de este agente**
    — no inventes una respuesta ni la confundas con `Art`/`ArtMaterial`
-   (catálogo de artículos de producción normal, erp-kernel), que es un
+   (catálogo de artículos de producción normal, del sistema), que es un
    concepto distinto (artículo YA en producción, no prototipo en desarrollo).
 3. No intentes ejecutar `spCambiarSituacionArtPrototipo`/
    `spRechazarSituacionArtPrototipo` vía `execute_entity` sin confirmar antes

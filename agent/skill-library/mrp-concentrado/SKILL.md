@@ -9,7 +9,7 @@ description: >
 
 # Skill: MRP — Concentrado de Familias (consolidado por familia)
 
-> **Este skill es SOLO procedural.** Schema: [mrp-plan-produccion.md](/company-twin/companies/icf/mrp/mrp-plan-produccion.md).
+> **Este skill es SOLO procedural.** Schema: [mrp-plan-produccion.md](`mrp-plan-produccion`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 `Usuario` fijo: **`"CGARZA"`**.

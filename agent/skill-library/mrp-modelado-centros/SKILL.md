@@ -9,8 +9,8 @@ description: >
 
 # Skill: MRP — Modelado de Centros (capacidad y balanceo)
 
-> **Este skill es SOLO procedural.** Schema: [mrp-centros-estaciones.md](/company-twin/companies/icf/mrp/mrp-centros-estaciones.md)
-> y [mrp-explosion.md](/company-twin/companies/icf/mrp/mrp-explosion.md) (`BalanceFC`).
+> **Este skill es SOLO procedural.** Schema: [mrp-centros-estaciones.md](`mrp-centros-estaciones`)
+> y [mrp-explosion.md](`mrp-explosion`) (`BalanceFC`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 `Usuario` fijo: **`"CGARZA"`**.

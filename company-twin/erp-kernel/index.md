@@ -4,7 +4,7 @@ okf_version: "0.2"
 # ERP Kernel — Intelisis (universal)
 
 Conocimiento estructural de Intelisis, compartido por todos los clientes.
-`tenant: null`. Cambia lento (con releases del ERP). El kernel jamás contiene
+Conocimiento genérico (no atado a una empresa específica). Cambia lento (con releases del ERP). El kernel jamás contiene
 datos de un cliente ni políticas locales.
 
 # Ciclo de vida de movimientos (universal)

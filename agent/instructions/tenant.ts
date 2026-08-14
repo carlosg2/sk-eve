@@ -7,14 +7,13 @@ export default defineDynamic({
       const cfg = loadRuntimeConfig();
       return defineInstructions({
         markdown: [
-          "## Tenant activo",
+          "## Empresa activa",
           "",
           `Empresa: **${cfg.companyName}**`,
-          `Tenant: \`${cfg.tenant}\``,
-          `Código Empresa en Intelisis: \`${cfg.erpCompany}\``,
+          `Código de Empresa en el ERP: \`${cfg.erpCompany}\``,
           "",
-          "Obtén políticas, almacenes, movimientos y defaults específicos con `query_company_twin`.",
-          "No reutilices valores observados en otros tenants.",
+          "Trabajas con esta empresa. Obtén sus políticas, almacenes, movimientos y defaults con `query_company_twin`.",
+          "Todo dato que observes corresponde a esta empresa.",
         ].join("\n"),
       });
     },

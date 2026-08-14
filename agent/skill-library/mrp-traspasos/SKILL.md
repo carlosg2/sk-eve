@@ -50,7 +50,7 @@ disponible del proyecto) — no se pudo confirmar la lógica de negocio real
    `Inv`/`MovTipo`/`CalendarioFC` ni explores el catálogo (E2E 2026-08-06:
    intentarlo costó 187k tok / 14 calls / 1 error). Solo si el usuario pide
    explícitamente **movimientos de inventario transaccional real** (no
-   traspasos programados), ofrécele `Inv` (erp-kernel) como alternativa.
+   traspasos programados), ofrécele `Inv` (del sistema) como alternativa.
 3. Si el usuario reporta que sí existe una entidad de traspaso, repórtalo
    para que se documente — no la documentes tú mismo con datos inventados.
 

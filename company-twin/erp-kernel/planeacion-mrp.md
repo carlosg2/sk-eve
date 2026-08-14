@@ -22,7 +22,7 @@ para validar o reconciliar un sugerido calculado manualmente, nunca lo reemplace
 aproximación propia si el store está disponible.
 
 - **Tool MCP:** `planeacion_mrp` (custom-tool, solo lectura/ejecución — no es `execute_entity`).
-  Verificar el nombre exacto con `tools/list` la primera vez que se use contra un tenant nuevo;
+  Verificar el nombre exacto con `tools/list` la primera vez que se use contra una empresa nuevo;
   el DAB normaliza el nombre de la entidad `PlaneacionMRP` a snake_case. Modelado como cómputo
   sancionado en [sp-planart](sp-planart.md) (`type: Attested Computation`).
 

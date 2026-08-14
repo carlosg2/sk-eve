@@ -43,7 +43,7 @@ reconciliar un sugerido; nunca lo reemplaza por una aproximación propia si el s
 disponible.
 
 - **Tool MCP:** `planeacion_mrp` (custom-tool; verificar el nombre con `tools/list` la primera
-  vez contra un tenant nuevo — el DAB normaliza `PlaneacionMRP` a snake_case).
+  vez contra una empresa nuevo — el DAB normaliza `PlaneacionMRP` a snake_case).
 - **Resultado vigente:** se lee de [PlanArtOP](/erp-kernel/planartop.md) filtrando
   `Estado eq 'LIBERADO' and Accion eq 'COMPRAR' and LiberacionID eq null`.
 

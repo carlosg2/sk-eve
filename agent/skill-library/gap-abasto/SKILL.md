@@ -10,7 +10,7 @@ description: >
 # Skill: Gap de abasto — faltante de insumos y materia prima
 
 > **Este skill es SOLO procedural.** El schema de entidades vive en el Company Twin:
-> `query_company_twin({ query, layer: "erp-kernel" })`.
+> `query_company_twin({ query })`.
 
 Conexión MCP: **`intelisis-dab`**. Tools **dedicados** (no `execute_entity`, read-only,
 ya hacen la explosión de materiales/MRP internamente): **`faltante_insumos`**,
@@ -37,7 +37,7 @@ una sola respuesta (son complementarios, no se traslapan).
 
 - **`Ejercicio`/`Periodo`**: año y mes fiscal, enteros (ej. `2026`, `7`). Usa el periodo
   actual salvo que el usuario pida otro mes explícito.
-- **`Usuario`**: valor **estático fijo `"CGARZA"`** para este tenant (ICF) — es el usuario
+- **`Usuario`**: valor **estático fijo `"CGARZA"`** para esta empresa — es el usuario
   ERP que corre la **explosión de materiales (MRP)** (`ExplocionMatCF.Usuario`), NO el
   usuario que está chateando. Úsalo siempre por default, no lo preguntes al usuario ni lo
   inventes con otro valor.
@@ -67,8 +67,8 @@ SolicitudTraspasoAVCEstatus, InventarioAlmacenadoPBC, SolicitudTraspasoPBC,
 SolicitudTraspasoPBCEstatus, ExistenciasAVC, SolicitudPrestamoCompraAVC,
 SolicitudPrestamoCompraAVCEstatus, ExistenciasPBC, SolicitudPrestamoCompraPBC,
 SolicitudPrestamoCompraPBCEstatus, ArribosAVC, RedireccionArriboAVC,
-RedireccionArriboAVCEstatus, Faltante, InvMin, InvMax`. (AVC/PBC = almacenes/plantas del
-tenant; trata cada par Inventario/Solicitud/Existencia/Arribo por almacén.)
+RedireccionArriboAVCEstatus, Faltante, InvMin, InvMax`. (AVC/PBC = almacenes/plantas de
+la empresa; trata cada par Inventario/Solicitud/Existencia/Arribo por almacén.)
 Diagnóstico por prioridad (revisa en este orden, usa el primero que aplique):
 1. `ArribosAVC > 0` (o el campo de arribo equivalente) → "arribo en camino a AVC: <cantidad>".
 2. `SolicitudTraspasoAVC/PBC > 0` con `...Estatus` no vacío → "traspaso solicitado
@@ -112,7 +112,7 @@ per se), usa el patrón manual con `Venta`, `VentaD`, `ArtDisponibleDesc`, `Comp
 Entidades: `Venta`, `VentaD`, `ArtDisponibleDesc`, `Compra`, `CompraD`, `Art`.
 
 **Paso 1 — Demanda del periodo (pedidos a surtir).**
-Resolver la clave de MovTipo pendiente de ventas con la política del tenant
+Resolver la clave de MovTipo pendiente de ventas con la política de la empresa
 (`<MOVS_VTAS_P>`), luego traer el detalle por artículo con `CantidadPendiente`
 (NO `Cantidad`: esa es la cantidad original, no lo que falta por surtir).
 

@@ -4,7 +4,7 @@ description: >
   Use when the user asks for sugerido de compra, planeacion de compras, MRP,
   requerimiento neto, punto de reorden, spPlanArt, orden de compra sugerida,
   proveedor por historial de compras, o pide filtrar por categoria, familia,
-  grupo, linea, articulo o descripcion de articulo en el ERP del tenant
+  grupo, linea, articulo o descripcion de articulo en el ERP de la empresa
   Marmoles (entidades Empresa, EmpresaCfg2, Art, ArtAlm, ArtDisponible,
   Alm, Prov, PlanArtOP, Compra, CompraD, Venta, VentaD, Prod, ProdD, Inv, MovTipo).
 ---
@@ -12,11 +12,11 @@ description: >
 # Skill: Sugerido de compra (MRP — Mármoles)
 
 > **Este skill es SOLO procedural.** El schema de entidades vive en el Company Twin:
-> `query_company_twin({ query, layer: "erp-kernel" })` → conceptos `empresa`, `empresacfg2`,
+> `query_company_twin({ query })` → conceptos `empresa`, `empresacfg2`,
 > `art`, `artalm`, `artdisponible`, `alm`, `prov`, `planartop`, `planeacion-mrp`, `compra`,
 > `comprad`, `venta`, `ventad`, `prod`, `inv`, `movtipo`.
 
-Conexión MCP: **`intelisis-dab`** (tenant `marmoles`, remota). Tools genéricos
+Conexión MCP: **`intelisis-dab`** (empresa `marmoles`, remota). Tools genéricos
 (`read_records`, `aggregate_records`, `create_record`, `update_record`, `execute_entity`) +
 tool dedicado **`planeacion_mrp`** (SP `spPlanArt`, solo consulta/reconciliación).
 
@@ -46,7 +46,7 @@ usarse como fallback automático ante un error de sintaxis.
 |---|---|---|
 | `Empresa` | Sí (confirmada por el usuario) | — no hay default, ver arriba |
 | Al menos 1 filtro de artículo* | Sí, salvo modo general | — |
-| `TipoPeriodo` (`DIA`\|`SEMANA`\|`MES`) | No | `EmpresaCfg2.PlanTipoPeriodo` (ver [empresacfg2](/company-twin/erp-kernel/empresacfg2.md)), si vacío `SEMANA` |
+| `TipoPeriodo` (`DIA`\|`SEMANA`\|`MES`) | No | `EmpresaCfg2.PlanTipoPeriodo` (ver [empresacfg2](`empresacfg2`)), si vacío `SEMANA` |
 | `Horizonte` (periodos) | No | `EmpresaCfg2.ProdPeriodosCorrida`, si vacío `10` |
 | `Almacen` | No | consolidado: SIEMPRE todos los almacenes de la empresa sumados en una sola cifra por artículo — nunca se desglosa por almacén salvo que el usuario lo pida explícitamente |
 | `SubCuenta` | No | — |
@@ -103,7 +103,7 @@ almacén).
 `Art` con `Estatus NOT IN ('BAJA','DESCONTINUADO')`, excluyendo tipo `JUEGO` y artículos de
 activo fijo, más los filtros de la sección anterior.
 
-### 2) Config de planeación por artículo/almacén — [`ArtAlm`](/company-twin/erp-kernel/artalm.md)
+### 2) Config de planeación por artículo/almacén — [`ArtAlm`](`artalm`)
 
 Consolidado: consulta `ArtAlm` **sin filtrar por `Almacen`** — `read_records(ArtAlm,
 filter="Articulo eq '<ART>' and Empresa eq '<EMP>'", select="Articulo,SubCuenta,Almacen,
@@ -127,7 +127,7 @@ demanda, si aplica config).
 
 **`PV` (obligatorio, MANDATORIO calcularlo — no es opcional ni "si existe"):** publicado
 y verificado en vivo en el MCP de marmoles (2026-08-03). Fuente:
-[`VentaD`](/company-twin/erp-kernel/ventad.md), usando siempre **`CantidadPendiente`**
+[`VentaD`](`ventad`), usando siempre **`CantidadPendiente`**
 (nunca `Cantidad` — esa es lo solicitado originalmente, no lo pendiente por surtir).
 
 **Consolidado por defecto — NO filtres por `Almacen`.** `VentaD` no tiene `Empresa`, así
@@ -153,7 +153,7 @@ read_records(VentaD, filter="Articulo eq '<ART>' and Almacen eq '<ALM>' and Cant
 
 **`PVE`, `SOL`, `OT`, `OI`:** sin señal confiable todavía — `PVE` requeriría un campo
 `Extra`/equivalente en `Venta` no confirmado; `SOL`/`OT`/`OI` requerirían
-[`InvD`](/company-twin/erp-kernel/inv.md) (detalle de traspasos por artículo), que **no**
+[`InvD`](`inv`) (detalle de traspasos por artículo), que **no**
 está publicado aún (solo `Inv`, encabezado sin `Articulo`/`Cantidad`). Tratar estas señales
 como `0` y, si el usuario pregunta explícitamente por traspasos/solicitudes, declarar la
 limitación en vez de inventar un cálculo.
@@ -185,15 +185,15 @@ OC = suma de Cantidad de TODOS los renglones devueltos (todos los almacenes junt
 
 Ver también "Dataset base recomendado".
 
-**`OP`:** fuente [`Prod`/`ProdD`](/company-twin/erp-kernel/prod.md) (publicadas
+**`OP`:** fuente [`Prod`/`ProdD`](`prod`) (publicadas
 2026-08-03). Antes de consultar, verificar `Art.SeProduce`: si es `0`/falso, usar
-`OP = 0` directo sin llamar a `Prod`/`ProdD`. En el tenant `marmoles` no hay registros
+`OP = 0` directo sin llamar a `Prod`/`ProdD`. En el empresa `marmoles` no hay registros
 actuales en ninguna de las dos tablas (giro de negocio: compra/vende, no produce) —
 `OP = 0` es el resultado esperado casi siempre.
 
 **`ROT`/`ROI`/`RTI`:** requieren `InvD` (detalle por artículo de traspasos), que **no**
 está publicado — solo existe `Inv` (encabezado, sin `Articulo`/`Cantidad`, ver
-[`Inv`](/company-twin/erp-kernel/inv.md)). Tratar como `0` y declarar la limitación si el
+[`Inv`](`inv`)). Tratar como `0` y declarar la limitación si el
 usuario pregunta explícitamente por traspasos en tránsito.
 
 ### 5) Existencia proyectada (EP) y requerimiento neto (RN)
@@ -215,11 +215,11 @@ empresa para ese artículo (consolidado, salvo que el usuario pida un almacén e
 aggregate_records(ArtDisponible, sum, Disponible, filter="Articulo eq '<ART>' and Empresa eq '<EMP>'")
 ```
 
-Ver [`ArtDisponible`/`ArtDisponibleDesc`](/company-twin/erp-kernel/artdisponible.md).
+Ver [`ArtDisponible`/`ArtDisponibleDesc`](`artdisponible`).
 `IS` = suma de `ArtAlm.Minimo` de todos los renglones del artículo en la empresa (o
 default `0` si no hay ninguno — ver sección 2).
 
-### 6) Política de lote → ROP (ver [`ArtAlm`](/company-twin/erp-kernel/artalm.md))
+### 6) Política de lote → ROP (ver [`ArtAlm`](`artalm`))
 
 ```
 ROP_base = RN
@@ -230,7 +230,7 @@ ROP = CEILING(ROP / MultiplosOrdenar) * MultiplosOrdenar
 
 ### 7) Comprar vs. producir vs. distribuir
 
-⚠️ `AlmacenROP` **NO existe en `PlanArtOP`** — es un campo de [`Art`](/company-twin/erp-kernel/art.md)
+⚠️ `AlmacenROP` **NO existe en `PlanArtOP`** — es un campo de [`Art`](`art`)
 (`Art.AlmacenROP`). Nunca lo selecciones sobre `PlanArtOP` (da `BadRequest`).
 
 La comparación `Art.AlmacenROP` vs. `PlanArtOP.Almacen` **solo aplica al reconciliar contra
@@ -249,17 +249,17 @@ requerimiento neto consolidado de la empresa requiere **comprar**, salvo que
 ## Dataset base recomendado (solo lectura)
 
 - Universo de artículos: `Art` (filtros de sección "Universo de artículos").
-- Config de planeación: [`ArtAlm`](/company-twin/erp-kernel/artalm.md).
-- Existencia: [`ArtDisponible`/`ArtDisponibleDesc`](/company-twin/erp-kernel/artdisponible.md).
+- Config de planeación: [`ArtAlm`](`artalm`).
+- Existencia: [`ArtDisponible`/`ArtDisponibleDesc`](`artdisponible`).
 - Demanda/suministro transaccional (todas publicadas y verificadas en vivo, 2026-08-03),
   **siempre consolidadas en todos los almacenes de la empresa (nunca filtradas por
   `Almacen` salvo pedido explícito)**:
-  [`Venta`/`VentaD`](/company-twin/erp-kernel/venta.md) (demanda `PV`, **obligatorio**,
+  [`Venta`/`VentaD`](`venta`) (demanda `PV`, **obligatorio**,
   usar `CantidadPendiente`), `Compra`/`CompraD` (suministro `OC`, join obligatorio a
-  `Compra` por `Empresa`), [`Prod`/`ProdD`](/company-twin/erp-kernel/prod.md) (suministro
-  `OP` — normalmente `0` en este tenant, ver kernel doc), [`Inv`](/company-twin/erp-kernel/inv.md)
+  `Compra` por `Empresa`), [`Prod`/`ProdD`](`prod`) (suministro
+  `OP` — normalmente `0` en esta empresa), [`Inv`](`inv`)
   (encabezado de traspasos, **sin** detalle por artículo hasta que se publique `InvD`).
-- Órdenes ya planeadas/firmes: [`PlanArtOP`](/company-twin/erp-kernel/planartop.md)
+- Órdenes ya planeadas/firmes: [`PlanArtOP`](`planartop`)
   (`Estado eq 'LIBERADO' and Accion eq 'COMPRAR' and LiberacionID eq null and Cantidad gt 0`).
 
 ## Proveedor sugerido (para OC)
@@ -367,7 +367,7 @@ Reglas de esta tabla compacta:
 - Agrupar por Proveedor + Almacén (una `Compra` por grupo), salvo que la política pida un
   documento por renglón.
 - Marcar el origen en `PlanArtOP` si aplica (ver
-  [`PlanArtOP`](/company-twin/erp-kernel/planartop.md) — sección "Marcar un renglón
+  [`PlanArtOP`](`planartop`) — sección "Marcar un renglón
   como liberado").
 - Validaciones mínimas antes de insertar: `Proveedor` no nulo, `Almacen` no nulo,
   `Cantidad > 0`, `Unidad` válida.
@@ -384,9 +384,9 @@ Reglas de esta tabla compacta:
 
 Si el usuario pide validar/reconciliar, o el cálculo manual se ve dudoso (ej. demasiados
 artículos con RN negativo grande, o discrepancia evidente), ejecuta
-[`planeacion_mrp`](/company-twin/erp-kernel/planeacion-mrp.md) (`spPlanArt`) con
+[`planeacion_mrp`](`planeacion-mrp`) (`spPlanArt`) con
 `Empresa` + el mismo filtro, y lee el resultado vigente de
-[`PlanArtOP`](/company-twin/erp-kernel/planartop.md). El resultado del store
+[`PlanArtOP`](`planartop`). El resultado del store
 **siempre prevalece** sobre el cálculo manual de este skill.
 
 ## Limitaciones declaradas

@@ -18,7 +18,7 @@ El detalle de partidas vive en [CxpD](/erp-kernel/cxpd.md).
 
 - **PK:** `ID` (int)
 - **Tabla:** `dbo.CXP`
-- **Estatus (ciclo de vida universal de movimientos Intelisis):**
+- **Estatus (ciclo de vida de movimientos Intelisis):**
   `SINAFECTAR` (borrador, capturado sin afectar) → `PENDIENTE` (afectado, pendiente de pago) → `CONCLUIDO` (pagado) · `CANCELADO` (anulado). La transición la ejecuta el SP `Afectar` (AFECTAR concluye; CANCELAR anula).
 - **Situacion:** sub-estado dentro de `PENDIENTE` (ej. Normal → Autorizado), se cambia con `CambiarSituacion`.
 - **Saldo pendiente:** `Saldo` = `Importe` − abonos aplicados (solo lectura)
@@ -83,7 +83,7 @@ aggregate_records(entity=CXP, function=sum, field=Saldo, filter="Estatus eq 'PEN
   `Gasto Pasivo`, `Entrada Compra`, `Gasto Arrendado`, `Solicitud Cheque`, `Pago`,
   `Retencion`, `Gasto`, `Anticipo SI`, `Aplicacion`, `Prestamo`, `Gasto Pasivo SI`,
   `Solicitud Deposito`. **No inventes valores de `Mov`** — usa uno de la lista o consulta
-  `aggregate_records(CXP, count, *, groupby:[Mov])` para el catálogo real del tenant.
+  `aggregate_records(CXP, count, *, groupby:[Mov])` para el catálogo real de la empresa.
 
 # Cómo crear (recipe)
 

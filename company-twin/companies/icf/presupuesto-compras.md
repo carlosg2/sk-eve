@@ -20,7 +20,7 @@ sources:
 
 # ICF — Presupuesto de compras y control del periodo
 
-Hechos declarativos del tenant ICF (verificados en vivo contra el MCP, 2026-08-06) para
+Hechos declarativos de la empresa ICF (verificados en vivo contra el MCP, 2026-08-06) para
 el control de gasto de compras que pide finanzas (requerimientos R-FIN-06/07 de la
 reunión de descubrimiento 2026-08-05: "resumen de presupuesto contra compras del
 periodo, solo desviaciones" y "autorización del presupuesto de compras").

@@ -8,8 +8,8 @@ description: >
 
 # Skill: MRP — Dashboard general
 
-> **Este skill es SOLO procedural.** Schema: [mrp-soporte.md](/company-twin/companies/icf/mrp/mrp-soporte.md)
-> y [mrp-plan-produccion.md](/company-twin/companies/icf/mrp/mrp-plan-produccion.md).
+> **Este skill es SOLO procedural.** Schema: [mrp-soporte.md](`mrp-soporte`)
+> y [mrp-plan-produccion.md](`mrp-plan-produccion`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 `Usuario` fijo: **`"CGARZA"`**.
@@ -40,9 +40,9 @@ read_records(WebInicio, filter: "Usuario eq 'CGARZA'",
 
 **Si el usuario pregunta por venta/cobranza/pagos** (KPIs de `Pay.svelte`),
 esto probablemente corresponde a entidades transaccionales genéricas del ERP
-(`Venta`/`VentaD`, o `Dinero`/`CXP` si el tenant tiene esos módulos activos) —
+(`Venta`/`VentaD`, o `Dinero`/`CXP` si la empresa tiene esos módulos activos) —
 no hay una entidad FC dedicada documentada para esto. Verifica con
-`query_company_twin` si el tenant tiene esos módulos antes de asumir.
+`query_company_twin` si la empresa tiene esos módulos antes de asumir.
 
 ## Limitaciones
 

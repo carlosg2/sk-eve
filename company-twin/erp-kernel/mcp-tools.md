@@ -21,8 +21,8 @@ sources:
 # Resumen
 
 Contrato **verificado empíricamente** (2026-07-01) contra nuestro DAB fork vía `tools/list`
-y llamadas read-only. Es la capa de **capacidad de ejecución**: qué parámetros acepta cada
-tool y qué forma tiene la respuesta. Las capacidades del filtro OData viven en
+y llamadas read-only. Documenta qué parámetros acepta cada tool y qué forma tiene la
+respuesta. Las capacidades del filtro OData viven en
 [Capacidades OData](/erp-kernel/index.md#capacidades-odata-dab). No dupliques schema de
 entidades aquí (eso vive en el concepto de cada entidad).
 

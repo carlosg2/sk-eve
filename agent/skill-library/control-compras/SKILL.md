@@ -11,8 +11,8 @@ description: >
 # Skill: Control de compras del periodo — gasto, estatus y desviaciones de presupuesto
 
 > **Este skill es SOLO procedural.** El schema de entidades vive en el Company Twin:
-> `query_company_twin({ query, layer: "erp-kernel" })` para `Compra`/`CompraD`/`Prov` y
-> `query_company_twin({ query, layer: "company" })` para el presupuesto ICF
+> `query_company_twin({ query })` para `Compra`/`CompraD`/`Prov` y
+> `query_company_twin({ query })` para el presupuesto ICF
 > (`presupuesto-compras`, `mrp/mrp-explosion`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
