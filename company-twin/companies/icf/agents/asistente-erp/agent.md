@@ -1,7 +1,7 @@
 ---
 type: Agent
 name: Asistente ERP
-model: deepseek/deepseek-v4-flash-0731
+model: ollama/muse-glimmer:30b-mlx
 reasoning: null
 description: Asistente operativo de Intelisis para ICF (ventas, compras, inventario, CXP/tesorería).
 tenant: icf
