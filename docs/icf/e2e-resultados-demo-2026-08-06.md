@@ -36,7 +36,7 @@
 | 30 | ¿Cuál es el cumplimiento plan vs. real de producción de la semana 31? | ok · 4.2 min | 16 | 22 | 430244 | 0 |
 | 31 | ¿Qué faltante de concentrado tenemos por familia de materia prima? | ok · 26 s | 4 | 4 | 67331 | 0 |
 | 32 | ¿Cuál es el desglose del forecast S1-S12 del artículo A2502? | ok · 14 s | 3 | 2 | 47211 | 0 |
-| 33 | ¿Cuál es el presupuesto ganadero VACA de la semana? | ok · 25 s | 6 | 7 | 108750 | 0 |
+| 33 | ¿Cuál es el presupuesto VACA de la semana? | ok · 25 s | 6 | 7 | 108750 | 0 |
 | 34 | ¿Cuál es la capacidad del centro de trabajo CRIBACF? | ok · 23 s | 3 | 4 | 53529 | 0 |
 | 35 | ¿Qué módulos tienes disponibles en ICF? | ok · 4 s | 1 | 0 | 15813 | 0 |
 | 36 | ¿Cuál es el schema de la entidad Compra? | ok · 9 s | 3 | 2 | 43603 | 0 |
@@ -1190,14 +1190,14 @@ Si deseas, puedo consultar el plan de producción (`P1..P12`) para este mismo ar
 
 ---
 
-## 33. ¿Cuál es el presupuesto ganadero VACA de la semana? — 25 s
+## 33. ¿Cuál es el presupuesto VACA de la semana? — 25 s
 
 - **Estado real:** ok · **Duración:** 25 s · **steps:** 6 · **tool calls:** 7 · **tokIn:** 108,750 · **tokOut:** 1,842 · **errores:** 0 · **warnings:** 0
 - **Sesión (ver en /audit):** `wrun_01KZD6XWMGQPT6DVMR1SQV2YR3`
 
 ### Respuesta del agente
 
-**Presupuesto ganadero VACA — Semana 32 (03–09 ago 2026)**
+**Presupuesto VACA — Semana 32 (03–09 ago 2026)**
 | Concepto | Total |
 |---|---|
 | Venta presupuestada (S32) | 3,978,128 pz |

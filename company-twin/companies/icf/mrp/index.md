@@ -24,7 +24,7 @@ con `read_records(<Entidad>, first: 1)` sin `select` para ver todos los campos.
 * [Forecast y arribos a 12 semanas](mrp-forecast-arribos.md) — `Arribos12`, `Arribos12S`, `ArribosSub12S`, `FCArribos`, `ForecastArtFam12`, `ForecastBBC12`, `ForecastHist`, `ForecastAyuda`, `CalendarioFC`, `DimTiempoSemana`, `DimTiempoSemanaIso`, `ArtFamFC`.
 * [Plan y programa de producción](mrp-plan-produccion.md) — `ForecastPlanProduccion`, `ForecastPlanSemanal`, `ForecastPlanSemanalD`, `ProgramaProdProcesadosA`, `ProgramaProdSemillasA`, `ProgramaProdSituacionLog`, `Prod`, `ProdD`, `ResumenPlaneacionCF`, `ResumenPlaneacionCFHist`.
 * [Centros y estaciones de trabajo](mrp-centros-estaciones.md) — `Centro`, `CentroFC`, `CentroFCHist`, `CentroFCTemp`, `EstacionTFC`, `EstacionTFCHist`, `EstacionTFCTemp`, `ArtCentroTemp`.
-* [Presupuesto ganadero / VACA](mrp-vaca-ganadera.md) — `ArtDisponibleVaca`, `VacaPresupuestoVtaCon`, `VacaPresupuestoVtaConD`, `VentaTCalc`.
+* [Presupuesto VACA](mrp-vaca.md) — `ArtDisponibleVaca`, `VacaPresupuestoVtaCon`, `VacaPresupuestoVtaConD`, `VentaTCalc`.
 * [Soporte y portal](mrp-soporte.md) — `Empresa`, `SerieLote`, `MensajeLista`, `PortalForecastLog`, `PushDispositivos`, `WebInicio`, `WebInicioHist`.
 
 Ver el patrón de uso procedural en [agent/skill-library/mrp/SKILL.md](/agent/skill-library/mrp/SKILL.md).

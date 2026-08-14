@@ -1,20 +1,26 @@
 ---
 type: Intelisis Module Reference
-title: MRP — Presupuesto ganadero / VACA
-description: Módulo de planeación ganadera (VACA) — disponibilidad, presupuesto de venta consolidado y vista calculada de renglones de venta.
+title: MRP — Presupuesto VACA
+description: Módulo de planeación VACA — disponibilidad, presupuesto de venta consolidado y vista calculada de renglones de venta.
 layer: company
 tenant: icf
-tags: [mrp, forecast, fc, vaca, ganaderia, presupuesto]
+tags: [mrp, forecast, fc, vaca, presupuesto]
 generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-31T00:00:00Z }
 mcp_tools: [read_records, aggregate_records]
 ---
 
 # Resumen
 
-Sub-módulo de planeación **ganadera/forecast (VACA)** — un forecast de venta
+Sub-módulo de planeación **/forecast (VACA)** — un forecast de venta
 consolidado independiente del forecast general del módulo FC (ver
-[forecast y arribos](mrp-forecast-arribos.md)), orientado a línea de negocio
-ganadera.
+[forecast y arribos](mrp-forecast-arribos.md)), orientado a la línea de
+negocio VACA.
+
+> **`VACA` es el nombre de la línea de negocio (un apellido), NO "ganadería".**
+> El prefijo `Vaca*` en entidades/tablas (`VacaPresupuestoVtaCon`,
+> `ArtDisponibleVaca`) es la línea de negocio; el giro real de la empresa es
+> alimentos (Campo Fresco / MRPCF5000), no ganadería. NO usar el término
+> "ganadero/ganadera/ganado" al describir este módulo.
 
 # Entidades
 
@@ -25,7 +31,7 @@ por el módulo VACA. Solo lectura (vista calculada).
 
 ## `VacaPresupuestoVtaCon`
 Encabezado de presupuesto de venta consolidado (versión, ejercicio, semana MRP,
-estatus), usado por la planeación ganadera/forecast. Llave: `ID`.
+estatus), usado por la planeación/forecast (VACA). Llave: `ID`.
 
 ## `VacaPresupuestoVtaConD`
 Detalle de presupuesto de venta consolidado por artículo/cliente/programa, con
@@ -42,8 +48,8 @@ datos real que compara el presupuesto VACA contra venta efectiva.
 # Notas de uso
 
 - Preguntar primero si la consulta es sobre el forecast **general** (módulo FC,
-  [forecast-arribos](mrp-forecast-arribos.md)) o el presupuesto **ganadero
-  consolidado (VACA)** — son procesos y tablas distintos aunque ambos hablan de
+  [forecast-arribos](mrp-forecast-arribos.md)) o el presupuesto **consolidado
+  VACA** — son procesos y tablas distintos aunque ambos hablan de
   "presupuesto de venta".
 - `VentaTCalc` es útil cuando se necesita comparar presupuesto (`Sn`/`Pn` de
   `VacaPresupuestoVtaConD`) contra venta real ya facturada/calculada, sin tener

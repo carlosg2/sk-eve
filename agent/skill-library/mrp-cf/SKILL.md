@@ -17,7 +17,7 @@ description: >
 > Twin: [mrp-explosion.md](/company-twin/companies/icf/mrp/mrp-explosion.md),
 > [mrp-plan-produccion.md](/company-twin/companies/icf/mrp/mrp-plan-produccion.md),
 > [mrp-centros-estaciones.md](/company-twin/companies/icf/mrp/mrp-centros-estaciones.md),
-> [mrp-vaca-ganadera.md](/company-twin/companies/icf/mrp/mrp-vaca-ganadera.md)
+> [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md)
 > y `erp-kernel` (`ArtDisponible`, `Art`, `Alm`, `Prod`, `ProdD`).
 
 Conexión MCP: **`intelisis-dab`** (remoto, tenant ICF). Tools: `read_records`,

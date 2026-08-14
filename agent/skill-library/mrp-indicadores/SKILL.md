@@ -10,7 +10,7 @@ description: >
 # Skill: MRP — Indicadores (cumplimiento plan vs. real)
 
 > **Este skill es SOLO procedural.** Schema: [mrp-plan-produccion.md](/company-twin/companies/icf/mrp/mrp-plan-produccion.md)
-> y [mrp-vaca-ganadera.md](/company-twin/companies/icf/mrp/mrp-vaca-ganadera.md).
+> y [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 `Usuario` fijo: **`"CGARZA"`**.

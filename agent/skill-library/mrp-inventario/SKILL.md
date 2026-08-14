@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user pregunta por el presupuesto ganadero/VACA semanal, o por
+  Use when the user pregunta por el presupuesto VACA semanal, o por
   la asignación de lotes/series de materia prima (PEPS/FIFO) contra el plan de
   producción ya autorizado. Corresponde a la ruta "Inventario Semanal" del
   portal MRP legacy (sigma-icf).
@@ -9,7 +9,7 @@ description: >
 
 # Skill: MRP — Inventario Semanal (presupuesto VACA + lotes PEPS)
 
-> **Este skill es SOLO procedural.** Schema: [mrp-vaca-ganadera.md](/company-twin/companies/icf/mrp/mrp-vaca-ganadera.md)
+> **Este skill es SOLO procedural.** Schema: [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md)
 > y [mrp-explosion.md](/company-twin/companies/icf/mrp/mrp-explosion.md)
 > (`UtMrpPrevioMateriaPrima`), [mrp-soporte.md](/company-twin/companies/icf/mrp/mrp-soporte.md) (`SerieLote`).
 
@@ -19,8 +19,8 @@ Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 ## Origen (portal legacy sigma-icf, ruta `/inventario`)
 
 Esta ruta lista las semanas del periodo (`spFCPPSemanaLista`) y, para cada una,
-trae el presupuesto ganadero/VACA de esa semana (`spVacaPresupuestoForecastSemanal`)
-— el forecast consolidado de venta ganadera (línea VACA), distinto del
+trae el presupuesto VACA de esa semana (`spVacaPresupuestoForecastSemanal`)
+— el forecast consolidado de venta de la línea VACA, distinto del
 forecast general del módulo FC.
 
 ## Patrón 1 — Presupuesto VACA por semana
@@ -72,6 +72,6 @@ asignación), usar `SerieLote` (erp-kernel, solo lectura).
   2026-08-06). El agente no puede leerla; ante preguntas de asignación de
   lotes responde la limitación y ofrece `ArtDisponibleDesc` (existencias) o
   `ExplocionMatCF` (requerimientos).
-- No confundir el forecast **VACA/ganadero** (esta ruta) con el forecast
+- No confundir el forecast **VACA** (esta ruta) con el forecast
   **general del módulo FC** (`mrp-forecast`/`mrp-arribos`) — son procesos y
   tablas distintos aunque ambos hablan de "presupuesto"/"forecast".

@@ -3,7 +3,7 @@ tenant: icf
 description: >
   Use when the user asks about arribos (recepciones) proyectados a 12 semanas,
   cobertura de materia prima o BBC a futuro, cuándo se debe generar un embarque
-  sugerido, o arribos pendientes de ganado/VACA. Corresponde a la ruta
+  sugerido, o arribos pendientes de la línea VACA. Corresponde a la ruta
   "Programa de Arribos" del portal MRP legacy (sigma-icf).
 ---
 
@@ -11,7 +11,7 @@ description: >
 
 > **Este skill es SOLO procedural.** El schema vive en el Company Twin:
 > [mrp-forecast-arribos.md](/company-twin/companies/icf/mrp/mrp-forecast-arribos.md)
-> y [mrp-vaca-ganadera.md](/company-twin/companies/icf/mrp/mrp-vaca-ganadera.md).
+> y [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 `Usuario` fijo: **`"CGARZA"`** (mismo criterio que `gap-abasto`/`mrp`).
@@ -97,11 +97,11 @@ read_records(CalendarioFC, filter: "Usuario eq 'CGARZA'",
 - No hay tool dedicado para "cobertura" — hay que combinar `ForecastArtFam12`
   + `ArtFamFC` + `Arribos12`/`FCArribos` a mano (ver Patrón 2). Patrones 1-3
   validados contra el MCP el 2026-08-06 (entidades y campos confirmados).
-- **Arribos VACA/ganadero** (`spFCArribosVacaPendientes`, integración BBC) usa
+- **Arribos VACA** (`spFCArribosVacaPendientes`, integración BBC) usa
   las mismas tablas base pero con filtros de línea de negocio VACA/PDB — el
   detalle exacto de esos filtros no se verificó línea por línea; si el usuario
-  pregunta específicamente por "arribos VACA/ganado", cruza con
-  [mrp-vaca-ganadera.md](/company-twin/companies/icf/mrp/mrp-vaca-ganadera.md)
+  pregunta específicamente por "arribos VACA", cruza con
+  [mrp-vaca.md](/company-twin/companies/icf/mrp/mrp-vaca.md)
   y declara la limitación si el resultado no cuadra.
 - **Ambigüedad "arribos"**: si la pregunta no distingue entre arribo
   proyectado (este skill) y recepción de compra transaccional real

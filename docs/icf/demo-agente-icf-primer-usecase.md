@@ -249,7 +249,7 @@ familia, solo 1 con stock de seguridad 🟢, resto en 0 kg 🔴, con conclusión
 
 ### Almacén / Inventario
 30. "¿Qué tenemos en existencias del almacén C. FRESCO (top por disponible)?" → `icf`
-31. "¿Cuál es el presupuesto ganadero VACA de la semana?" → `mrp-inventario`
+31. "¿Cuál es el presupuesto VACA de la semana?" → `mrp-inventario`
 32. "¿Cuánto tenemos de cada variedad de frijol en total?" → `icf` (ArtDisponibleDesc + familia FC)
 33. "¿Qué artículos están por debajo de su mínimo?" → `mrp-cf` (UV_QV_PPTOCOMPRA + ArtDisponible)
 

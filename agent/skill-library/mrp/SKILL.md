@@ -3,7 +3,7 @@ tenant: icf
 description: >
   Use when the user asks about MRP, explosión de materiales, forecast de venta,
   arribos proyectados, plan o programa de producción, capacidad de centros,
-  presupuesto ganadero (VACA), indicadores de cumplimiento, o cualquier
+  presupuesto VACA, indicadores de cumplimiento, o cualquier
   funcionalidad del portal MRP legacy (sigma-icf) del tenant ICF, y no está
   claro todavía cuál de los 12 skills específicos de ruta aplica. Este skill es
   un ÍNDICE — enruta a los skills mrp-* especializados, no reemplaza su
@@ -43,7 +43,7 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
 | Desglose de Forecast | Grid maestro S1-S54/P1-P54 por artículo/cliente/centro | [`mrp-forecast`](/agent/skill-library/mrp-forecast/SKILL.md) |
 | Indicadores | Cumplimiento programado vs. producido real, forecast vs. venta | [`mrp-indicadores`](/agent/skill-library/mrp-indicadores/SKILL.md) |
 | Programa Mensual (`/inicio`) | Ocupación/capacidad por centro, situación del plan semanal | [`mrp-inicio`](/agent/skill-library/mrp-inicio/SKILL.md) |
-| Inventario Semanal | Presupuesto ganadero (VACA) por semana, lotes PEPS/FIFO | [`mrp-inventario`](/agent/skill-library/mrp-inventario/SKILL.md) |
+| Inventario Semanal | Presupuesto VACA por semana, lotes PEPS/FIFO | [`mrp-inventario`](/agent/skill-library/mrp-inventario/SKILL.md) |
 | Modelado de Centros | Configuración/capacidad de centros y estaciones, balanceo | [`mrp-modelado-centros`](/agent/skill-library/mrp-modelado-centros/SKILL.md) |
 | Validación de Insumos (`/produccion`) | Cobertura de materiales para producir, alcance, capacidad | [`mrp-produccion`](/agent/skill-library/mrp-produccion/SKILL.md) |
 | Programa de Traspasos | Traspasos entre almacenes por semana — ⚠️ no confirmado en DAB | [`mrp-traspasos`](/agent/skill-library/mrp-traspasos/SKILL.md) |
