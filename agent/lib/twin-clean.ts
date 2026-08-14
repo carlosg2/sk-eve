@@ -35,6 +35,7 @@ export function cleanTwinBody(body: string): string {
     //    pasada final de normalización gramatical.
     out = out
       // ── tenant ──
+      .replace(/\bmulti-?tenant\b/gi, "multiempresa")
       .replace(/\bdel tenant activo\b/gi, "de la empresa")
       .replace(/\b(?:el |un |al |este |ese )?tenant activo\b/gi, "la empresa")
       .replace(/\bdel tenant\b/gi, "de la empresa")

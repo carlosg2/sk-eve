@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { cleanTwinText } from "./twin-clean.js";
 
 // ── Memoria episódica recuperable (P1 del program.md de stack-mastery) ──────
 // Hipótesis: el agente puede consultar su propio historial (el espejo `events`
@@ -256,7 +257,11 @@ export function getEpisodicContext(
     return ranked.map((r, i) => ({
       sessionId: r.sessionId,
       type: r.type,
-      content: r.content.slice(0, maxChars),
+      // La memoria entra al prompt del modelo: se sanitiza igual que el twin
+      // (nada de metadata de la fábrica — "tenant", rutas, capas, kernel — en
+      // el contexto del runtime). Sesiones viejas (ej. prompts de evals) pueden
+      // contener "en este tenant..."; aquí se neutralizan antes de inyectarse.
+      content: cleanTwinText(r.content.slice(0, maxChars)),
       ageRank: i,
     }));
   } catch {

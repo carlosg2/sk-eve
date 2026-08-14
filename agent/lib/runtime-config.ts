@@ -119,7 +119,7 @@ function readScalarFrontmatter(raw: string): Record<string, string> {
 
 function required(value: string | undefined, name: string): string {
   if (value?.trim()) return value.trim();
-  throw new Error(`Falta '${name}' en la configuración del tenant activo.`);
+  throw new Error(`Falta '${name}' en la configuración de la empresa activa.`);
 }
 
 export function loadRuntimeConfig(): RuntimeConfig {
