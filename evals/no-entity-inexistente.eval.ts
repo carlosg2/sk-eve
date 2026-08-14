@@ -15,7 +15,12 @@ export default defineEval({
   async test(t) {
     await t.send("¿Cuál es el plan de producción de la semana 31 (piezas y kilos por familia)?");
     t.succeeded();
-    t.calledTool("intelisis-dab__read_records", { input: { entity: "ForecastPlanProduccion" } });
+    // Invariante de ruta FLEXIBLE (2026-08-13): el skill mrp-concentrado
+    // recomienda `aggregate_records` server-side (sum PORPRODUCIR/KILOS groupby
+    // FAMILIA) en vez de `read_records` paginado — ambos caminos usan la entidad
+    // REAL ForecastPlanProduccion y cumplen el invariante. Validar invariante,
+    // no ruta (protocolo-pruebas.md §gotchas).
+    t.calledTool("intelisis-dab__read_records", { input: { entity: "ForecastPlanProduccion" } }).soft();
     t.calledTool("intelisis-dab__aggregate_records");
     t.notCalledTool("intelisis-dab__describe_entities");
     // Ninguna llamada debe referenciar entidades inexistentes del tenant ICF.

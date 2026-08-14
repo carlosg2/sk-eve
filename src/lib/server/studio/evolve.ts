@@ -230,6 +230,10 @@ async function toProposal(
 						? (p.kernel as string[])
 						: manifest.kernel,
 			mcpTools: Array.isArray(p.mcpTools) ? (p.mcpTools as string[]) : manifest.mcpTools,
+			// Pre-existente (HEAD): AgentManifest exige `episodicMemory` (harness.ts),
+			// el toggle no la propagaba → error de tipo en svelte-check. Un toggle de
+			// skills/kernel/mcpTools NO debe resetear el flag de memoria episódica.
+			episodicMemory: manifest.episodicMemory,
 		};
 		const agentRaw = await readRel(agentMdPath(tenant, agent));
 		const after = applyManifestToAgentMd(agentRaw, next);
