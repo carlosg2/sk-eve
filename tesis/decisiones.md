@@ -331,6 +331,48 @@ va en esta dirección (conocimiento al store, no al prompt).
 
 ---
 
+## ADR-013 — La causalidad es conocimiento atestiguado (CARE); el LLM no la descubre en datos crudos.
+
+**Estado:** Aceptada (2026-08-13)
+
+### Contexto
+La visión "coordinación computable" (ventas→descuentos→margen→liquidez) y el
+Process Graph del TKG modelan cadenas causales del negocio, y la tesis v1 daba
+por hecho que el LLM participa de esa inteligencia. La evidencia (CARE,
+arXiv:2511.16016) muestra lo contrario: los LLM **no hacen causal discovery** —
+se apoyan en el significado de los **nombres de campos** e ignoran los datos
+observacionales; incluso promptearlos con salidas de algoritmos clásicos los
+**degrada**. El patrón ya ocurrió en este repo: el subagente que alucinó el join
+VentaD/Venta (2026-07-30) leyendo nombres de campos. Referencia externa de
+diseño: **semantica-agi/semantica** define el vocabulario causal atestiguado
+(`record_decision()` + `add_causal_relationship(CAUSED | INFLUENCED |
+PRECEDENT_FOR)` + `trace_decision_chain()`, con provenance W3C PROV-O) — las
+relaciones causales **se registran**, no se descubren (ver
+`research-n-dev/VEREDICTO-HERRAMIENTAS-2026-08-13.md` §2).
+
+### Decisión
+La causalidad ("qué causa qué" del Process Graph y de la coordinación
+computable) **solo puede venir de algoritmos deterministas de discovery o de
+reglas verificadas/atestiguadas** — modeladas como `Attested Computation` (OKF,
+primer caso: `spPlanArt` en `erp-kernel/sp-planart.md`). El LLM **presenta e
+interpreta**; **nunca descubre causalidad en datos crudos ni la infiere de
+nombres de campos**. Sin fuente atestiguada, ante un "¿por qué?", el agente
+describe la correlación observada o responde que el dato no está disponible.
+
+### Consecuencias
+- (+) El Process Graph y el Company Twin nacen libres de causalidad ficticia
+  (caro de des-aprender si se contamina).
+- (+) Las relaciones causales quedan con provenance (quién/cómo las registró),
+  auditable y coherente con PROV-O si un cliente lo pide.
+- (−) La coordinación computable queda acotada a lo atestiguado hasta que se
+  instrumenten algoritmos deterministas de discovery.
+- (−) El agente no responde "por qué" causal sin fuente: responde correlación o
+  "dato no disponible".
+- Implementación: ley en `tesis/constitucion.md` (§2), directiva en
+  `agent/instructions.md` y gate `evals/causalidad-atestiguada.eval.ts`.
+
+---
+
 ## Decisiones pendientes (por resolver)
 
 | # | Pregunta abierta | Bloquea |

@@ -69,6 +69,14 @@ tenant **no** sube al kernel salvo que se valide como universal.
 **Jerarquía de autoridad:** Governance > Company Twin > Skill > ERP Kernel > Runtime Intent.
 El Company Twin **restringe**, nunca amplía lo que el kernel permite.
 
+**Ley CARE (causalidad atestiguada):** la causalidad — "qué causa qué" del
+Process Graph y de la coordinación computable — solo es conocimiento cuando está
+**atestiguada**: producida por un algoritmo determinista de discovery o una regla
+verificada (modeladas como `Attested Computation`, ver
+[sp-planart](erp-kernel/sp-planart.md)). El LLM **no descubre causalidad en datos
+crudos** ni la infiere de nombres de campos; solo la presenta/interpreta citando
+su fuente atestiguada. Ver [ADR-013](decisiones.md).
+
 ---
 
 ## 3. El ciclo de auto-mejora (recursive self-improvement)
