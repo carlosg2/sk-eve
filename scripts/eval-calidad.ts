@@ -30,6 +30,7 @@
 import { appendEvaluacion, listEvaluaciones } from "../agent/lib/session-store.ts";
 import { loadRuntimeConfig } from "../agent/lib/runtime-config.ts";
 import { mcpCallTool } from "../agent/lib/mcp-client.ts";
+import { recordLearning } from "../agent/lib/twin-memory.ts";
 
 const BASE = process.env.BASE ?? "http://localhost:5173";
 const REPETICIONES = Math.max(1, Number(process.env.N ?? 3));
@@ -40,6 +41,14 @@ const MCP_URL = process.env.MCP_URL ?? cfg.mcpUrl;
 const TOLERANCIA = 0.02; // ±2% por redondeo de presentación del modelo
 const RADIO = 200; // chars tras la etiqueta para extraer el número (cubre la fila)
 const MAX_FAMILIAS = 5; // top-N familias a evaluar por caso (las de mayor magnitud)
+// Cierre del ciclo Reflexión (A7 de la síntesis accionable): cuando un
+// invariante FALLA (dato-incorrecto / dato-faltante), el evaluador genera un
+// learning y lo anexa al buffer `state/learnings.md` del tenant ACTIVO
+// (empieza por icf) con patrón `[clave] texto` + fecha (recordLearning añade
+// el timestamp). Así el hallazgo entra al pipeline de promote-learnings sin
+// intervención manual: medir → reflexionar → promover, en el lado de la
+// fábrica. REFLEXION=0 lo desactiva (útil en CI / corridas de limpieza).
+const REFLEXION = process.env.REFLEXION !== "0";
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -304,6 +313,54 @@ function fmtNum(n: number | null | undefined): string {
   return Number.isInteger(n) ? String(n) : n.toLocaleString("es-MX", { maximumFractionDigits: 2 });
 }
 
+/** Formatea un valor de hallazgo (número, string o null) para el learning. */
+function fmtVal(v: string | number | null | undefined): string {
+  if (typeof v === "string") return v;
+  return fmtNum(v);
+}
+
+/**
+ * Cierre del ciclo Reflexión (A7): por cada invariante de DATO fallido
+ * (dato-incorrecto / dato-faltante) se genera un learning y se anexa al
+ * buffer de aprendizajes del tenant activo (state/learnings.md) vía
+ * `recordLearning` (dedupe por clave `[eval-...]`, timestamp automático).
+ * Los hallazgos tipo "skill" (errores de tool) NO se escriben aquí: ya los
+ * captura el hook de memoria del runtime (agent/hooks/memory.ts).
+ */
+async function cerrarCicloReflexion(
+  mineria: Map<string, { tipo: string; fallos: number; ejemplo: Hallazgo | null; skill: string }>,
+): Promise<number> {
+  if (!REFLEXION) {
+    console.log("\n=== CICLO REFLEXIÓN (A7) ===\n  Desactivado (REFLEXION=0).");
+    return 0;
+  }
+  let escritos = 0;
+  const lkeys: string[] = [];
+  for (const [key, acc] of mineria) {
+    if (acc.tipo !== "dato-incorrecto" && acc.tipo !== "dato-faltante") continue;
+    const h = acc.ejemplo;
+    if (!h) continue;
+    const caso = key.split("::")[0] ?? "caso";
+    const lkey = `eval-${caso}-${acc.tipo}-${h.invariante}`;
+    const texto =
+      `El evaluador de calidad detectó ${acc.tipo} en "${h.invariante}" ` +
+      `(caso ${caso}, skill ${acc.skill}): esperado ${fmtVal(h.esperado)}, hallado ${fmtVal(h.hallado)}. ${h.detalle}`;
+    try {
+      await recordLearning(lkey, texto);
+      escritos += 1;
+      lkeys.push(lkey);
+    } catch {
+      // nunca romper el evaluador por un fallo de reflexión
+    }
+  }
+  console.log("\n=== CICLO REFLEXIÓN (A7) ===");
+  console.log(
+    `  ${escritos} learning(s) escrito(s) al buffer del tenant "${cfg.tenant}" (state/learnings.md).`,
+  );
+  if (lkeys.length) console.log(`  Claves: ${lkeys.join(", ")}`);
+  return escritos;
+}
+
 /** fingerprint de VALORES EXTRAÍDOS (no de booleans) para congruencia real. */
 function fingerprint(invs: InvarianteEval[]): string {
   return invs.map((i) => `${i.clave}=${i.hallado == null ? "null" : redondear(i.hallado, 3)}`).join("|");
@@ -401,7 +458,7 @@ async function main() {
   }
   console.log(`MCP de verdad de runtime: ${MCP_URL}\n`);
 
-  const mineriaGlobal = new Map<string, { tipo: string; fallos: number; ejemplo: Hallazgo | null }>();
+  const mineriaGlobal = new Map<string, { tipo: string; fallos: number; ejemplo: Hallazgo | null; skill: string }>();
 
   for (const caso of casos) {
     console.log(`\n=== CASO "${caso.id}" (skill ${caso.skill}) · ${REPETICIONES} corridas EN PARALELO ===`);
@@ -502,7 +559,7 @@ async function main() {
     for (const r of resultados) {
       for (const h of r.hallazgos) {
         const key = `${caso.id}::${h.invariante}`;
-        const acc = mineriaGlobal.get(key) ?? { tipo: h.tipo, fallos: 0, ejemplo: null };
+        const acc = mineriaGlobal.get(key) ?? { tipo: h.tipo, fallos: 0, ejemplo: null, skill: caso.skill };
         acc.fallos += 1;
         if (!acc.ejemplo) acc.ejemplo = h;
         mineriaGlobal.set(key, acc);
@@ -542,6 +599,10 @@ async function main() {
       console.log(`      ${detalle}`);
     }
   }
+
+  // 7b) Cierre del ciclo Reflexión (A7): invariante fallido → learning al
+  // buffer de aprendizajes del tenant activo (para promote-learnings).
+  await cerrarCicloReflexion(mineriaGlobal);
 
   // 8) Resumen global de tendencia (para "graduar").
   const historial = await listEvaluaciones({ limit: 500 });
