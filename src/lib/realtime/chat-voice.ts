@@ -62,6 +62,13 @@ export function normalizeForSpeech(text: string, maxChars = 3000): string {
 	}
 }
 
+// Naturalidad conversacional (anti-eco de la pregunta + anti-duplicados):
+// módulo PURO `./voice-naturalidad`, reexportado aquí para los consumidores
+// (ChatSession.svelte). El modelo es la fuente de la narración; estas
+// heurísticas son el filtro de naturalidad de la capa.
+import { normCompare } from "./voice-naturalidad";
+export { narrationEchoesQuestion, isNearDuplicateNarration } from "./voice-naturalidad";
+
 // ── Canal de voz (Canal-Aware Dual-Brain) ───────────────────────────────────
 // El agente de texto (DeepSeek) sabe cuándo la voz está activa (vía clientContext)
 // y emite al final de su respuesta secciones `**SPEECH:**` (resumen hablado con
@@ -462,15 +469,97 @@ export function highlightSpokenAmounts(body: string, speech: string): string {
 	}
 }
 
-/** Preámbulos de voz mientras el agente trabaja (eliminan el silencio muerto). */
-const PREAMBLES = ['Déjame revisarlo…', 'Un momento…', 'Déjame consultarlo…'];
+// ── Preámbulos de voz (eliminan el silencio muerto mientras el agente trabaja) ──
+// Regla de prompting de voz realtime (OpenAI Realtime): los fillers deben ser
+// preámbulos de ACCIÓN (qué se está haciendo), con VARIEDAD entre turnos y sin
+// repetir la misma frase; se evitan los "let me think"-style ("Déjame pensar…",
+// "Hmm…") y repetir la pregunta. Los 3 preámbulos fijos originales se repetían
+// en bucle cada turno (cacofonía, evidencia: sesión de 10 turnos) — por eso este
+// pool amplio de frases de acción + anti-repetición por historial.
+const PREAMBLE_ACTION_PHRASES = [
+	'Reviso eso en el sistema…',
+	'Consulto la información…',
+	'Voy a buscarlo…',
+	'Te lo busco ahora…',
+	'Un momento, lo consulto…',
+	'Ya casi lo tengo…',
+	'Verifico el dato por ti…',
+	'Reviso en el ERP…',
+];
+
+/** Tono del filler: comentario de progreso en voz baja, como quien trabaja en segundo plano. */
+const PREAMBLE_INSTRUCTIONS =
+	'Comentario de progreso: dilo con naturalidad y en voz baja, como quien trabaja en segundo plano. Breve.';
+
+/**
+ * Hint genérico que `friendlyToolLabel` devuelve como FALLBACK (p. ej. para
+ * `load_skill`): es vago ("Trabajando…") y NO aporta módulo — si llega como
+ * hint, `speakPreamble` lo ignora y usa el pool variado de acciones en su
+ * lugar (anti-cacofonía: el fallback genérico no debe repetirse como preámbulo).
+ */
+const GENERIC_TOOL_LABEL = 'Trabajando…';
+
+/** Tono de la respuesta final: entrega el dato con seguridad (speakAgentAnswer). */
+const FINAL_ANSWER_INSTRUCTIONS =
+	'Respuesta final: léela clara, pausada y con seguridad, como quien entrega el dato.';
 
 export class ChatVoiceLayer {
 	private client: GrokVoiceClient | null = null;
 	private callbacks: ChatVoiceCallbacks;
 	private _listening = false;
 	private _speaking = false;
-	private preambleIndex = 0;
+	/** Frases de preámbulo usadas recientemente (anti-repetición, máx 5 sin duplicados). */
+	private recentPreamblePhrases: string[] = [];
+	/** Índice rotativo sobre el pool genérico: avanza hasta una frase no reciente. */
+	private preamblePoolIndex = 0;
+	/**
+	 * Textos que EL ASISTENTE acaba de hablar (filler, narración, respuesta,
+	 * HITL) con su timestamp — ventana ~12s. Sirve para RECHAZAR el eco del
+	 * propio audio transcrito por el STT (2026-08-18): el mic capta el altavoz
+	 * y el gateway transcribe "Reviso eso en el…" (eco del filler) como si
+	 * fuera pregunta del usuario → respondía HITL con su propio eco y se
+	 * enredaba. Con esto la UI detecta que el texto es un fragmento de lo que
+	 * el asistente acaba de decir y lo descarta.
+	 */
+	private lastSpoken: Array<{ norm: string; at: number }> = [];
+
+	/** Registra un texto que el asistente está a punto de hablar (anti-eco). */
+	private recordSpoken(text: string): void {
+		try {
+			const norm = normCompare(text);
+			if (!norm) return;
+			const now = Date.now();
+			this.lastSpoken.push({ norm, at: now });
+			if (this.lastSpoken.length > 8) this.lastSpoken.shift();
+			this.lastSpoken = this.lastSpoken.filter((e) => now - e.at < 12000);
+		} catch {
+			/* noop */
+		}
+	}
+
+	/**
+	 * ¿El texto del usuario (STT) es el ECO de lo que el asistente acaba de
+	 * hablar? El eco suele llegar como un FRAGMENTO del audio propio
+	 * ("Reviso eso en el…" ← "Reviso eso en el sistema…"). true si el texto
+	 * transcrito es subcadena (o contiene) un texto hablado en los últimos
+	 * ~10s. La UI lo usa para descartar transcripciones fantasma ANTES de
+	 * cualquier path (submit/intent/HITL).
+	 */
+	isLikelyEchoOfAssistant(text: string): boolean {
+		try {
+			const norm = normCompare(text);
+			if (!norm || norm.length < 4) return false;
+			const now = Date.now();
+			return this.lastSpoken.some((e) => {
+				if (now - e.at > 10000) return false;
+				const short = norm.length <= e.norm.length ? norm : e.norm;
+				const long = norm.length <= e.norm.length ? e.norm : norm;
+				return long.includes(short);
+			});
+		} catch {
+			return false;
+		}
+	}
 
 	constructor(callbacks: ChatVoiceCallbacks = {}) {
 		this.callbacks = callbacks;
@@ -546,6 +635,7 @@ export class ChatVoiceLayer {
 		const clean = normalizeForSpeech(text);
 		if (!clean) return;
 		try {
+			this.recordSpoken(clean);
 			client.speak(clean);
 		} catch (err) {
 			this.callbacks.onError?.(`hablar: ${String(err)}`);
@@ -554,13 +644,52 @@ export class ChatVoiceLayer {
 
 	/**
 	 * Filler hablado mientras el agente piensa/consulta el ERP (elimina el
-	 * silencio muerto entre la pregunta por voz y la respuesta). Rotativo.
+	 * silencio muerto entre la pregunta por voz y la respuesta). Frases de ACCIÓN
+	 * con variedad (regla OpenAI Realtime: preámbulos de acción, variedad entre
+	 * turnos, no repetir la misma frase):
+	 *  - `hint`: frase de acción ya formulada (p. ej. la etiqueta de módulo de
+	 *    `friendlyToolLabel`, "Consultando compras…"). Si NO se usó en las últimas
+	 *    ~4 utterances, se dice esa (contextual); si se repitió, se usa el pool.
+	 *  - Sin hint (o hint repetido): se elige del pool genérico una frase que no
+	 *    esté en el historial reciente (anti-repetición).
+	 * Tono: commentary en voz baja (`instructions` por utterance).
 	 */
-	speakPreamble(): void {
+	speakPreamble(hint?: string): void {
 		const client = this.client;
 		if (!client?.connected) return;
 		try {
-			client.speak(PREAMBLES[this.preambleIndex++ % PREAMBLES.length]);
+			const recent = this.recentPreamblePhrases;
+			let phrase = '';
+			// Ignora el hint si es el fallback genérico de friendlyToolLabel
+			// ("Trabajando…"): no aporta módulo y sonaría a filler vago repetido.
+			const usableHint =
+				hint && hint.trim() && hint.trim() !== GENERIC_TOOL_LABEL ? hint.trim() : '';
+			if (usableHint && !recent.includes(usableHint)) {
+				// Hint contextual de módulo: solo si no se repitió en las últimas ~4.
+				phrase = usableHint;
+			} else {
+				// Pool genérico: avanza el índice hasta una frase NO reciente. Si todas
+				// las del pool están en el historial, se usa la siguiente (el historial
+				// es corto y el pool tiene ≥8 frases, así que casi siempre hay una libre).
+				for (let tries = 0; tries < PREAMBLE_ACTION_PHRASES.length; tries++) {
+					const candidate =
+						PREAMBLE_ACTION_PHRASES[this.preamblePoolIndex % PREAMBLE_ACTION_PHRASES.length];
+					this.preamblePoolIndex++;
+					if (!recent.includes(candidate)) {
+						phrase = candidate;
+						break;
+					}
+				}
+				if (!phrase) {
+					phrase = PREAMBLE_ACTION_PHRASES[this.preamblePoolIndex % PREAMBLE_ACTION_PHRASES.length];
+				}
+			}
+			if (!phrase) return;
+			// Historial anti-repetición (máx 5, sin duplicados).
+			recent.push(phrase);
+			if (recent.length > 5) recent.shift();
+			this.recordSpoken(phrase);
+			client.speak(phrase, { instructions: PREAMBLE_INSTRUCTIONS });
 		} catch (err) {
 			this.callbacks.onError?.(`hablar: ${String(err)}`);
 		}
@@ -573,6 +702,7 @@ export class ChatVoiceLayer {
 		const clean = normalizeForSpeech(text);
 		if (!clean) return;
 		try {
+			this.recordSpoken(clean);
 			client.speak(clean, options);
 		} catch (err) {
 			this.callbacks.onError?.(`hablar: ${String(err)}`);
@@ -631,8 +761,10 @@ export class ChatVoiceLayer {
 			if (clean.length > 260) clean = condenseForSpeech(clean, 120, 240);
 			try {
 				// `narrate: true`: el cliente emite narrate:start/end para que la UI
-				// PRENDA el resaltado de la entidad mientras la voz la narra.
-				client.speak(clean, { narrate: true });
+				// PRENDA el resaltado de la entidad mientras la voz la narra. Tono de
+				// RESPUESTA FINAL: entrega el dato con seguridad.
+				this.recordSpoken(clean);
+				client.speak(clean, { narrate: true, instructions: FINAL_ANSWER_INSTRUCTIONS });
 				return 'speech';
 			} catch (err) {
 				this.callbacks.onError?.(`hablar: ${String(err)}`);
@@ -646,7 +778,8 @@ export class ChatVoiceLayer {
 				const ci = normalizeForSpeech(insight);
 				if (!ci) return 'none';
 				try {
-					client.speak(ci);
+					this.recordSpoken(ci);
+					client.speak(ci, { instructions: FINAL_ANSWER_INSTRUCTIONS });
 					return 'full';
 			} catch (err) {
 					this.callbacks.onError?.(`hablar: ${String(err)}`);
@@ -658,7 +791,8 @@ export class ChatVoiceLayer {
 		if (clean.length <= SPEECH_THRESHOLD_CHARS) {
 			const full = insight ? `${clean} ${insight}` : clean;
 			try {
-				client.speak(full);
+				this.recordSpoken(full);
+				client.speak(full, { instructions: FINAL_ANSWER_INSTRUCTIONS });
 				return 'full';
 			} catch (err) {
 				this.callbacks.onError?.(`hablar: ${String(err)}`);
@@ -668,7 +802,8 @@ export class ChatVoiceLayer {
 		const condensed = condenseForSpeech(clean);
 		if (!condensed) return 'none';
 		try {
-			client.speak(condensed);
+			this.recordSpoken(condensed);
+			client.speak(condensed, { instructions: FINAL_ANSWER_INSTRUCTIONS });
 			return 'truncated';
 		} catch (err) {
 			this.callbacks.onError?.(`hablar: ${String(err)}`);

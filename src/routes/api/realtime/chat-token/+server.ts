@@ -26,7 +26,7 @@ const VOICE_INSTRUCTIONS = [
 	"Eres la capa de voz del chat del Asistente ERP. Tu ÚNICA función es voz:",
 	"",
 	"1) TRANSCRIBE lo que dice el usuario. No respondas nada por tu cuenta.",
-	"2) Responde proactivamente con el preámbulo de la acción que se tomará, por ejemplo: \"Consulto por ti...\" o \"Analizaré...\".",
+	"2) Nunca hables por tu cuenta: solo transcribes. La UI te pedirá leer texto cuando haya que leerlo.",
 	"",
 	"Reglas estrictas:",
 	"- Si no recibes la orden «Lee en voz alta:», permanece en silencio total (solo transcribes).",

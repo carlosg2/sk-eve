@@ -55,6 +55,14 @@ const VOICE_PLAYBACK_COOLDOWN_MS = 1500;
  *  altavoz (evidencia 2026-08-17: ecos de 0.022/0.032 vs voz real 0.125/0.143),
  *  no voz real del usuario. */
 const VOICE_ECHO_RMS_FLOOR = 0.045;
+// Gracia de arranque del barge-in por server VAD (2026-08-18): con mic +
+// altavoz compartidos y AEC imperfecto, el server VAD puede detectar el ECO
+// del ARRANQUE del propio audio del asistente como "habla del usuario" y
+// cortarlo (auto-interrupción: "se corta a sí mismo entre preámbulos y
+// respuestas"). Si el playback del asistente lleva < este ms sonando, el
+// speech-started se considera eco del inicio y NO se corta — el usuario que
+// interrumpe de verdad habla sobre audio ya establecido.
+const VOICE_BARGE_IN_GRACE_MS = 600;
 /** Ventana tras el último audio del asistente en la que se aplica el piso de eco. */
 const VOICE_ECHO_WINDOW_MS = 6000;
 
@@ -107,8 +115,15 @@ const PLAYBACK_OVERLAY_TEL_MS = 1000;
 //   - Tier 2 (VOICE_IDLE_TIER2_MS): desconexión amable — el cliente NOTIFICA a
 //     la UI (onIdle) y DETIENE el watchdog; NUNCA desconecta solo.
 // Ambas son feature flags nombradas (ajustables/desactivables).
+// Valores 25s/40s (2026-08-18): AHORRO DE RECURSOS — la sesión realtime (y su
+// STT) cuesta tokens por minuto; el caso común (tras responder) lo corta el
+// auto-off post-respuesta de la UI (ventana corta → desconecta). Este watchdog
+// solo cubre "activó la voz y no preguntó nada": tier 1 (25s) = estado visual
+// sin TTS, tier 2 (40s) = desconexión. Referencia: xAI Android IDLE_TIERS
+// 5s/10s/15s cierran; OpenAI recomienda push-to-talk — sesión efímera por
+// interacción, nunca "¿sigues ahí?" hablado.
 const VOICE_IDLE_TIER1_MS = 25000;
-const VOICE_IDLE_TIER2_MS = 90000;
+const VOICE_IDLE_TIER2_MS = 40000;
 /** Intervalo de comprobación del watchdog (1s; compara Date.now() vs lastActivityAt). */
 const VOICE_IDLE_POLL_MS = 1000;
 
@@ -1769,7 +1784,17 @@ export class GrokVoiceClient {
 				// asistente y descarta utterances pendientes. En modo no-AEC es
 				// informativo (el gate del append ya suprime el mic; el barge-in
 				// lo maneja `input-transcription-completed`).
+				// Auto-interrupción (2026-08-18): con AEC imperfecto el server VAD
+				// detecta el ECO del arranque del propio audio como habla → gracia
+				// VOICE_BARGE_IN_GRACE_MS: si el playback del asistente acaba de
+				// empezar, NO se corta (el usuario que interrumpe de verdad habla
+				// sobre audio ya establecido).
 				if (this.aecMode === "aec") {
+					const now = Date.now();
+					if (this._playing && now - this.lastAssistantSpeakAt < VOICE_BARGE_IN_GRACE_MS) {
+						this.tel("barge_in_ignored", { sincePlaybackStartMs: now - this.lastAssistantSpeakAt });
+						break;
+					}
 					const playingBeforeCut = this._playing;
 					console.info(`[voice] BARGE-IN speech-started (playing=${playingBeforeCut})`);
 					this.tel("barge_in", { playing: playingBeforeCut });
@@ -1819,9 +1844,19 @@ export class GrokVoiceClient {
 					// (que puede ECOAR la pregunta del usuario); se corta su audio YA
 					// reproducido, se descartan utterances pendientes y se cancela la
 					// respuesta en curso (barge-in: el usuario interrumpió, manda lo nuevo).
+					// Auto-interrupción (2026-08-18): si esta transcripción salió de un
+					// commit de BAJA energía (el ECO del propio asistente transcrito en
+					// un hueco del playback), NO se corta el audio en curso — el usuario
+					// no interrumpió; la UI decide si el texto es pregunta real (tiene
+					// sus propios gates anti-eco). La cancelación de la respuesta
+					// automática y el re-sync siguen igual (son defensivos, no cortan).
 					if (this.autoCancelAfterTranscript) {
-						this.cutPlayback();
-						this.clearSpokenQueue();
+						if ((this.lastCommitPeakRms ?? 1) < VOICE_ECHO_RMS_FLOOR) {
+							this.tel("echo_no_cut", { peakRms: this.lastCommitPeakRms ?? 0 });
+						} else {
+							this.cutPlayback();
+							this.clearSpokenQueue();
+						}
 						this.cancelResponse();
 						// Re-sync PREVENTIVO: tras el response-cancel el gateway puede
 						// quedar con el STT en un estado que ignora los commits

@@ -530,20 +530,56 @@ El cliente detecta el AEC real al abrir el mic: `track.getSettings().echoCancell
   de ser del thin-layer). `experimental_encodeRealtimeAudio` ≡ `encodeRealtimeAudio` (alias).
   Adopción pendiente: `getPlaybackOffsetMs()` para sincronizar el resaltado con el progreso del audio.
 
+## 5octies. UX de voz: preámbulos de acción + variedad + narrar mecánico (2026-08-17, ejecutado)
+
+Diagnóstico con evidencia: los 3 preámbulos fijos rotando ("Déjame revisarlo… / Un momento… /
+Déjame consultarlo…") se repetían en bucle cada turno (cacofonía; secuencia hablada extraída de
+`voice_events` de la sesión de 10 turnos) y el cerebro solo narró 1/10 turnos. Análisis completo +
+mejores prácticas en `research-n-dev/voice-ux-best-practices.md`; decisión radical en
+`research-n-dev/voice-radical-speech-to-speech.md`.
+
+### Implementado (P0 sencillas + P1 medianas + P2 parcial)
+
+| # | Mejora | Dónde |
+|---|---|---|
+| S1/S6 | Pool de preámbulos de **ACCIÓN** (`PREAMBLE_ACTION_PHRASES`, 8 frases) + hint contextual de módulo (`friendlyToolLabel` de la primera tool ERP del turno, voz = pantalla) + anti-repetición por historial (últimas ~5) | `chat-voice.ts` `speakPreamble(hint?)` · `ChatSession.svelte` `voiceTurnToolHint` |
+| S2 | Gate de timing real: el filler temprano (1800ms) se dispara solo cuando arrancó la primera tool; la gracia de 4s ya no marca el flag al programar (el primero que habla gana, sin duplicados) | `ChatSession.svelte` `voiceFirstToolAt` + watch de tools |
+| S3 | SPEECH con **puente activo variado** ("Ya lo tengo —", "Aquí tienes:", "Revisé las compras:") + regla Variety entre turnos | `agent/instructions/agent-active.ts` |
+| S4/M1 | `narrar` **OBLIGATORIO** (inicio de turno antes de la 1ª tool, cambio de módulo, hallazgo) + variedad entre turnos + 6 ejemplos de frases de arranque por módulo | `agent/instructions/agent-active.ts` + `agent/instructions.md` |
+| S5/R3 | Idle watchdog 25s/90s → **60s/150s** (patrón `wait_for_user`: no hablarle al silencio salvo inactividad real prolongada) | `grok-voice.ts` |
+| M2 | Verbosity del SPEECH: [puente] + [gist] + [≤2 detalles] + [siguiente acción útil opcional] | `agent/instructions/agent-active.ts` |
+| M3 | Audio poco claro: transcript <3 chars (sin HITL, sin busy, >30s) → "¿Podrías repetirlo?" una vez por ventana + telemetría `unclear_audio` | `ChatSession.svelte` `onTranscript` |
+| R5 | Tono por utterance: `instructions` de commentary (voz baja) en preámbulo/narración y de **respuesta final** en SPEECH/lectura | `chat-voice.ts` (`PREAMBLE_INSTRUCTIONS`, `FINAL_ANSWER_INSTRUCTIONS`) |
+| — | `VOICE_INSTRUCTIONS` de chat-token: eliminada la línea muerta "responde proactivamente con el preámbulo" (la capa auto-cancela) → "nunca hables por tu cuenta: solo transcribes" | `chat-token/+server.ts` |
+
+### Veredicto radical (R1/R2/R4) — `research-n-dev/voice-radical-speech-to-speech.md`
+- **R1 (S2S real con commentary/final nativos)**: VIABLE PARCIAL — el protocolo normalizado del
+  gateway NO expone fases (`RealtimeModelV4ServerEvent["response-done"]` = `{ responseId, status,
+  raw }` sin `phase`); `phase: commentary|final_answer` existe solo en el protocolo nativo de
+  OpenAI gpt-realtime-2. Hoy la capa JS ya separa `narrar`≈commentary y `SPEECH`≈final (recomendación
+  de la guía). No migrar a cerebro realtime hoy.
+- **R2**: `instructions` por utterance ya operativo (mapeo commentary/final).
+- **R4 (envelope JSON de tool output)**: N/A — el SPEECH lo parsea la capa JS, no un modelo realtime.
+- **VAD semántico**: tipado sí (`semantic-vad` en `RealtimeModelV4SessionConfig.turnDetection.type`),
+  mapeo wire server-side sin verificar → requiere probe de runtime antes de adoptarlo.
+
+Validación: `get_errors` 0 en los 6 archivos editados · `npm run check` → **0 errores / 0 warnings**.
+
 ## 6. Fases futuras (no implementadas, por diseño)
 
 1. **Proactive silence**: el agente decide NO hablar si la respuesta ya está visible (respuestas
    triviales) — requiere un marcador extra tipo `NO_VOICE:` o que la ausencia de SPEECH + respuesta
-   corta ya implique lectura (parcialmente cubierto por el umbral).
+   corta ya implique lectura (parcialmente cubierto por el umbral; el idle ya es 60s/150s).
 2. **Highlight sincronizado** (Live Canvas lite): resaltar en pantalla la sección que la voz está
    leyendo — requiere post-procesar el render del mensaje (hoy las secciones SPEECH/INSIGHT se
-   muestran en negrita dentro de la burbuja; ocultarlas o resaltarlas es Fase 3).
+   muestran en negrita dentro de la burbuja; ocultarlas o resaltarlas es Fase 3). Adopción pendiente
+   de `getPlaybackOffsetMs()` para sincronizar con el progreso del audio.
 3. **VAD híbrido** (client-end-of-speech ≥500ms) para menor latencia de fin de turno — hoy usamos
    server-vad con `autoCancelAfterTranscript`.
 4. **Reconnect con backoff** de la sesión realtime.
-5. **Tono por utterance generalizado**: hoy el commentary envía `instructions` por respuesta de forma
-   experimental (ver §4.7); falta validar empíricamente si Grok las respeta y extenderlo a SPEECH
-   final / alertas (tono de alerta para desviaciones, pausado para cifras).
+5. **S2S real con commentary/final nativos** (R1): esperar a que el gateway/xAI exponga fases de
+   respuesta (`response.output[].phase`) — ver `voice-radical-speech-to-speech.md` (spec de
+   migración incluida; NO romper los invariantes del thin-layer).
 
 ## 7. Cómo validar
 

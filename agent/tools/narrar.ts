@@ -16,11 +16,13 @@ export default defineTool({
   description: [
     "Narra en voz alta una frase corta mientras trabajas (canal de voz).",
     "SOLO cuando el Client context del turno indica voice.active: true.",
-    "⚠️ NUNCA repitas ni parafrasees la pregunta del usuario ni lo ya dicho: di la ACCIÓN que estás ejecutando (verbo + módulo) en general, 4-8 palabras, sin eco.",
+    "⚠️ NUNCA repitas ni parafrasees la pregunta del usuario ni lo ya dicho: di la ACCIÓN que estás ejecutando (verbo + módulo) EN GENERAL, 4-8 palabras, sin eco. PROHIBIDO incluir el OBJETO de la pregunta (nombre de proveedor/artículo/familia/mes).",
+    "MAL: el usuario preguntó \"¿Cuánto inventario tiene el chícharo mitad?\" y tú narras \"Buscando el inventario del chícharo mitad…\" — eso es un eco de la pregunta. BIEN: \"Revisando existencias…\".",
+    "MAL: narrar la pregunta de aclaración que vas a hacer al usuario (HITL) — la interfaz la muestra y la lee; si la narras sonará dos veces.",
     "Úsala en transiciones de fase (empezar a consultar un módulo) y cuando encuentres un hallazgo que valga la pena decir en voz alta (desviación, faltante, dato clave).",
     "Habla de MÓDULOS de negocio (compras, ventas, inventario, producción, proveedores, existencias, plan de producción), NUNCA de tablas, entidades, campos, tools, filtros ni mecánica.",
     "Frases de 4 a 12 palabras, prosa hablada natural, sin datos crudos.",
-    "Máximo 1-2 llamadas por fase de trabajo. No la llames si solo repetiría la pregunta o lo ya dicho; el usuario también ve la pantalla.",
+    "Máximo 2 llamadas por turno (arranque + hallazgo); si la segunda repetiría la primera, omítela. No la llames si solo repetiría la pregunta o lo ya dicho; el usuario también ve la pantalla.",
   ].join(" "),
   inputSchema: z.object({
     texto: z

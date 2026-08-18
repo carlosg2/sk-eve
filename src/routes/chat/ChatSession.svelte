@@ -33,7 +33,7 @@
 	import MicIcon from '@lucide/svelte/icons/mic';
 	import Volume2Icon from '@lucide/svelte/icons/volume-2';
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
-	import { ChatVoiceLayer } from '$lib/realtime/chat-voice';
+	import { ChatVoiceLayer, narrationEchoesQuestion, isNearDuplicateNarration } from '$lib/realtime/chat-voice';
 	import type { AecInfo } from '$lib/realtime/grok-voice';
 
 	// Props de rehidratación: al abrir una sesión pasada desde el sidebar, el
@@ -912,6 +912,18 @@
 	async function submit() {
 		const value = text.trim();
 		if ((!value && composerFiles.length === 0) || isBusy) return;
+		// Reset del estado de voz POR TURNO (S1/S2): el hint de módulo y la marca de
+		// la primera tool arrancan de cero en cada turno, y se cancela el filler
+		// temprano pendiente para que no hable dentro de un turno nuevo.
+		voiceTurnToolHint = '';
+		voiceFirstToolAt = 0;
+		if (voiceFillerTimer) {
+			window.clearTimeout(voiceFillerTimer);
+			voiceFillerTimer = null;
+		}
+		// Auto-off post-respuesta: un turno nuevo cancela la ventana previa.
+		cancelPostAnswerAutoOff();
+		voiceAnswerDoneAt = 0;
 		text = '';
 		const files = composerFiles;
 		composerFiles = [];
@@ -983,11 +995,9 @@
 	// 'none' = sin inactividad; 1 = "¿Sigues ahí?" (aviso hablado UNA vez por
 	// ventana); 2 = "En pausa por inactividad…" (desconexión amable).
 	let voiceIdleTier = $state<'none' | 1 | 2>('none');
-	// Anti-spam del aviso hablado del tier 1 (se resetea al restaurar actividad).
+	// Anti-spam del aviso del tier 1 (solo estado visual; se resetea al restaurar
+	// actividad). El TTS de "¿Sigues ahí?" se ELIMINÓ (ahorro de recursos, 2026-08-18).
 	let voiceIdleTier1Spoken = $state(false);
-	// Retraso amable antes de desconectar la voz en el tier 2 (que el aviso
-	// hablado "Voy a pausar la voz por inactividad" termine de sonar).
-	const VOICE_IDLE_PAUSE_DELAY_MS = 4000;
 	// Modo de lectura aplicado por speakAgentAnswer (speech/full/truncated/none) y
 	// guard del preámbulo hablado (1× por pregunta por voz mientras el agente trabaja).
 	let voiceSpeakMode = $state<'none' | 'speech' | 'full' | 'truncated'>('none');
@@ -997,6 +1007,36 @@
 	// inicio (tras gracia) cubre el silencio inicial; la respuesta se encola sin
 	// cortar el audio en curso. `voiceLastNarrationAt` marca el gap anti-spam.
 	let voiceLastNarrationAt = 0;
+	// Naturalidad conversacional (2026-08-18): `voiceLastNarrationNorm` = última
+	// narración hablada (para descartar duplicados casi-idénticos que el cerebro
+	// emite en el mismo turno) y `voiceUserQuestionNorm` = la pregunta que el
+	// usuario acaba de hacer por voz (para descartar narraciones que la
+	// PARAFRASEAN — un asistente humano no repite lo que acabas de decir).
+	let voiceLastNarrationNorm = '';
+	let voiceUserQuestionNorm = '';
+	// Auto-off post-respuesta (ahorro de recursos, 2026-08-18): al terminar de
+	// sonar la respuesta (o cerrar el turno sin audio) se arma una ventana corta
+	// (VOICE_POST_ANSWER_AUTO_OFF_MS); si el usuario no habla, se DESCONECTA la
+	// voz. Referencia: xAI Android IDLE_TIERS 5/10/15s cierran; OpenAI recomienda
+	// push-to-talk — la sesión realtime es EFÍMERA por interacción, nunca
+	// "¿sigues ahí?". `voiceAnswerDoneAt` = momento en que se entregó la última
+	// respuesta por voz; `voicePostAnswerTimer` = timer (number, DOM).
+	let voiceAnswerDoneAt = 0;
+	let voicePostAnswerTimer: number | null = null;
+	// Hint de módulo para el preámbulo hablado (S1/S6): la PRIMERA tool ERP del
+	// turno (distinta de `narrar`) produce una frase de acción contextual
+	// ("Consultando compras…" vía friendlyToolLabel) que se pasa a speakPreamble().
+	// Se resetea en submit/voiceRespondHitl/toggleVoice junto a voiceLastNarrationAt.
+	let voiceTurnToolHint = '';
+	// Marca de la PRIMERA tool del turno (ms): si el agente ya arrancó una tool, el
+	// filler temprano (S2, 1800ms) gana a la gracia completa de 4s. 0 = sin tools aún.
+	let voiceFirstToolAt = 0;
+	// Timeout del filler temprano por tool (S2): se limpia antes de programar para
+	// no duplicar disparos y al resetear el turno para no hablar en un turno nuevo.
+	let voiceFillerTimer: number | null = null;
+	// Anti-repetición del aviso de audio poco claro (M3): una aclaración por
+	// ventana de 30s.
+	let lastClarifyAt = 0;
 	// Keepalive del idle watchdog: mientras el AGENTE de /chat trabaja (isBusy)
 	// la UI rearma el watchdog periódicamente (ver watch de isBusy). Sin esto, en
 	// turnos largos de DeepSeek el watchdog avisaba "¿Sigues ahí?" y llegaba a
@@ -1127,11 +1167,50 @@
 					voiceRecentIntents.push({ norm: normT, at: Date.now() });
 					if (voiceRecentIntents.length > 5) voiceRecentIntents.shift();
 				}
+				// Eco del propio asistente (2026-08-18, análisis de la sesión E2E):
+				// el STT a veces transcribe un FRAGMENTO de lo que el asistente acaba
+				// de decir por el altavoz ("Reviso eso en el…" ← el filler). Ese texto
+				// NO es una pregunta del usuario; procesarlo como submit/intent/HITL se
+				// enredaba solo (el agente respondía su propio HITL con su propio eco →
+				// doble pregunta hablada). Se descarta antes de cualquier path.
+				if (voiceLayer?.isLikelyEchoOfAssistant(t) === true) {
+					console.info(`[voice] → eco del asistente transcrito, ignorado: "${t.slice(0, 60)}"`);
+					pushVoiceTelemetry('echo_reject_assistant', { text: t.slice(0, 120), peakRms });
+					return;
+				}
+				// M3 (audio poco claro, P1): transcript con < 3 caracteres de contenido
+				// (solo ruido/letras sueltas del STT) NO se envía al agente. Solo se pide
+				// aclaración si NO hay HITL pendiente (una respuesta corta válida tipo
+				// "sí"/"uno" la maneja el flujo HITL de después), no está busy y no se
+				// preguntó en los últimos 30s (anti-spam: una por ventana). El caso de
+				// texto vacío tras trim() lo maneja el flujo actual — aquí solo aplica
+				// con 1-2 caracteres.
+				if (
+					normT.length >= 1 &&
+					normT.length < 3 &&
+					voiceHitl.length === 0 &&
+					!isBusy &&
+					Date.now() - lastClarifyAt > 30000
+				) {
+					console.info(`[voice] → audio poco claro (${normT.length} chars), pido repetir`);
+					pushVoiceTelemetry('unclear_audio', { text: t.slice(0, 80) });
+					lastClarifyAt = Date.now();
+					cancelPostAnswerAutoOff(); // el usuario intenta hablar
+					voiceAnswerDoneAt = 0;
+					try {
+						voiceLayer?.speakNarration('Perdona, no te escuché bien. ¿Podrías repetirlo?');
+					} catch {
+						/* noop */
+					}
+					return;
+				}
 				// HITL por voz: si el agente tiene una pregunta pendiente y no está
 				// trabajando, la respuesta del usuario responde la gate.
 				if (!isBusy && voiceHitl.length > 0) {
 					console.info(`[voice] → responde HITL`);
 					pushVoiceTelemetry('transcript_decision', { path: 'hitl', text: t.slice(0, 120), hitl: voiceHitl.length });
+					cancelPostAnswerAutoOff();
+					voiceAnswerDoneAt = 0;
 					voiceRespondHitl(t);
 					return;
 				}
@@ -1141,6 +1220,8 @@
 				if (isBusy) {
 					console.info(`[voice] → INTENTO (agente ocupado): "${t.slice(0, 80)}"`);
 					pushVoiceTelemetry('transcript_decision', { path: 'intent', text: t.slice(0, 120) });
+					cancelPostAnswerAutoOff();
+					voiceAnswerDoneAt = 0;
 					voicePendingIntent = t;
 					voiceLayer?.clearSpokenQueue();
 					voiceLayer?.cutPlayback();
@@ -1149,12 +1230,18 @@
 				}
 				console.info(`[voice] → pregunta nueva (submit)`);
 				pushVoiceTelemetry('transcript_decision', { path: 'submit', text: t.slice(0, 120) });
+				cancelPostAnswerAutoOff();
+				voiceAnswerDoneAt = 0;
 				voiceLayer?.clearSpokenQueue();
 				voiceLayer?.cutPlayback();
 				voicePendingSpeak = true;
 				voiceFillerSpoken = false;
 				voiceSpeakMode = 'none';
 				voiceLastNarrationAt = 0;
+				voiceLastNarrationNorm = '';
+				// La pregunta del usuario (para descartar narraciones que la
+				// parafraseen — anti-eco conversacional, 2026-08-18).
+				voiceUserQuestionNorm = t;
 				voiceNarratedEventIds = new Set();
 				text = t;
 				void submit();
@@ -1184,40 +1271,27 @@
 			},
 			onIdle: (tier) => {
 				// Fase B3: watchdog de inactividad (el mic quedó "Escuchando…" y el
-				// usuario no habla). El cliente NUNCA desconecta solo: delega aquí.
+				// usuario no habla). AHORRO DE RECURSOS (2026-08-18): SIN TTS de
+				// "¿Sigues ahí?" (costaba tokens; la referencia xAI/OpenAI corta rápido)
+				// — tier 1 solo estado visual, tier 2 desconecta ya. El caso común
+				// (tras responder) lo cubre el auto-off post-respuesta.
 				if (tier === 1) {
-					console.info(`[voice] idle tier 1 — aviso de inactividad (25s en silencio)`);
+					console.info(`[voice] idle tier 1 — solo estado visual (sin TTS)`);
 					pushVoiceTelemetry('idle_tier1_ui');
 					if (!voiceIdleTier1Spoken) {
 						voiceIdleTier1Spoken = true;
 						voiceIdleTier = 1;
 						voiceStatus = '¿Sigues ahí?';
-						try {
-							voiceLayer?.speakNarration('¿Sigues ahí? Puedes preguntarme lo que necesites.');
-						} catch {
-							/* noop */
-						}
 					}
 					return;
 				}
 				if (tier === 2) {
-					console.info(`[voice] idle tier 2 — pausando voz por inactividad (90s en silencio)`);
+					console.info(`[voice] idle tier 2 — desconectando por inactividad`);
 					pushVoiceTelemetry('idle_timeout_ui');
 					voiceIdleTier1Spoken = false;
 					voiceIdleTier = 2;
-					voiceStatus = 'En pausa por inactividad…';
-					// Aviso hablado breve y desconexión amable (la conversación de chat
-					// no se pierde: la voz es solo el canal). Espera a que el aviso
-					// termine de sonar antes de cortar la sesión realtime.
-					try {
-						voiceLayer?.speakNarration('Voy a pausar la voz por inactividad.');
-					} catch {
-						/* noop */
-					}
-					window.setTimeout(() => {
-						if (!voiceActive || voiceIdleTier !== 2) return;
-						void toggleVoice();
-					}, VOICE_IDLE_PAUSE_DELAY_MS);
+					voiceStatus = 'Desconectando…';
+					if (voiceActive) void toggleVoice();
 				}
 			},
 		});
@@ -1231,6 +1305,9 @@
 			voiceActive = false;
 			v.stopListening();
 			v.disconnect();
+			// Auto-off post-respuesta: limpiar la ventana y la marca al apagar.
+			cancelPostAnswerAutoOff();
+			voiceAnswerDoneAt = 0;
 			voiceError = '';
 			voiceStatus = '';
 			voicePendingSpeak = false;
@@ -1240,6 +1317,17 @@
 			voicePendingIntent = null;
 			voiceHitlKey = '';
 			voiceHitlSpoken = false;
+			voiceLastNarrationAt = 0;
+			voiceLastNarrationNorm = '';
+			voiceUserQuestionNorm = '';
+			// Reset por turno (S1/S2): hint de módulo, marca de primera tool y filler
+			// temprano pendiente (no debe hablar en una sesión apagada o turno nuevo).
+			voiceTurnToolHint = '';
+			voiceFirstToolAt = 0;
+			if (voiceFillerTimer) {
+				window.clearTimeout(voiceFillerTimer);
+				voiceFillerTimer = null;
+			}
 			// Fase B2: al apagar la voz se olvida el modo AEC y los avisos
 			// (volverán a mostrarse en la próxima activación).
 			voiceAec = 'unknown';
@@ -1256,6 +1344,13 @@
 		// Fase B3: al reactivar la voz se limpia cualquier estado de inactividad.
 		voiceIdleTier = 'none';
 		voiceIdleTier1Spoken = false;
+		// Reset por turno (S1/S2): al encender la voz arranca un ciclo limpio.
+		voiceTurnToolHint = '';
+		voiceFirstToolAt = 0;
+		if (voiceFillerTimer) {
+			window.clearTimeout(voiceFillerTimer);
+			voiceFillerTimer = null;
+		}
 		try {
 			await v.connect();
 			voiceActive = true;
@@ -1303,6 +1398,7 @@
 			const answer = messageText(last);
 			voicePendingSpeak = false;
 			voiceSpeakMode = voiceLayer?.speakAgentAnswer(answer) ?? 'none';
+			voiceAnswerDoneAt = Date.now();
 			pushVoiceTelemetry('speak_answer', { mode: voiceSpeakMode, chars: answer.length });
 			return;
 		}
@@ -1326,6 +1422,7 @@
 				const answer = messageText(again);
 				voicePendingSpeak = false;
 				voiceSpeakMode = voiceLayer?.speakAgentAnswer(answer) ?? 'none';
+				voiceAnswerDoneAt = Date.now();
 			} else {
 				voicePendingSpeak = false;
 			}
@@ -1361,14 +1458,18 @@
 			}
 		}
 		if (busy && voicePendingSpeak && voiceActive && !voiceFillerSpoken) {
-			voiceFillerSpoken = true;
-			// Filler con GRACIA: solo si el agente sigue ocupado tras la gracia y el
-			// cerebro aún no narró nada (el commentary es la fuente principal de voz).
+			// Filler con GRACIA (S2): el flag NO se marca al programar — se marca al
+			// HABLAR, para que el disparo temprano por primera tool (1800ms) pueda
+			// hablar primero y el flag evite duplicados (el primero que hable gana).
+			// Antes de hablar se verifica que el turno siga vivo (isBusy/voiceActive)
+			// y que el cerebro aún no narró (el commentary es la fuente principal de
+			// voz). El hint de módulo se pasa cuando ya arrancó una tool.
 			window.setTimeout(() => {
-				if (!voiceFillerSpoken || !voiceActive || !isBusy) return;
+				if (voiceFillerSpoken || !voiceActive || !isBusy) return;
 				if (voiceLastNarrationAt > 0) return;
+				voiceFillerSpoken = true;
 				try {
-					voiceLayer?.speakPreamble();
+					voiceLayer?.speakPreamble(voiceTurnToolHint || undefined);
 				} catch {
 					/* noop */
 				}
@@ -1376,15 +1477,78 @@
 			return;
 		}
 		maybeSpeakAnswer();
+		// Caso "respuesta SIN audio" (mode none): si la voz no arrancó playback
+		// en ~1.5s, arma la ventana de auto-off (con audio la arma el watch de
+		// voiceSpeaking al terminar el playback).
+		if (!busy && voiceAnswerDoneAt > 0 && voiceActive) {
+			window.setTimeout(() => {
+				try {
+					if (!voiceActive || isBusy || voiceSpeaking) return;
+					armPostAnswerAutoOff();
+				} catch {
+					/* noop */
+				}
+			}, 1500);
+		}
+	});
+
+	/** Cancela la ventana de auto-off post-respuesta (el usuario sigue activo). */
+	function cancelPostAnswerAutoOff(): void {
+		try {
+			if (voicePostAnswerTimer) {
+				window.clearTimeout(voicePostAnswerTimer);
+				voicePostAnswerTimer = null;
+			}
+		} catch {
+			/* noop */
+		}
+	}
+
+	/**
+	 * Arma la desconexión automática de la voz tras la respuesta (ahorro de
+	 * recursos): ventana corta; si el usuario no habla y no hay HITL pendiente,
+	 * se apaga la voz (la conversación de chat NO se pierde — la voz es solo el
+	 * canal; se reactiva con "Activar voz"). Patrón de referencia (xAI 5/10/15s,
+	 * OpenAI push-to-talk): sesión realtime efímera por interacción.
+	 */
+	function armPostAnswerAutoOff(): void {
+		if (!voiceActive || isBusy) return;
+		if (voiceHitl.length > 0) return; // el agente espera la respuesta del usuario
+		cancelPostAnswerAutoOff();
+		voicePostAnswerTimer = window.setTimeout(() => {
+			voicePostAnswerTimer = null;
+			if (!voiceActive || isBusy) return;
+			if (voiceSpeaking) {
+				// Aún suena audio (respuesta larga): re-arranca la ventana.
+				armPostAnswerAutoOff();
+				return;
+			}
+			if (voiceHitl.length > 0) return;
+			console.info(`[voice] auto-off post-respuesta (ahorro de recursos)`);
+			pushVoiceTelemetry('post_answer_auto_off', { graceMs: VOICE_POST_ANSWER_AUTO_OFF_MS });
+			void toggleVoice();
+		}, VOICE_POST_ANSWER_AUTO_OFF_MS);
+	}
+
+	// Auto-off post-respuesta (con audio): cuando la voz termina de sonar la
+	// respuesta (voiceSpeaking → false con una respuesta entregada reciente) se
+	// arma la ventana de desconexión corta.
+	watch([() => voiceSpeaking], ([speaking]) => {
+		if (!voiceActive) return;
+		if (!speaking && voiceAnswerDoneAt > 0 && Date.now() - voiceAnswerDoneAt < 30000) {
+			armPostAnswerAutoOff();
+		}
 	});
 
 	// ── Coreografía de voz v2 (fluida) ────────────────────────────────────
 	// La voz NARRA solo lo que el cerebro dice (`narrar`) o el filler único al
 	// inicio. Se ELIMINARON la narración por fases/tools hardcodeada y el latido
 	// por timer (eso pisaba frases y repetía). La respuesta se encola sin cortar.
-	const VOICE_FILLER_GRACE_MS = 4000;
+	const VOICE_FILLER_GRACE_MS = 5000;
 	const VOICE_NARRATION_GAP_MS = 4500;
 	const VOICE_BUSY_KEEPALIVE_MS = 20000; // rearmar el idle watchdog cada 20s mientras isBusy
+	// Ventana de desconexión automática tras la respuesta (ahorro de recursos).
+	const VOICE_POST_ANSWER_AUTO_OFF_MS = 8000;
 
 	// HITL por voz: gates pendientes del último mensaje assistant (inputRequest
 	// sin inputResponse). Fuente: parts dynamic-tool del mensaje.
@@ -1499,7 +1663,16 @@
 		voiceFillerSpoken = false;
 		voiceSpeakMode = 'none';
 		voiceLastNarrationAt = 0;
+		voiceLastNarrationNorm = '';
 		voiceNarratedEventIds = new Set();
+		// Reset por turno (S1/S2): nuevo turno tras responder la gate → hint y marca
+		// de primera tool en cero, y se cancela el filler temprano pendiente.
+		voiceTurnToolHint = '';
+		voiceFirstToolAt = 0;
+		if (voiceFillerTimer) {
+			window.clearTimeout(voiceFillerTimer);
+			voiceFillerTimer = null;
+		}
 		persistInputResponses(responses);
 		void agent.send({ inputResponses: responses });
 	}
@@ -1529,36 +1702,112 @@
 	// los EVENTOS (no sobre liveActivities — `narrar` se excluye del feed), con
 	// dedupe por meta.id y el mismo gap de narración para no saturar la cola.
 	watch([() => agent.events.length], () => {
-		if (!voiceActive || !voicePendingSpeak || !isBusy) return;
-		const evs = agent.events as readonly StreamEv[];
-		for (let i = Math.max(0, evs.length - 25); i < evs.length; i++) {
-			const ev = evs[i];
-			if (ev.type !== 'actions.requested') continue;
-			const id = (ev as { meta?: { id?: string } }).meta?.id;
-			if (id) {
-				if (voiceNarratedEventIds.has(id)) continue;
-				voiceNarratedEventIds.add(id);
-			}
-			const actions = (((ev.data ?? {}) as { actions?: unknown[] }).actions) ?? [];
-			for (const a of actions) {
-				const rec = (a ?? {}) as Record<string, unknown>;
-				const name = String(rec?.name ?? rec?.toolName ?? rec?.tool ?? '');
-				if (name !== 'narrar') continue;
-				const input = (rec?.input ?? rec?.arguments ?? {}) as Record<string, unknown>;
-				const texto = String(input?.texto ?? '').trim();
-				if (!texto) continue;
-				if (Date.now() - voiceLastNarrationAt < VOICE_NARRATION_GAP_MS) continue;
-				voiceLastNarrationAt = Date.now();
-				try {
-					voiceLayer?.speakNarration(texto, {
-						instructions:
-							'Comentario de progreso: léelo con naturalidad, como un asistente que comenta en voz baja lo que está haciendo. Pausado y claro.',
-					});
-				} catch {
-					/* noop */
+		// ⚠️ Blindado: un throw aquí (shape de evento inesperado) rompería el watch
+		// y podría causar un reload de la página (convención del repo).
+		try {
+			if (!voiceActive || !voicePendingSpeak || !isBusy) return;
+			const evs = agent.events as readonly StreamEv[];
+			for (let i = Math.max(0, evs.length - 25); i < evs.length; i++) {
+				const ev = evs[i];
+				if (ev.type !== 'actions.requested') continue;
+				const id = (ev as { meta?: { id?: string } }).meta?.id;
+				if (id) {
+					if (voiceNarratedEventIds.has(id)) continue;
+					voiceNarratedEventIds.add(id);
 				}
-				break;
+				const actions = (((ev.data ?? {}) as { actions?: unknown[] }).actions) ?? [];
+				for (const a of actions) {
+					const rec = (a ?? {}) as Record<string, unknown>;
+					const name = String(rec?.name ?? rec?.toolName ?? rec?.tool ?? '');
+					if (name === 'narrar') {
+						const input = (rec?.input ?? rec?.arguments ?? {}) as Record<string, unknown>;
+						const texto = String(input?.texto ?? '').trim();
+						if (!texto) continue;
+						// Naturalidad conversacional (2026-08-18, análisis de la sesión
+						// de 20 turnos). El cerebro es la fuente de la narración, pero la
+						// capa es el FILTRO de naturalidad: descarta lo que un asistente
+						// humano no diría.
+						// F1 — HITL pendiente: la pregunta de aclaración la habla la UI
+						// (speakHitl) UNA vez. Si el cerebro la narra también, se escucha
+						// doble (evidencia: "¿A qué semana te refieres…?" ×2 a las
+						// 02:52:26/33 y "¿A qué te refieres…?" ×2 a las 02:42:10/16).
+						if (voiceHitl.length > 0) continue;
+						// F2 — Nunca repetir la pregunta del usuario: si la narración
+						// parafrasea la pregunta recién hecha ("Buscando el inventario
+						// del chícharo mitad…" tras preguntar por el chícharo mitad), se
+						// descarta en silencio (telemetría `narration_echo_question`).
+						if (voiceUserQuestionNorm && narrationEchoesQuestion(texto, voiceUserQuestionNorm)) {
+							console.info(`[voice] narración eco de la pregunta descartada: "${texto.slice(0, 80)}"`);
+							pushVoiceTelemetry('narration_echo_question', { text: texto.slice(0, 120) });
+							continue;
+						}
+						// F3 — Duplicado casi-idéntico a la narración anterior del mismo
+						// turno ("Buscando el inventario del chícharo mitad…" + "Consulto
+						// las existencias del chícharo mitad por almacén…" → solo la 1ª).
+						if (
+							voiceLastNarrationNorm &&
+							isNearDuplicateNarration(texto, voiceLastNarrationNorm) &&
+							Date.now() - voiceLastNarrationAt < VOICE_NARRATION_GAP_MS * 3
+						) {
+							console.info(`[voice] narración duplicada descartada: "${texto.slice(0, 80)}"`);
+							pushVoiceTelemetry('narration_duplicate', { text: texto.slice(0, 120) });
+							continue;
+						}
+						if (Date.now() - voiceLastNarrationAt < VOICE_NARRATION_GAP_MS) continue;
+						voiceLastNarrationAt = Date.now();
+						voiceLastNarrationNorm = texto;
+						// F4 — El cerebro narró → el filler genérico de la UI sobra
+						// (evita "Te lo busco ahora…" + "Buscando el inventario…" juntos):
+						// se cancela el filler pendiente y se marca como hablado.
+						if (voiceFillerTimer) {
+							window.clearTimeout(voiceFillerTimer);
+							voiceFillerTimer = null;
+						}
+						voiceFillerSpoken = true;
+						try {
+							voiceLayer?.speakNarration(texto, {
+								instructions:
+									'Comentario de progreso: léelo con naturalidad, como un asistente que comenta en voz baja lo que está haciendo. Pausado y claro.',
+							});
+						} catch {
+							/* noop */
+						}
+						break;
+					}
+					// S1/S6 — Hint de módulo + S2 — gate de timing real: la PRIMERA tool
+					// ERP del turno (distinta de `narrar`) produce la frase de acción
+					// contextual del preámbulo ("Consultando compras…") y dispara el
+					// filler temprano (1800ms) en vez de esperar la gracia completa de 4s.
+					if (voiceFirstToolAt === 0) {
+						voiceFirstToolAt = Date.now();
+						if (!voiceTurnToolHint) {
+							const hintInput = (rec?.input ?? rec?.arguments ?? {}) as Record<string, unknown>;
+							voiceTurnToolHint = friendlyToolLabel(name, hintInput);
+						}
+						// Filler temprano: solo si el cerebro aún no narró y no se ha
+						// hablado filler; al hablar marca el flag (el mismo flag evita
+						// duplicados con la gracia de 4s). Se limpia antes de programar.
+						if (voiceLastNarrationAt === 0 && !voiceFillerSpoken) {
+							if (voiceFillerTimer) {
+								window.clearTimeout(voiceFillerTimer);
+								voiceFillerTimer = null;
+							}
+							voiceFillerTimer = window.setTimeout(() => {
+								voiceFillerTimer = null;
+								try {
+									if (!voiceActive || !isBusy || voiceFillerSpoken || voiceLastNarrationAt > 0) return;
+									voiceFillerSpoken = true;
+									voiceLayer?.speakPreamble(voiceTurnToolHint || undefined);
+								} catch {
+									/* noop */
+								}
+							}, 3000);
+						}
+					}
+				}
 			}
+		} catch {
+			/* noop — un error en el scan de tools nunca debe romper el turno */
 		}
 	});
 
