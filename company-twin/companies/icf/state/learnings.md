@@ -5,11 +5,29 @@ aquí cuando una tool falla; el agente las lee al inicio de sesión para no repe
 
 ## Reglas aprendidas
 
-- [pendiente] ventad-sin-importe / ventad-sin-descripcion — schema de `VentaD` (verificar si ya está en `erp-kernel/ventad.md`; si no, promover ahí).
-- [pendiente] movtipo-lookup — patrón procedural para ventas/compras por tipo semántico (verificar skill destino de ventas/compras).
-- [pendiente] almacen-c-fresco — catálogo de almacenes de ICF (ubicar en el twin ICF, p.ej. `policies/operaciones-policy.md` o un concepto de almacenes).
-
-> Promovidos el 2026-08-05 vía protocolo de la meta-fábrica: `ent-inexistente-*` →
+- [pendiente] movtipo-lookup — patrón procedural para ventas/compras por tipo semántico
+  (sin evidencia de sesión/error en el buffer: requiere confirmar el caso real antes de
+  compilar; candidato: refinar `agent/skill-library/icf/SKILL.md`, que ya cubre compras
+  por proveedor).
+> **Promovido el 2026-08-17 vía protocolo de la meta-fábrica (skill promote-learnings):**
+> - `fld-read_records-*` / `fld-aggregate_records-*` (casing, ~25 entradas) → RESUELTAS
+>   con cross-referencia en `erp-kernel/casing.md` (mapa camelCase vs UPPERCASE por entidad
+>   + tabla de correcciones de campo) y regla corregida en `erp-kernel/index.md` (la regla
+>   genérica "UPPERCASE" de 2026-08-05 era una sobre-generalización). Colapsadas y vaciadas.
+> - `fld-read_records-familiacf` / `-ano` (UPPERCASE que NO existe; el campo real es
+>   camelCase) → cubierto por `erp-kernel/resumenplaneacioncf.md` + `mrp/mrp-forecast-arribos.md`.
+> - `ent-inexistente-CXP` → `companies/icf/modulos.md` (módulo no publicado).
+> - `ent-inexistente-ArtAlm` / `-UtLogEjcProMrp` / `-DimTiempoSemana` → `modulos.md`
+>   (lista "No disponible") + `mrp/mrp-forecast-arribos.md` (DimTiempoSemana marcada
+>   NO existe; antes estaba documentada como vigente).
+> - `[pendiente] ventad-sin-importe/descripcion` → cubierto por `erp-kernel/ventad.md`
+>   (no existen `Importe`/`Descripcion` en VentaD; usar `ImporteDetalle` / join con
+>   `Art.Descripcion1`).
+> - `[pendiente] almacen-c-fresco` → cubierto por `companies/icf/policies/operaciones-policy.md`
+>   (almacén de producto terminado `C. FRESCO` + variantes).
+> - Hook enriquecido (2026-08-17): las entradas NUEVAS llevan entidad real, hint de
+>   campo correcto por caso y `sessionId` (trazabilidad a la radiografía).
+>> Promovidos el 2026-08-05 vía protocolo de la meta-fábrica: `ent-inexistente-*` →
 > `companies/icf/modulos.md`; `fld-read_records-*` (UPPERCASE) → `erp-kernel/index.md`
 > § Capacidades OData; `buscar-registro`/`odata-no-in`/`params-sin-dolar`/`empresa-incf`
 > ya cubiertos en instructions/kernel/twin.
@@ -25,44 +43,7 @@ aquí cuando una tool falla; el agente las lee al inicio de sesión para no repe
 > antes marcada como EntityNotFound — la verdad de runtime read_records first:60 la validó).
 > Impacto validado: pregunta frijol negro 919k→136k tokens input (-85%), 302→135s,
 > 22→14 calls, 1→0 errores, cache 44%→62%.
-- [ent-inexistente-ArtAlm] La entidad 'ArtAlm' NO existe en el MCP de esta empresa (EntityNotFound). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada. _(2026-08-05T16:34:53.353Z)_
-- [ent-inexistente-UtLogEjcProMrp] La entidad 'UtLogEjcProMrp' NO existe en el MCP de esta empresa (EntityNotFound). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada. _(2026-08-05T18:41:13.214Z)_
-- [fld-read_records-apartado] El campo 'Apartado' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'APARTADO', no 'Apartado'. _(2026-08-06T07:35:40.182Z)_
-- [ent-inexistente-DimTiempoSemana] La entidad 'DimTiempoSemana' NO existe en el MCP de esta empresa (EntityNotFound). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada. _(2026-08-06T07:52:57.637Z)_
-- [fld-read_records-familiacf] El campo 'FAMILIACF' no existe en 'read_records' (BadRequest). Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1). _(2026-08-06T07:55:16.771Z)_
-- [fld-read_records-ano] El campo 'ANO' no existe en 'read_records' (BadRequest). Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1). _(2026-08-06T09:17:46.126Z)_
-
-> **Promovido el 2026-08-06 (E2E plan S31):** `fld-read_records-ano` (CalendarioFC) →
-> `mrp/mrp-forecast-arribos.md` (nota: CalendarioFC es camelCase `Ano`/`Semana`/`FechaD`/`FechaA`,
-> NO UPPERCASE) + notas matizadas en `mrp/mrp-plan-produccion.md` y `mrp-inicio` (el UPPERCASE es
-> ESPECÍFICO de `ForecastPlanProduccion`, no generalizar). `ForecastPlanProduccion` UPPERCASE
-> promovido al mismo doc + skills `mrp-concentrado`/`mrp-inicio`. Hook `deriveLearning` ampliado
-> (shape "Could not find a property named X").
-- [fld-read_records-unidad] El campo 'Unidad' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'UNIDAD', no 'Unidad'. _(2026-08-06T10:06:17.125Z)_
-
-> **Clasificado 2026-08-06 (E2E icf, turno wrun_01KZB8JVF5TJHSGXK5WJ3AFNT0):** el
-> hint UPPERCASE del hook NO aplica aquí — la causa real fue el patrón viejo del
-> skill (snapshot anterior al fix): pedir `Apartado`/`DispMenosApartado` en
-> `ArtDisponibleDesc` (no existen en esa vista) y `Unidad` en `ArtDisponible`
-> (vista mínima de 6 campos, sin Unidad). Verdad verificada: `Unidad` camelCase
-> SÍ existe en `ArtDisponibleDesc` (devuelve "Pz"). Lección ya cubierta por
-> `agent/skill-library/icf` (select corregido sin Apartado/DispMenosApartado) y
-> `mrp-cf` (ArtDisponible solo para agregados numéricos). No promover a UPPERCASE.
-- [fld-read_records-grupo] El campo 'Grupo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'GRUPO', no 'Grupo'. _(2026-08-06T11:27:55.232Z)_
-- [fld-read_records-descripcion] El campo 'Descripcion' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'DESCRIPCION', no 'Descripcion'. _(2026-08-07T00:12:25.548Z)_
-- [fld-read_records-periodo] El campo 'Periodo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'PERIODO', no 'Periodo'. _(2026-08-07T04:10:00.207Z)_
-- [fld-aggregate_records-ejercicio] El campo 'Ejercicio' no existe en 'aggregate_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'EJERCICIO', no 'Ejercicio'. _(2026-08-07T04:10:14.058Z)_
-- [fld-read_records-cantidad] El campo 'Cantidad' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'CANTIDAD', no 'Cantidad'. _(2026-08-07T04:11:15.524Z)_
-- [fld-read_records-centrotrabajo] El campo 'CentroTrabajo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'CENTROTRABAJO', no 'CentroTrabajo'. _(2026-08-07T04:11:33.565Z)_
-- [fld-read_records-variedad] El campo 'Variedad' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'VARIEDAD', no 'Variedad'. _(2026-08-10T08:42:33.274Z)_
-- [fld-read_records-articulo] El campo 'Articulo' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'ARTICULO', no 'Articulo'. _(2026-08-11T08:42:16.444Z)_
-- [fld-read_records-fecha] El campo 'Fecha' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'FECHA', no 'Fecha'. _(2026-08-11T08:47:47.282Z)_
-- [fld-aggregate_records-semana] El campo 'Semana' no existe en 'aggregate_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'SEMANA', no 'Semana'. _(2026-08-12T00:11:48.052Z)_
-- [ent-inexistente-CXP] La entidad 'CXP' NO existe en el MCP de esta empresa (EntityNotFound). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada. _(2026-08-14T02:40:38.170Z)_
-- [fld-read_records-dispmenosapartado] El campo 'DispMenosApartado' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'DISPMENOSAPARTADO', no 'DispMenosApartado'. _(2026-08-14T02:45:55.223Z)_
-- [fld-read_records-existencia] El campo 'Existencia' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'EXISTENCIA', no 'Existencia'. _(2026-08-14T03:35:40.044Z)_
-- [fld-read_records-en_transito] El campo 'EN_TRANSITO' no existe en 'read_records' (BadRequest). Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1). _(2026-08-14T03:35:45.202Z)_
-- [fld-read_records-documento] El campo 'Documento' no existe en 'read_records' (BadRequest). Los campos DAB/Intelisis son UPPERCASE: usar 'DOCUMENTO', no 'Documento'. _(2026-08-14T03:39:11.514Z)_
-- [fld-read_records-ejercicio] El campo 'EJERCICIO' no existe en 'read_records' (BadRequest). Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1). _(2026-08-14T03:39:53.544Z)_
-- [fld-read_records-proveedor] El campo 'PROVEEDOR' no existe en 'read_records' (BadRequest). Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1). _(2026-08-14T03:40:20.621Z)_
-- [fld-read_records-idpadre] El campo 'IDPADRE' no existe en 'read_records' (BadRequest). Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1). _(2026-08-14T04:05:12.098Z)_
+- [fld-read_records-importe] El campo 'Importe' no existe en 'read_records' (BadRequest). El casing NO es universal: la mayoría de entidades son camelCase (p.ej. 'FechaEmision' en Compra). Verificar el campo real en erp-kernel/casing.md o con read_records('read_records', first:1) antes de asumir UPPERCASE (solo vistas como ForecastPlanProduccion/UV_QV_PPTOCOMPRA lo son). (sesión wrun_01M07CBMMXF5P9KMBPF72WX5Z5) _(2026-08-17T08:11:42.422Z)_
+- [fld-read_records-cantidad] El campo 'Cantidad' no existe en 'read_records' (BadRequest). El casing NO es universal: la mayoría de entidades son camelCase (p.ej. 'FechaEmision' en Compra). Verificar el campo real en erp-kernel/casing.md o con read_records('read_records', first:1) antes de asumir UPPERCASE (solo vistas como ForecastPlanProduccion/UV_QV_PPTOCOMPRA lo son). (sesión wrun_01M08XC7VWYH27DY0DCW2TNFA2) _(2026-08-17T22:30:42.220Z)_
+- [fld-read_records-claveprodserv] El campo 'ClaveProdServ' no existe en 'read_records' (BadRequest). El casing NO es universal: la mayoría de entidades son camelCase (p.ej. 'FechaEmision' en Compra). Verificar el campo real en erp-kernel/casing.md o con read_records('read_records', first:1) antes de asumir UPPERCASE (solo vistas como ForecastPlanProduccion/UV_QV_PPTOCOMPRA lo son). (sesión wrun_01M08XC7VWYH27DY0DCW2TNFA2) _(2026-08-17T22:31:20.408Z)_
+- [fld-read_records-descripcion] El campo 'Descripcion' no existe en 'read_records' (BadRequest). El casing NO es universal: la mayoría de entidades son camelCase (p.ej. 'FechaEmision' en Compra). Verificar el campo real en erp-kernel/casing.md o con read_records('read_records', first:1) antes de asumir UPPERCASE (solo vistas como ForecastPlanProduccion/UV_QV_PPTOCOMPRA lo son). (sesión wrun_01M08YE90CJW86NZ9JW571KJHG) _(2026-08-17T22:47:39.406Z)_

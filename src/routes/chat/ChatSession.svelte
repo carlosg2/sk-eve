@@ -30,6 +30,9 @@
 	import FileWarningIcon from '@lucide/svelte/icons/file-warning';
 	import PaperclipIcon from '@lucide/svelte/icons/paperclip';
 	import XIcon from '@lucide/svelte/icons/x';
+	import MicIcon from '@lucide/svelte/icons/mic';
+	import Volume2Icon from '@lucide/svelte/icons/volume-2';
+	import { ChatVoiceLayer } from '$lib/realtime/chat-voice';
 
 	// Props de rehidratación: al abrir una sesión pasada desde el sidebar, el
 	// shell (+page.svelte) carga { session, events } vía GET /api/sessions/[id]
@@ -64,6 +67,7 @@
 		onSessionChange: (session) => {
 			const id = (session as { sessionId?: string } | undefined)?.sessionId;
 			if (id) onSessionId?.(id);
+			void refreshInjections();
 		},
 	});
 
@@ -172,6 +176,8 @@
 				kind: 'tool';
 				key: string;
 				name: string;
+				/** callId único del tool call (Eve lo emite en actions.requested y action.result). */
+				callId?: string;
 				state: ActivityToolState;
 				input: unknown;
 				output: unknown;
@@ -225,10 +231,14 @@
 				for (const a of actions) {
 					const rec = (a ?? {}) as Record<string, unknown>;
 					const name = String(rec?.name ?? rec?.toolName ?? rec?.tool ?? 'tool');
+					// Commentary channel (fusión total): la tool `narrar` es SOLO voz —
+					// se intercepta en un watch aparte y NUNCA se muestra como chip.
+					if (name === 'narrar') continue;
 					cur.push({
 						kind: 'tool',
 						key: `t${toolSeq++}`,
 						name,
+						callId: rec?.callId !== undefined ? String(rec.callId) : undefined,
 						state: 'input-available',
 						input: rec?.input ?? rec?.arguments,
 						output: undefined,
@@ -237,26 +247,52 @@
 			} else if (ev.type === 'action.result') {
 				const r = (d?.result ?? {}) as Record<string, unknown>;
 				const name = String(r?.toolName ?? r?.name ?? '');
-				for (let i = cur.length - 1; i >= 0; i--) {
-					const it = cur[i];
-					if (
-						it.kind === 'tool' &&
-						it.name === name &&
-						(it.state === 'input-available' || it.state === 'input-streaming')
-					) {
-						const output = r?.output;
-						const isError = !!r?.isError;
-						it.output = output;
-						// DAB/MCP devuelven los errores como resultado "exitoso" con
-						// `{ error: … }` embebido (isError=false). detectMcpError lo detecta.
-						const errText = detectMcpError(output);
-						if (isError || errText) {
-							it.state = 'output-error';
-							it.errorText = errText ?? (typeof output === 'string' ? output : JSON.stringify(output ?? {}));
-						} else {
-							it.state = 'output-available';
+				const resultCallId = r?.callId !== undefined ? String(r.callId) : undefined;
+				// Correlación EXACTA por callId: con llamadas repetidas al MISMO tool
+				// (paralelas o en serie) los results pueden llegar en orden distinto
+				// al de las llamadas, y emparejar solo por nombre entrega el output al
+				// call equivocado (parámetros que no corresponden al resultado).
+				let target: Extract<Activity, { kind: 'tool' }> | undefined;
+				if (resultCallId) {
+					for (let i = cur.length - 1; i >= 0; i--) {
+						const it = cur[i];
+						if (
+							it.kind === 'tool' &&
+							it.callId === resultCallId &&
+							(it.state === 'input-available' || it.state === 'input-streaming')
+						) {
+							target = it;
+							break;
 						}
-						break;
+					}
+				}
+				// Fallback defensivo: si no hay callId o no se encontró, emparejar por
+				// nombre (último tool abierto con ese nombre) como antes.
+				if (!target) {
+					for (let i = cur.length - 1; i >= 0; i--) {
+						const it = cur[i];
+						if (
+							it.kind === 'tool' &&
+							it.name === name &&
+							(it.state === 'input-available' || it.state === 'input-streaming')
+						) {
+							target = it;
+							break;
+						}
+					}
+				}
+				if (target) {
+					const output = r?.output;
+					const isError = !!r?.isError;
+					target.output = output;
+					// DAB/MCP devuelven los errores como resultado "exitoso" con
+					// `{ error: … }` embebido (isError=false). detectMcpError lo detecta.
+					const errText = detectMcpError(output);
+					if (isError || errText) {
+						target.state = 'output-error';
+						target.errorText = errText ?? (typeof output === 'string' ? output : JSON.stringify(output ?? {}));
+					} else {
+						target.state = 'output-available';
 					}
 				}
 			}
@@ -340,7 +376,7 @@
 	// Al terminar cada turno (turn.completed/turn.failed) persiste un resumen de
 	// la trayectoria vía POST /api/traces (JSONL en .eve/traces.jsonl) para
 	// minería offline y tendencias. El inspector muestra la tendencia reciente.
-	type TraceToolRec = { name: string; state: string; inputKey: string; outputLen: number };
+	type TraceToolRec = { name: string; callId?: string; state: string; inputKey: string; outputLen: number };
 
 	function collectTraceTools(evs: readonly StreamEv[]): TraceToolRec[] {
 		// ⚠️ Blindado: nunca debe lanzar al procesar un error de tool (un throw
@@ -353,20 +389,30 @@
 						const rec = (a ?? {}) as Record<string, unknown>;
 						const name = String(rec?.name ?? rec?.toolName ?? rec?.tool ?? 'tool');
 						const input = rec?.input ?? rec?.arguments ?? {};
-						out.push({ name, state: 'input-available', inputKey: `${name}:${JSON.stringify(input)}`, outputLen: 0 });
+						out.push({ name, callId: rec?.callId !== undefined ? String(rec.callId) : undefined, state: 'input-available', inputKey: `${name}:${JSON.stringify(input)}`, outputLen: 0 });
 					}
 				} else if (ev.type === 'action.result') {
 					const r = (ev.data?.result ?? {}) as Record<string, unknown>;
 					const name = String(r?.toolName ?? r?.name ?? '');
+					const resultCallId = r?.callId !== undefined ? String(r.callId) : undefined;
 					const output = r?.output;
 					const len = typeof output === 'string' ? output.length : JSON.stringify(output ?? '').length;
-					for (let i = out.length - 1; i >= 0; i--) {
-						const it = out[i];
-						if (it.name === name && it.state === 'input-available') {
-							it.outputLen = len;
-							it.state = r?.isError || detectMcpError(output) ? 'output-error' : 'output-available';
-							break;
+					let hit: TraceToolRec | undefined;
+					// Igual que el feed: correlacionar por callId (los results de un mismo
+					// tool pueden llegar en orden distinto al de las llamadas).
+					if (resultCallId) {
+						for (let i = out.length - 1; i >= 0; i--) {
+							if (out[i].callId === resultCallId && out[i].state === 'input-available') { hit = out[i]; break; }
 						}
+					}
+					if (!hit) {
+						for (let i = out.length - 1; i >= 0; i--) {
+							if (out[i].name === name && out[i].state === 'input-available') { hit = out[i]; break; }
+						}
+					}
+					if (hit) {
+						hit.outputLen = len;
+						hit.state = r?.isError || detectMcpError(output) ? 'output-error' : 'output-available';
 					}
 				}
 			}
@@ -393,6 +439,47 @@
 	}
 	void refreshTrend();
 
+	// ── Inyecciones de contexto (lóbulo frontal + memoria episódica) ──────
+	// llm_inputs captura el prompt PRE-middleware (por eso planTag sale null en
+	// /api/audit/llm); la radiografía durable de lo que SÍ se inyectó vive en
+	// /api/audit/injections (SQLite). Aquí se formatea para el inspector con el
+	// CONTENIDO COMPLETO (body) para ver qué skills/conceptos del Company Twin
+	// se precargaron y qué memoria episódica se inyectó en cada mensaje.
+	type InjectionRow = {
+		sessionId: string; at: string; kind: 'plan' | 'memory'; tag: string;
+		chars: number; hits?: number; message?: string;
+		sources?: Array<{ sessionId: string; type: string }>; body?: string;
+	};
+	let injectionsText = $state('');
+	async function refreshInjections() {
+		try {
+			const id = currentSessionId();
+			if (!id) { injectionsText = ''; return; }
+			const res = await fetch(`/api/audit/injections?session=${encodeURIComponent(id)}&limit=50`);
+			const j = (await res.json()) as { injections?: InjectionRow[] };
+			const rows = j.injections ?? [];
+			if (!rows.length) { injectionsText = ''; return; }
+			const parts: string[] = ['## INYECCIONES DE CONTEXTO (lo inyectado al prompt)', ''];
+			for (const inj of rows) {
+				const kind = inj.kind === 'plan' ? 'plan' : 'memoria';
+				parts.push(
+					`[${kind}] ${inj.tag} · ${inj.chars} chars · ${new Date(inj.at).toLocaleTimeString()}` +
+						(inj.kind === 'memory' && inj.hits ? ` · ${inj.hits} hits` : '')
+				);
+				if (inj.message) parts.push(`  ↳ mensaje: ${traceBlock(String(inj.message))}`);
+				if (inj.sources?.length) {
+					parts.push(`  ↳ fuentes: ${inj.sources.map((s) => `${s.type}·${String(s.sessionId).slice(-8)}`).join(', ')}`);
+				}
+				if (inj.body) parts.push(indentBlock(traceBlock(inj.body)));
+				parts.push('');
+			}
+			injectionsText = parts.join('\n').trimEnd();
+		} catch {
+			injectionsText = '';
+		}
+	}
+	void refreshInjections();
+
 	let lastTraceTurn = 0;
 	watch([() => agent.events.length], () => {
 		// ⚠️ Blindado: un throw aquí (shape de evento inesperado) rompería el
@@ -405,6 +492,7 @@
 			for (const ev of evs) if (ev.type === 'turn.started') turn++;
 			if (turn === lastTraceTurn) return;
 			lastTraceTurn = turn;
+			void refreshInjections();
 			const d = computeDiagnostics(evs, eventTs);
 			const session = (agent.session ?? {}) as unknown as Record<string, unknown>;
 			const rec = {
@@ -553,6 +641,10 @@
 		lines.push('');
 		lines.push(formatDiagnosticsSummary(diagnostics));
 		lines.push('');
+		if (injectionsText) {
+			lines.push(injectionsText);
+			lines.push('');
+		}
 		lines.push('## TRACE');
 		const events = (agent.events as readonly StreamEv[]).slice(-MAX_TRACE_EVENTS);
 		for (const ev of events) {
@@ -823,9 +915,29 @@
 		composerFiles = [];
 		const needsRecoveryContext = recovered && !recoveryContextSent;
 		if (needsRecoveryContext) recoveryContextSent = true;
-		const clientContext = needsRecoveryContext ? { clientContext: buildRecoveryContext() } : {};
+		// Canal-Aware Dual-Brain: si la voz está activa, el agente recibe el estado del
+		// canal como `clientContext` efímero (1 turno, NO se persiste) y adapta su salida:
+		// respuesta COMPLETA en pantalla + sección **SPEECH:** (resumen hablado) y, si
+		// aplica, **INSIGHT:** (dato accionable extra). Sin voz, el comportamiento es el
+		// de siempre (regresión cero).
+		type VoiceClientContext = { recoveryContext?: string; voice?: { active: boolean; state: string } };
+		let clientContext: string | VoiceClientContext | undefined;
+		if (needsRecoveryContext && !voiceActive) {
+			clientContext = buildRecoveryContext();
+		} else if (needsRecoveryContext || voiceActive) {
+			const obj: Record<string, unknown> = {};
+			if (needsRecoveryContext) obj.recoveryContext = buildRecoveryContext();
+			if (voiceActive) {
+				obj.voice = {
+					active: true,
+					state: voiceSpeaking ? 'speaking' : voiceListening ? 'listening' : 'idle',
+				};
+			}
+			clientContext = obj;
+		}
+		const context = clientContext !== undefined ? { clientContext } : {};
 		if (files.length === 0) {
-			await agent.send({ message: value, ...clientContext });
+			await agent.send({ message: value, ...context });
 			return;
 		}
 		const parts: UserContent = [];
@@ -833,7 +945,7 @@
 		for (const f of files) {
 			parts.push({ data: f.data, filename: f.name, mediaType: f.mediaType, type: 'file' });
 		}
-		await agent.send({ message: parts, ...clientContext });
+		await agent.send({ message: parts, ...context });
 	}
 
 	function onKeydown(event: KeyboardEvent) {
@@ -842,6 +954,510 @@
 			void submit();
 		}
 	}
+
+	// ── Capa delgada de voz (mic → STT → chat → agente → TTS) ─────────────
+	// La voz controla al agente de Eve que ya corre aquí (NO es la delegación
+	// ask_agent de /voice): el micrófono transcribe lo que dices (Grok Voice
+	// realtime), el texto se escribe en el chat y se envía al agente con tool
+	// calls visibles; cuando el agente termina su respuesta COMPLETA en
+	// pantalla, la capa la lee en voz alta (verbatim).
+	let voiceLayer = $state<ChatVoiceLayer | null>(null);
+	let voiceActive = $state(false);
+	let voiceListening = $state(false);
+	let voiceSpeaking = $state(false);
+	let voiceError = $state('');
+	let voiceStatus = $state('');
+	let voicePendingSpeak = $state(false);
+	// Modo de lectura aplicado por speakAgentAnswer (speech/full/truncated/none) y
+	// guard del preámbulo hablado (1× por pregunta por voz mientras el agente trabaja).
+	let voiceSpeakMode = $state<'none' | 'speech' | 'full' | 'truncated'>('none');
+	let voiceFillerSpoken = $state(false);
+	// Coreografía de voz v2 (fluida, una sola fuente): la narración DURANTE el
+	// turno la genera SOLO el cerebro (tool `narrar`); un filler corto y único al
+	// inicio (tras gracia) cubre el silencio inicial; la respuesta se encola sin
+	// cortar el audio en curso. `voiceLastNarrationAt` marca el gap anti-spam.
+	let voiceLastNarrationAt = 0;
+	// Commentary channel: ids de eventos `narrar` ya procesados (dedupe — el
+	// stream re-emite eventos al reabrir y el watch escanea una ventana).
+	let voiceNarratedEventIds = new Set<string>();
+	// Vibe con voz: texto del usuario captado mientras el agente trabajaba
+	// (se envía como seguimiento al terminar el turno — "busca X… y dime sus compras").
+	let voicePendingIntent = $state<string | null>(null);
+	// Anti-eco de transcripción: el gateway a veces re-transcribe el MISMO audio
+	// ya commiteado (commit fantasma de bajo RMS justo después de la pregunta
+	// real — observado 2026-08-17: 2º commit 3.7s después con la misma
+	// transcripción) y fabrica una "segunda pregunta" que el usuario no dijo.
+	// Si llega un transcript IDÉNTICO al último en <VOICE_TRANSCRIPT_DEDUP_MS,
+	// se ignora (no se encola como intent ni se envía).
+	const VOICE_TRANSCRIPT_DEDUP_MS = 6000;
+	let lastVoiceTranscriptNorm = '';
+	let lastVoiceTranscriptAt = 0;
+	// Anti-eco de TRANSCRIPCIÓN (bucle 2026-08-17): el STT del gateway a veces
+	// transcribe el ECO del audio del asistente (bajo RMS) con el MISMO texto de
+	// una intención recién enviada y eso re-ejecuta la pregunta (3 commits
+	// "Es Leticia." en 15s). El dedupe de 6s no basta (el eco llega más tarde);
+	// este ring guarda los últimos transcripts ACEPTADOS y rechaza una repetición
+	// si el commit que la produjo fue de BAJO RMS (= eco, no voz real).
+	const VOICE_ECHO_RMS_FLOOR = 0.045;
+	const VOICE_INTENT_ECHO_MS = 60000;
+	let voiceRecentIntents: Array<{ norm: string; at: number }> = [];
+	// HITL por voz: requests pendientes del último mensaje assistant + dedupe.
+	type VoiceHitlReq = {
+		requestId: string;
+		prompt: string;
+		options: Array<{ id: string; label: string }>;
+		allowFreeform: boolean;
+	};
+	let voiceHitlKey = '';
+	let voiceHitlSpoken = false;
+
+	// ── Telemetría durable de voz ────────────────────────────────────────
+	// Los eventos del cliente (vad/mic drops/commits/STT/playback/respuestas y
+	// las decisiones sobre el transcript) se acumulan y persisten EN LOTE a
+	// /api/voice/telemetry (tabla `voice_events` de la radiografía SQLite). El
+	// diagnóstico de "dijo algo por voz y no se registró" ocurre client-side
+	// (antes de que llegue a Eve) y el espejo de eventos NO tiene rastro — esta
+	// telemetría es la única evidencia durable de qué pasó en la capa de voz.
+	let voiceTelemetry: Array<{ at: string; type: string; data?: Record<string, unknown> }> = [];
+	let voiceTelemetryTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function flushVoiceTelemetry(): void {
+		if (voiceTelemetry.length === 0) return;
+		const events = voiceTelemetry;
+		voiceTelemetry = [];
+		const sid = currentSessionId();
+		void fetch('/api/voice/telemetry', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ sessionId: sid ?? null, events }),
+		}).catch(() => {
+			// silencioso: la telemetría nunca rompe el turno/UI
+		});
+	}
+
+	function pushVoiceTelemetry(type: string, data?: Record<string, unknown>): void {
+		voiceTelemetry.push({ at: new Date().toISOString(), type, data });
+		if (voiceTelemetry.length >= 50) {
+			if (voiceTelemetryTimer) {
+				clearTimeout(voiceTelemetryTimer);
+				voiceTelemetryTimer = null;
+			}
+			flushVoiceTelemetry();
+			return;
+		}
+		if (!voiceTelemetryTimer) {
+			voiceTelemetryTimer = setTimeout(() => {
+				voiceTelemetryTimer = null;
+				flushVoiceTelemetry();
+			}, 2000);
+		}
+	}
+
+	function ensureVoice(): ChatVoiceLayer {
+		if (voiceLayer) return voiceLayer;
+		const layer = new ChatVoiceLayer({
+			onTranscript: (t, meta) => {
+				console.info(`[voice] ${new Date().toISOString().slice(11, 19)} · transcript="${t.slice(0, 100)}" busy=${isBusy} hitl=${voiceHitl.length} peakRms=${meta?.peakRms ?? '?'}`);
+				// Anti-eco: si el STT devuelve el MISMO texto de la pregunta en los
+				// segundos siguientes (el gateway re-transcribe audio ya commiteado),
+				// se ignora — no se encola como intent ni se envía al agente. Mata la
+				// "segunda pregunta que no hice" (duplicado fantasma, 2026-08-17).
+				const normT = t.trim().replace(/\s+/g, ' ').toLowerCase();
+				const isEcho =
+					normT !== '' &&
+					normT === lastVoiceTranscriptNorm &&
+					Date.now() - lastVoiceTranscriptAt < VOICE_TRANSCRIPT_DEDUP_MS;
+				if (normT !== '') {
+					lastVoiceTranscriptNorm = normT;
+					lastVoiceTranscriptAt = Date.now();
+				}
+				if (isEcho) {
+					console.info(`[voice] → duplicado/eco ignorado (mismo texto < ${VOICE_TRANSCRIPT_DEDUP_MS}ms)`);
+					pushVoiceTelemetry('transcript_duplicate', { text: t.slice(0, 120) });
+					return;
+				}
+				// Anti-eco por ENERGÍA: si este transcript repite una intención recién
+				// aceptada (≤1min) y el commit que lo produjo fue de BAJO RMS, es el
+				// eco del altavoz transcrito igual (bucle "es Leticia" 3×, 2026-08-17)
+				// — no una repetición real del usuario (esa tiene RMS ≥ 0.05).
+				const peakRms = meta?.peakRms ?? 0;
+				const matchedRecent = voiceRecentIntents.find(
+					(r) => r.norm === normT && Date.now() - r.at < VOICE_INTENT_ECHO_MS
+				);
+				if (normT !== '' && matchedRecent && peakRms < VOICE_ECHO_RMS_FLOOR) {
+					console.info(`[voice] → eco de intención rechazado (rms=${peakRms.toFixed(4)} < piso, mismo texto "${t.slice(0, 60)}")`);
+					pushVoiceTelemetry('echo_reject_intent', {
+						text: t.slice(0, 120),
+						peakRms: Number(peakRms.toFixed(4)),
+						sinceMs: Date.now() - matchedRecent.at,
+					});
+					return;
+				}
+				if (normT !== '') {
+					voiceRecentIntents.push({ norm: normT, at: Date.now() });
+					if (voiceRecentIntents.length > 5) voiceRecentIntents.shift();
+				}
+				// HITL por voz: si el agente tiene una pregunta pendiente y no está
+				// trabajando, la respuesta del usuario responde la gate.
+				if (!isBusy && voiceHitl.length > 0) {
+					console.info(`[voice] → responde HITL`);
+					pushVoiceTelemetry('transcript_decision', { path: 'hitl', text: t.slice(0, 120), hitl: voiceHitl.length });
+					voiceRespondHitl(t);
+					return;
+				}
+				// Barge-in continuo (vibe con voz): si el agente está trabajando, el
+				// texto se guarda como intención y se envía al terminar el turno —
+				// "busca X…" arranca y "y dime sus compras…" se agrega al vuelo.
+				if (isBusy) {
+					console.info(`[voice] → INTENTO (agente ocupado): "${t.slice(0, 80)}"`);
+					pushVoiceTelemetry('transcript_decision', { path: 'intent', text: t.slice(0, 120) });
+					voicePendingIntent = t;
+					voiceLayer?.clearSpokenQueue();
+					voiceLayer?.cutPlayback();
+					voiceStatus = 'Entendido, lo agrego…';
+					return;
+				}
+				console.info(`[voice] → pregunta nueva (submit)`);
+				pushVoiceTelemetry('transcript_decision', { path: 'submit', text: t.slice(0, 120) });
+				voiceLayer?.clearSpokenQueue();
+				voiceLayer?.cutPlayback();
+				voicePendingSpeak = true;
+				voiceFillerSpoken = false;
+				voiceSpeakMode = 'none';
+				voiceLastNarrationAt = 0;
+				voiceNarratedEventIds = new Set();
+				text = t;
+				void submit();
+			},
+			onListeningChange: (l) => (voiceListening = l),
+			onSpeakingChange: (s) => (voiceSpeaking = s),
+			onStatus: (s) => (voiceStatus = s),
+			onError: (e) => {
+				// El gateway realtime responde "Cancellation failed: no active
+				// response found" cuando recibe un response-cancel sin respuesta
+				// activa (carrera benigna de doble-cancel). NUNCA debe aparecer como
+				// error rojo en la UI aunque llegue por cualquier vía.
+				if (/cancellation failed|no active response/i.test(e)) {
+					console.info(`[voice] onError benigno ignorado: ${e.slice(0, 120)}`);
+					return;
+				}
+				voiceError = e;
+			},
+			onTelemetry: (ev) => pushVoiceTelemetry(ev.type, ev.data),
+		});
+		voiceLayer = layer;
+		return layer;
+	}
+
+	async function toggleVoice() {
+		const v = ensureVoice();
+		if (voiceActive) {
+			voiceActive = false;
+			v.stopListening();
+			v.disconnect();
+			voiceError = '';
+			voiceStatus = '';
+			voicePendingSpeak = false;
+			voiceFillerSpoken = false;
+			voiceSpeakMode = 'none';
+			voiceNarratedEventIds = new Set();
+			voicePendingIntent = null;
+			voiceHitlKey = '';
+			voiceHitlSpoken = false;
+			flushVoiceTelemetry();
+			return;
+		}
+		voiceError = '';
+		try {
+			await v.connect();
+			voiceActive = true;
+			await v.startListening();
+		} catch (err) {
+			voiceError = err instanceof Error ? err.message : String(err);
+			voiceActive = false;
+		}
+	}
+
+	/**
+	 * Lee la respuesta del agente por el canal de voz (SPEECH verbatim si existe).
+	 * Coreografía v2: NADA se corta — si hay una narración en curso, la respuesta
+	 * se ENCOLA detrás (la cola FIFO serializada garantiza el orden sin pisarse).
+	 */
+	function maybeSpeakAnswer() {
+		if (!voiceActive) return;
+		if (isBusy) return;
+		// HITL por voz: si el turno terminó con una pregunta del agente (gate), se
+		// lee en voz alta EN VEZ de intentar "leer" la respuesta — el input.requested
+		// NO produce message.completed con texto, la respuesta vendría vacía.
+		if (voiceHitl.length && !voiceHitlSpoken) {
+			voiceHitlSpoken = true;
+			speakHitl(voiceHitl);
+			return;
+		}
+		// Vibe con voz: si el usuario añadió contexto mientras el agente trabajaba,
+		// se envía como seguimiento (no se lee la respuesta anterior — la nueva
+		// pregunta la completa en la misma sesión).
+		if (voicePendingIntent) {
+			console.info(`[voice] maybeSpeakAnswer → ENVÍA INTENTO: "${voicePendingIntent.slice(0, 80)}"`);
+			const intent = voicePendingIntent;
+			voicePendingIntent = null;
+			voicePendingSpeak = false;
+			voiceSpeakMode = 'none';
+			voiceStatus = '';
+			text = intent;
+			void submit();
+			return;
+		}
+		if (!voicePendingSpeak) return;
+		const last = messages[messages.length - 1];
+		if (last && last.role === 'assistant') {
+			console.info(`[voice] maybeSpeakAnswer → lee respuesta (modo=${voiceSpeakMode})`);
+			const answer = messageText(last);
+			voicePendingSpeak = false;
+			voiceSpeakMode = voiceLayer?.speakAgentAnswer(answer) ?? 'none';
+			pushVoiceTelemetry('speak_answer', { mode: voiceSpeakMode, chars: answer.length });
+			return;
+		}
+		// El mensaje del asistente puede tardar un instante en llegar al store;
+		// se reintenta una vez antes de rendirse (turno sin respuesta).
+		window.setTimeout(() => {
+			if (!voiceActive || isBusy) return;
+			if (voicePendingIntent) {
+				console.info(`[voice] retry → ENVÍA INTENTO: "${voicePendingIntent.slice(0, 80)}"`);
+				const intent = voicePendingIntent;
+				voicePendingIntent = null;
+				voicePendingSpeak = false;
+				voiceStatus = '';
+				text = intent;
+				void submit();
+				return;
+			}
+			if (!voicePendingSpeak) return;
+			const again = messages[messages.length - 1];
+			if (again && again.role === 'assistant') {
+				const answer = messageText(again);
+				voicePendingSpeak = false;
+				voiceSpeakMode = voiceLayer?.speakAgentAnswer(answer) ?? 'none';
+			} else {
+				voicePendingSpeak = false;
+			}
+		}, 500);
+	}
+
+	watch([() => isBusy], ([busy]) => {
+		if (busy && voicePendingSpeak && voiceActive && !voiceFillerSpoken) {
+			voiceFillerSpoken = true;
+			// Filler con GRACIA: solo si el agente sigue ocupado tras la gracia y el
+			// cerebro aún no narró nada (el commentary es la fuente principal de voz).
+			window.setTimeout(() => {
+				if (!voiceFillerSpoken || !voiceActive || !isBusy) return;
+				if (voiceLastNarrationAt > 0) return;
+				try {
+					voiceLayer?.speakPreamble();
+				} catch {
+					/* noop */
+				}
+			}, VOICE_FILLER_GRACE_MS);
+			return;
+		}
+		maybeSpeakAnswer();
+	});
+
+	// ── Coreografía de voz v2 (fluida) ────────────────────────────────────
+	// La voz NARRA solo lo que el cerebro dice (`narrar`) o el filler único al
+	// inicio. Se ELIMINARON la narración por fases/tools hardcodeada y el latido
+	// por timer (eso pisaba frases y repetía). La respuesta se encola sin cortar.
+	const VOICE_FILLER_GRACE_MS = 4000;
+	const VOICE_NARRATION_GAP_MS = 4500;
+
+	// HITL por voz: gates pendientes del último mensaje assistant (inputRequest
+	// sin inputResponse). Fuente: parts dynamic-tool del mensaje.
+	const voiceHitl = $derived.by((): VoiceHitlReq[] => {
+		try {
+			for (let i = messages.length - 1; i >= 0; i--) {
+				const m = messages[i];
+				if (m.role !== 'assistant') continue;
+				const parts = (m as { parts?: readonly unknown[] }).parts;
+				if (!Array.isArray(parts)) continue;
+				const reqs: VoiceHitlReq[] = [];
+				for (const part of parts) {
+					const meta = (part as {
+						toolMetadata?: { eve?: { inputRequest?: Record<string, unknown>; inputResponse?: unknown } };
+					})?.toolMetadata?.eve;
+					const ir = meta?.inputRequest;
+					if (!ir || meta?.inputResponse) continue;
+					reqs.push({
+						requestId: String(ir.requestId ?? ''),
+						prompt: String(ir.prompt ?? ''),
+						options: ((ir.options as Array<{ id?: unknown; label?: unknown }>) ?? []).map((o) => ({
+							id: String(o.id ?? ''),
+							label: String(o.label ?? o.id ?? ''),
+						})),
+						allowFreeform: !!ir.allowFreeform,
+					});
+				}
+				if (reqs.length) return reqs;
+			}
+			return [];
+		} catch {
+			return [];
+		}
+	});
+
+	/** Lee una pregunta HITL en voz alta (con opciones numeradas). */
+	function speakHitl(reqs: VoiceHitlReq[]): void {
+		if (!voiceActive || !voiceLayer) return;
+		const lines = reqs.map((r) => {
+			let t = r.prompt;
+			if (r.options.length) {
+				t += ` Opciones: ${r.options.map((o, i) => `${i + 1}. ${o.label}`).join(', ')}.`;
+			} else {
+				t += ' Responde libremente.';
+			}
+			return t;
+		});
+		try {
+			voiceLayer.speakNarration(lines.join(' '), {
+				instructions:
+					'Pregunta del sistema: léela clara y pausada, como quien pide una respuesta. Al final, queda en silencio esperando.',
+			});
+		} catch {
+			/* noop */
+		}
+	}
+
+	/** Normaliza texto para matchear opciones HITL (minúsculas, sin acentos). */
+	function normHitl(s: string): string {
+		return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+	}
+
+	/** Responde una gate HITL con la voz del usuario (número, ordinal, etiqueta o texto libre). */
+	function voiceRespondHitl(t: string): void {
+		const reqs = voiceHitl;
+		if (!reqs.length) return;
+		const tn = normHitl(t).trim();
+		const responses: InputResponse[] = [];
+		for (const req of reqs) {
+			let resp: InputResponse | null = null;
+			if (req.options.length) {
+				const n = parseInt(tn, 10);
+				if (Number.isInteger(n) && n >= 1 && n <= req.options.length) {
+					resp = { requestId: req.requestId, optionId: req.options[n - 1].id };
+				}
+				if (!resp) {
+					const ords = [
+						'uno', 'primera', 'primero', 'primera opcion', 'primera opción',
+						'dos', 'segunda', 'segundo',
+						'tres', 'tercera', 'tercero',
+						'cuatro', 'cuarta',
+						'cinco', 'quinta',
+					];
+					for (let i = 0; i < req.options.length; i++) {
+						if (ords[i] && tn.includes(ords[i])) {
+							resp = { requestId: req.requestId, optionId: req.options[i].id };
+							break;
+						}
+					}
+				}
+				if (!resp) {
+					const opt = req.options.find((o) => tn.includes(normHitl(o.label)));
+					if (opt) resp = { requestId: req.requestId, optionId: opt.id };
+				}
+				if (!resp && req.allowFreeform) resp = { requestId: req.requestId, text: t };
+			} else if (req.allowFreeform) {
+				resp = { requestId: req.requestId, text: t };
+			}
+			if (resp) responses.push(resp);
+		}
+		if (!responses.length) {
+			// No se entendió: releer la pregunta.
+			voiceHitlSpoken = false;
+			speakHitl(reqs);
+			return;
+		}
+		voiceHitlSpoken = true;
+		// Prepara el turno siguiente (la respuesta del agente a la gate): la
+		// respuesta final se leerá en voz alta (voicePendingSpeak) y el filler /
+		// narración arrancan de cero para este turno nuevo.
+		voicePendingSpeak = true;
+		voiceFillerSpoken = false;
+		voiceSpeakMode = 'none';
+		voiceLastNarrationAt = 0;
+		voiceNarratedEventIds = new Set();
+		persistInputResponses(responses);
+		void agent.send({ inputResponses: responses });
+	}
+
+	// Lee en voz alta cada gate HITL nueva cuando el agente pausa esperando input.
+	// Deps = voiceHitl + isBusy: el `input.requested` llega con el stream aún
+	// abierto (isBusy=true); dependiendo SOLO de voiceHitl, cuando el turno se
+	// estacionaba (isBusy→false) el watch no volvía a correr y la pregunta del
+	// agente NUNCA se leía en voz alta. Con isBusy en las deps, al cerrar el
+	// turno se re-evalúa y se habla la gate pendiente.
+	watch([() => voiceHitl, () => isBusy], () => {
+		if (!voiceActive || isBusy) return;
+		const key = voiceHitl.map((r) => r.requestId).join('|');
+		if (!key) return;
+		if (key !== voiceHitlKey) {
+			voiceHitlKey = key;
+			voiceHitlSpoken = false;
+		}
+		if (!voiceHitlSpoken) {
+			voiceHitlSpoken = true;
+			speakHitl(voiceHitl);
+		}
+	});
+
+	// Commentary channel (fusión total de los dos brains): el agente narra en
+	// vivo con la tool `narrar` (su texto va SOLO a la voz). Se intercepta sobre
+	// los EVENTOS (no sobre liveActivities — `narrar` se excluye del feed), con
+	// dedupe por meta.id y el mismo gap de narración para no saturar la cola.
+	watch([() => agent.events.length], () => {
+		if (!voiceActive || !voicePendingSpeak || !isBusy) return;
+		const evs = agent.events as readonly StreamEv[];
+		for (let i = Math.max(0, evs.length - 25); i < evs.length; i++) {
+			const ev = evs[i];
+			if (ev.type !== 'actions.requested') continue;
+			const id = (ev as { meta?: { id?: string } }).meta?.id;
+			if (id) {
+				if (voiceNarratedEventIds.has(id)) continue;
+				voiceNarratedEventIds.add(id);
+			}
+			const actions = (((ev.data ?? {}) as { actions?: unknown[] }).actions) ?? [];
+			for (const a of actions) {
+				const rec = (a ?? {}) as Record<string, unknown>;
+				const name = String(rec?.name ?? rec?.toolName ?? rec?.tool ?? '');
+				if (name !== 'narrar') continue;
+				const input = (rec?.input ?? rec?.arguments ?? {}) as Record<string, unknown>;
+				const texto = String(input?.texto ?? '').trim();
+				if (!texto) continue;
+				if (Date.now() - voiceLastNarrationAt < VOICE_NARRATION_GAP_MS) continue;
+				voiceLastNarrationAt = Date.now();
+				try {
+					voiceLayer?.speakNarration(texto, {
+						instructions:
+							'Comentario de progreso: léelo con naturalidad, como un asistente que comenta en voz baja lo que está haciendo. Pausado y claro.',
+					});
+				} catch {
+					/* noop */
+				}
+				break;
+			}
+		}
+	});
+
+	// Desconexión segura de la voz al desmontar el componente.
+	$effect(() => {
+		const layer = voiceLayer;
+		return () => {
+			try {
+				layer?.disconnect();
+			} catch {
+				/* noop */
+			}
+			flushVoiceTelemetry();
+		};
+	});
 </script>
 
 <div class="bg-background flex h-full w-full flex-col">
@@ -964,6 +1580,7 @@
 									{message}
 									scrollAnchor={message.role === 'user'}
 									collapsible={i < messages.length - 1}
+									stripVoiceSections={message.role === 'assistant'}
 								/>
 								{#if message.role === 'assistant'}
 									<MessageParts
@@ -1044,6 +1661,60 @@
 					</p>
 				{/if}
 				<form onsubmit={(event) => { event.preventDefault(); void submit(); }}>
+					{#if voiceActive}
+						<div
+							class="mb-2 flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
+							role="status"
+						>
+							<span class="relative flex size-2 shrink-0">
+								{#if voiceListening}
+									<span
+											class="absolute inline-flex size-full animate-ping rounded-full bg-red-500 opacity-75"
+									></span>
+								{/if}
+								<span
+									class="relative inline-flex size-2 rounded-full {voiceHitl.length > 0 && !isBusy
+										? 'bg-amber-500'
+										: voiceListening
+											? 'bg-red-500'
+											: voiceSpeaking
+												? 'bg-emerald-500'
+												: 'bg-muted-foreground'}"
+								></span>
+							</span>
+							<span class="truncate">
+								{#if voiceHitl.length > 0 && !isBusy}
+									Pregunta del agente — responde por voz…
+								{:else if voiceSpeaking}
+									{#if voiceSpeakMode === 'speech' || voiceSpeakMode === 'truncated'}
+										Resumiendo la respuesta…
+									{:else}
+										Hablando la respuesta…
+									{/if}
+								{:else if voicePendingIntent}
+									{voiceStatus || 'Entendido, lo agrego…'}
+								{:else if isBusy && voicePendingSpeak}
+									Consultando… te aviso en cuanto tenga la respuesta
+								{:else if voiceListening}
+									Escuchando… habla para preguntar
+								{:else if voiceError}
+									<span class="text-destructive">{voiceError}</span>
+								{:else if voiceStatus}
+									{voiceStatus}
+								{:else}
+									Voz activa
+								{/if}
+							</span>
+							<button
+								type="button"
+								class="text-muted-foreground hover:text-foreground"
+								aria-label="Desactivar voz"
+								onclick={() => void toggleVoice()}
+							>
+								<XIcon class="size-3" />
+							</button>
+						</div>
+					{/if}
 					{#if composerFiles.length}
 						<div class="mb-2 flex flex-wrap gap-2">
 							{#each composerFiles as f (f.id)}
@@ -1083,9 +1754,25 @@
 						<InputGroup.Addon align="block-end" class="pt-1">
 							<InputGroup.Button
 								type="button"
+								variant={voiceActive ? 'outline' : 'ghost'}
+								size="icon-sm"
+								class={voiceActive ? 'border-red-500/60 text-red-500' : 'ml-auto'}
+								aria-label={voiceActive ? 'Desactivar voz' : 'Activar voz'}
+								aria-pressed={voiceActive}
+								disabled={isBusy && !voiceActive}
+								onclick={() => void toggleVoice()}
+							>
+								{#if voiceActive && voiceSpeaking}
+									<Volume2Icon />
+								{:else}
+									<MicIcon />
+								{/if}
+								<span class="sr-only">{voiceActive ? 'Desactivar voz' : 'Activar voz'}</span>
+							</InputGroup.Button>
+							<InputGroup.Button
+								type="button"
 								variant="ghost"
 								size="icon-sm"
-								class="ml-auto"
 								aria-label="Adjuntar"
 								disabled={isBusy}
 								onclick={() => fileInput?.click()}

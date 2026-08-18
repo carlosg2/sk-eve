@@ -32,15 +32,27 @@
 		class?: string;
 	} = $props();
 
-	function partKey(part: EveMessage['parts'][number], index: number): string {
+	function partKey(parts: EveMessage['parts'], part: EveMessage['parts'][number], index: number): string {
 		switch (part.type) {
 			case 'dynamic-tool':
 				return `tool:${part.toolCallId}`;
 			case 'authorization':
 				return `auth:${part.turnId}:${part.stepIndex}`;
 			case 'text':
-			case 'reasoning':
-				return `${part.type}:${part.stepIndex}`;
+			case 'reasoning': {
+				// Un mismo step puede emitir VARIOS parts del mismo tipo (p. ej. dos
+				// `reasoning` en el step 0) → la clave `type:stepIndex` NO es única y
+				// Svelte revienta con each_key_duplicate. Desambiguar contando las
+				// ocurrencias del mismo (type, stepIndex) hasta este índice: única y
+				// estable bajo appends (streaming), que es el caso real.
+				const step = part.stepIndex ?? -1;
+				let n = 0;
+				for (let j = 0; j <= index; j++) {
+					const p = parts[j];
+					if (p.type === part.type && (p.stepIndex ?? -1) === step) n++;
+				}
+				return `${part.type}:${step}#${n}`;
+			}
 			default:
 				return `${part.type}:${index}`;
 		}
@@ -88,7 +100,7 @@
 </script>
 
 <div class={className}>
-	{#each message.parts as part, i (partKey(part, i))}
+	{#each message.parts as part, i (partKey(message.parts, part, i))}
 		{#if part.type === 'authorization'}
 			<div class="mb-3">
 				<Authorization {part} />

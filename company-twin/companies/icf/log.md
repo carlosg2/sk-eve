@@ -2,6 +2,29 @@
 
 Historial de promociones del Company Twin de ICF. Más nuevo primero.
 
+## 2026-08-17
+
+- **Promote** buffer `state/learnings.md` — ~30 entradas clasificadas y vaciadas
+  (skill promote-learnings): `fld-*` casing → `erp-kernel/index.md` §Capacidades
+  OData (ya cubierto); `ent-inexistente-*` → `modulos.md` (ver Update abajo);
+  pendientes `ventad-sin-importe/descripcion` y `almacen-c-fresco` ya cubiertos
+  en `erp-kernel/ventad.md` y `policies/operaciones-policy.md`. Queda 1
+  `[pendiente]` justificado (`movtipo-lookup`).
+- **Update** `modulos.md` — añadidas a "No disponible en ICF" (EntityNotFound
+  verificado en runtime 2026-08-06/14): `DimTiempoSemana`, `ArtAlm`,
+  `UtLogEjcProMrp`.
+- **Update** `mrp/mrp-forecast-arribos.md` — `DimTiempoSemana` marcada como **NO
+  existe** en el MCP de ICF (antes documentada como vigente; el runtime la marcó
+  EntityNotFound). Proxy recomendado: `CalendarioFC`.
+- **Hook** `agent/hooks/memory.ts` enriquecido — las entradas nuevas incluyen
+  entidad real (extraída del mensaje DAB "on type '...X'"), hint de campo
+  correcto por caso (UPPERCASE solo cuando el campo que falló es camelCase) y
+  `sessionId` para trazabilidad a la radiografía.
+- **Promote (ampliación)** — los ~25 learnings de casing ambiguos resueltos con
+  cross-referencia en el nuevo concepto universal `erp-kernel/casing.md` + regla
+  corregida en `erp-kernel/index.md` (la regla genérica "UPPERCASE" de 2026-08-05
+  era una sobre-generalización; el casing es POR VISTA).
+
 ## 2026-08-13
 
 - **Delete** `art-icf.md` — higiene de conocimiento: el concepto Delta (conteos

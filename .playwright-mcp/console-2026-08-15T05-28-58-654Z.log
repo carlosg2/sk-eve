@@ -1,0 +1,66 @@
+[   39209ms] [INFO] [vad] 05:29:37 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   42960ms] [INFO] [vad] 05:29:41 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   47909ms] [INFO] [vad] 05:29:46 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   54049ms] [INFO] [vad] 05:29:52 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   54484ms] [INFO] [stt] 05:29:53 · transcript="¿Cuáles son los proveedores con más órdenes concluidas? Dame los top 5." @ http://localhost:5173/src/lib/realtime/grok-voice.ts:518
+[   54484ms] [INFO] [voice] 05:29:53 · transcript="¿Cuáles son los proveedores con más órdenes concluidas? Dame los top 5." busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771656398:1256
+[   54484ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771656398:1280
+[   54485ms] [INFO] [play] 05:29:53 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[   54485ms] [INFO] [play] 05:29:53 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[   54575ms] [INFO] [resp] 05:29:53 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts:569
+[   54697ms] [INFO] [resp] 05:29:53 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[   58571ms] [INFO] [voz] 05:29:57 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[   58950ms] [INFO] [resp] 05:29:57 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[   59095ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771656398:1366
+[   62549ms] [INFO] [vad] 05:30:01 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   65789ms] [INFO] [vad] 05:30:04 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   71762ms] [INFO] [vad] 05:30:10 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   75348ms] [INFO] [vad] 05:30:14 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   78077ms] [INFO] [vad] 05:30:16 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   88146ms] [INFO] [vad] 05:30:26 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  100263ms] [INFO] [vad] 05:30:38 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  113233ms] [INFO] [vad] 05:30:51 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  124839ms] [INFO] [vad] 05:31:03 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  140199ms] [INFO] [vad] 05:31:18 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  147366ms] [INFO] [vad] 05:31:26 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  154877ms] [INFO] [vad] 05:31:33 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  186530ms] [INFO] [vad] 05:32:05 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  187035ms] [INFO] [stt] 05:32:05 · transcript="Dame el estatus de las órdenes de poli, polipelículas impresas." @ http://localhost:5173/src/lib/realtime/grok-voice.ts:518
+[  187036ms] [INFO] [voice] 05:32:05 · transcript="Dame el estatus de las órdenes de poli, polipelículas impresas." busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771656398:1256
+[  187036ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771656398:1280
+[  187036ms] [INFO] [play] 05:32:05 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[  187036ms] [INFO] [play] 05:32:05 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[  187040ms] [INFO] [resp] 05:32:05 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts:569
+[  187254ms] [INFO] [resp] 05:32:05 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  191039ms] [INFO] [voz] 05:32:09 · Un momento… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  191255ms] [INFO] [resp] 05:32:09 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  191782ms] [INFO] [play] 05:32:10 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  191870ms] [INFO] [play] 05:32:10 · audio-delta bytes=37192 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  191874ms] [INFO] [play] 05:32:10 · audio-delta bytes=13704 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  191896ms] [INFO] [play] 05:32:10 · audio-delta bytes=4480 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  191897ms] [INFO] [resp] 05:32:10 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  192072ms] [INFO] [voz] 05:32:10 · Consultando el estatus de las órdenes de Poly Películas Impresas… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  192275ms] [INFO] [resp] 05:32:10 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  192901ms] [INFO] [play] 05:32:11 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  192946ms] [INFO] [play] 05:32:11 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  193066ms] [INFO] [play] 05:32:11 · audio-delta bytes=31320 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  193383ms] [INFO] [play] 05:32:12 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  193446ms] [INFO] [play] 05:32:12 · audio-delta bytes=66552 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  193461ms] [INFO] [play] 05:32:12 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  193465ms] [INFO] [play] 05:32:12 · audio-delta bytes=6152 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  193466ms] [INFO] [resp] 05:32:12 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  197681ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771656398:1366
+[  197681ms] [INFO] [voz] 05:32:16 · Poly Películas Impresas tiene 114 movimientos: 84 ya concluidos y 28 órdenes de  @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  197885ms] [INFO] [resp] 05:32:16 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  198605ms] [INFO] [play] 05:32:17 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  198753ms] [INFO] [play] 05:32:17 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  198802ms] [INFO] [play] 05:32:17 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  199206ms] [INFO] [play] 05:32:17 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  199488ms] [INFO] [play] 05:32:18 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  199597ms] [INFO] [play] 05:32:18 · audio-delta bytes=84168 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  199799ms] [INFO] [play] 05:32:18 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  199925ms] [INFO] [play] 05:32:18 · audio-delta bytes=115484 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  199939ms] [INFO] [play] 05:32:18 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  199945ms] [INFO] [play] 05:32:18 · audio-delta bytes=5420 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  199946ms] [INFO] [resp] 05:32:18 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  212295ms] [INFO] [vad] 05:32:30 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461

@@ -1,0 +1,25 @@
+[   85147ms] [INFO] [voz] 11:37:21 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[   88648ms] [INFO] [voz] 11:37:25 · Estoy analizando los datos… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[   94964ms] [INFO] [voz] 11:37:31 · Encontré nueve registros con el nombre Leticia. El único proveedor activo es Let @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  117871ms] [INFO] [voz] 11:37:54 · Un momento… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  126372ms] [INFO] [voz] 11:38:03 · Estoy analizando los datos… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  146436ms] [INFO] [voz] 11:38:23 · Estoy analizando los datos… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  166371ms] [INFO] [voz] 11:38:43 · Estoy analizando los datos… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  175466ms] [INFO] [voz] 11:38:52 · En los dos últimos meses recibimos veinte entradas de compra por nueve millones  @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  197271ms] [INFO] [voz] 11:39:14 · Déjame consultarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  210770ms] [INFO] [voz] 11:39:27 · Estoy analizando los datos… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  217903ms] [INFO] [voz] 11:39:34 · Tu mejor proveedor por monto de compras recibidas en julio es RG Compañía Benefi @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  307657ms] [INFO] [voz] 11:41:04 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  310180ms] [INFO] [voz] 11:41:06 · Buscando proveedor… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  316248ms] [INFO] [voz] 11:41:13 · Estoy analizando los datos… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  317752ms] [INFO] [voz] 11:41:14 · El único proveedor Leticia activo de mercancía es Leticia Márquez Valenzuela, fr @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  334923ms] [INFO] [voz] 11:41:31 · Un momento… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  338199ms] [INFO] [voz] 11:41:35 · Voy a revisar el procedimiento para esto… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[  343423ms] [INFO] [voz] 11:41:40 · Estoy analizando los datos… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786707290793:282
+[ 1459996ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/src/routes/chat/layout.css?t=1786708762985:0
+[ 1459997ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/src/lib/components/ui/tooltip/tooltip-provider.svelte:0
+[ 1459997ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/src/lib/components/ui/tooltip/tooltip-portal.svelte:0
+[ 1678906ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:5173/api/sessions:0
+[ 2520547ms] [ERROR] Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED @ http://localhost:5173/@fs/Users/carlosgarzagarza/Documents/GitHub/sk-eve/.svelte-kit/generated/client/app.js:0
+[ 2520552ms] Failed to fetch dynamically imported module: http://localhost:5173/@fs/Users/carlosgarzagarza/Documents/GitHub/sk-eve/.svelte-kit/generated/client/app.js
+[ 2520548ms] [ERROR] Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED @ http://localhost:5173/node_modules/@sveltejs/kit/src/runtime/client/entry.js:0

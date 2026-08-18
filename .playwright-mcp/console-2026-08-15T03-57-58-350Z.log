@@ -1,0 +1,15 @@
+[   23294ms] [INFO] [voz] 03:58:21 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786765986432:301
+[   29148ms] [INFO] [voz] 03:58:27 · El proveedor Maritza es Maritza Ramírez Briseño, de gastos generales, en León, c @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786765986432:301
+[   33229ms] [INFO] [voz] 03:58:31 · Un momento… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786765986432:301
+[  100492ms] [INFO] [voz] 03:59:38 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786765986432:301
+[  111075ms] [INFO] [voz] 03:59:49 · Reviso el inventario de frijol negro en el almacén… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786765986432:301
+[  270082ms] [INFO] [voz] 04:02:28 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786765986432:301
+[  272160ms] [INFO] [voz] 04:02:30 · Déjame revisar las existencias de frijol negro en el almacén. @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786765986432:301
+[  281299ms] [INFO] [voz] 04:02:39 · En el almacén C. Fresco hay mil treinta y cinco piezas de frijol negro Campo Fre @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786765986432:301
+[  461870ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:992
+[  461902ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/api/sessions:0
+[  464405ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/api/sessions:0
+[  466906ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/api/sessions:0
+[  469404ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/api/sessions:0
+[  471907ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/api/sessions:0
+[  474407ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/api/sessions:0

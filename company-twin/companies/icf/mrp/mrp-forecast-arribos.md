@@ -63,10 +63,12 @@ ver mrp-plan-produccion.md). Si un filter/select falla con BadRequest, verifica
 el casing real con `read_records(CalendarioFC, first:1)` antes de reportar.
 
 ## `DimTiempoSemana`
-Dimensión de tiempo por semana natural: `Anio` (expuesto así por restricción de
-nombres GraphQL — el campo real es `AÑO`), `MES`, `SEMANA`, con
-`FECHAINICIO`/`FECHAFIN` y bandera de periodo cerrado. Tabla de referencia, solo
-lectura. Llave lógica: `AÑO+SEMANA`.
+⚠️ **NO existe en el MCP de ICF** (EntityNotFound verificado en runtime
+2026-08-06 y 2026-08-14). Estaba documentada como dimensión de tiempo por
+semana natural (`Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`), pero no está
+publicada. **No intentar leerla** — causa `EntityNotFound` en runtime. Para
+traducir "semana N" a fechas usar `CalendarioFC` (camelCase
+`Ano`/`Semana`/`FechaD`/`FechaA`), nunca `DimTiempoSemana`.
 
 ## `DimTiempoSemanaIso`
 Dimensión de tiempo por semana **ISO**: `EJERCICIO+SEMANA_ISO` con fechas de

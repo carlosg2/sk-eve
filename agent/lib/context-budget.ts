@@ -239,6 +239,7 @@ function injectContextPlan(prompt: Array<{ role?: string; content?: unknown }>):
       tag,
       chars: markdown.length,
       message,
+      body: markdown,
     });
     prompt.unshift({
       role: "system",
@@ -351,6 +352,7 @@ function injectEpisodicMemory(prompt: Array<{ role?: string; content?: unknown }
       hits: hits.length,
       message,
       sources: hits.map((h) => ({ sessionId: h.sessionId, type: h.type })),
+      body: parts.join("\n"),
     });
     prompt.unshift({ role: "system", content: `${parts.join("\n")}\n${tag}` });
   } catch {

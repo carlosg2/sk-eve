@@ -101,8 +101,16 @@ for (const id of orphanRunIds) {
   }
 
   addTarget(`streams/runs/${id}.json`, join(WF, "streams", "runs", `${id}.json`));
+  // ⚠️ Los chunk files se nombran `strm_<runId SIN prefijo "wrun_">_<kind>`
+  // (verificado: `strm_01KZZPRXTVFYNPW59S9Q842HN9_user`), NO con el runId
+  // completo. Sin el matcheo del shortId los chunks huérfanos (incluidos los
+  // `_system_abort` que acumulan listeners → MaxListenersExceededWarning) nunca
+  // se borraban. Se matchean ambos formatos por robustez.
+  const shortId = id.startsWith("wrun_") ? id.slice("wrun_".length) : id;
   for (const n of listDir(join(WF, "streams", "chunks"))) {
-    if (n.startsWith(`strm_${id}_`)) addTarget(`streams/chunks/${n}`, join(WF, "streams", "chunks", n));
+    if (n.startsWith(`strm_${id}_`) || n.startsWith(`strm_${shortId}_`)) {
+      addTarget(`streams/chunks/${n}`, join(WF, "streams", "chunks", n));
+    }
   }
 
   for (const d of ["runs", "steps", "waits"]) {

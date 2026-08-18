@@ -1,0 +1,191 @@
+[  415167ms] [INFO] [vad] 05:40:48 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:474
+[  415545ms] [INFO] [stt] 05:40:48 · transcript="¿Cuáles son los proveedores con más órdenes concluidas? Dame los top 5." @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:531
+[  415546ms] [INFO] [voice] 05:40:48 · transcript="¿Cuáles son los proveedores con más órdenes concluidas? Dame los top 5." busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771986446:1256
+[  415546ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771986446:1280
+[  415546ms] [INFO] [play] 05:40:48 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:720
+[  415546ms] [INFO] [play] 05:40:48 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:720
+[  415655ms] [INFO] [resp] 05:40:48 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:582
+[  415803ms] [INFO] [resp] 05:40:48 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:596
+[  419676ms] [INFO] [voz] 05:40:52 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:325
+[  420031ms] [INFO] [resp] 05:40:52 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:589
+[  420391ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771986446:1366
+[  420507ms] [INFO] [play] 05:40:53 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  420793ms] [INFO] [play] 05:40:53 · audio-delta bytes=60680 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  420801ms] [INFO] [play] 05:40:53 · audio-delta bytes=9788 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  420804ms] [INFO] [play] 05:40:53 · audio-delta bytes=5932 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  420812ms] [INFO] [resp] 05:40:53 · DONE (cola=1 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:596
+[  422037ms] TypeError: this.dispatchNarrate is not a function
+    at source.onended (http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:684:12)
+[  498526ms] [INFO] [vad] 05:42:11 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:474
+[  500744ms] [INFO] [vad] 05:42:13 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:474
+[  501052ms] [INFO] [stt] 05:42:14 · transcript="Sí." @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:531
+[  501052ms] [INFO] [voice] 05:42:14 · transcript="Sí." busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771986446:1256
+[  501052ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771986446:1280
+[  501052ms] [INFO] [play] 05:42:14 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:720
+[  501053ms] [INFO] [play] 05:42:14 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:720
+[  501162ms] [INFO] [resp] 05:42:14 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:582
+[  501253ms] [INFO] [resp] 05:42:14 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:596
+[  505059ms] [INFO] [voz] 05:42:18 · Un momento… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:325
+[  505322ms] [INFO] [resp] 05:42:18 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:589
+[  505846ms] [INFO] [play] 05:42:18 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  506049ms] [INFO] [play] 05:42:19 · audio-delta bytes=37192 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  506077ms] [INFO] [play] 05:42:19 · audio-delta bytes=13704 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  506077ms] [INFO] [play] 05:42:19 · audio-delta bytes=4492 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  506078ms] [INFO] [resp] 05:42:19 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:596
+[  508678ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786771986446:1366
+[  508678ms] [INFO] [voz] 05:42:21 · Entendido. Su «Sí» no corresponde a ninguna pregunta pendiente (la última consul @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:325
+[  508932ms] [INFO] [resp] 05:42:21 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:589
+[  509555ms] [INFO] [play] 05:42:22 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  509705ms] [INFO] [play] 05:42:22 · audio-delta bytes=37192 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  509830ms] [INFO] [play] 05:42:22 · audio-delta bytes=33276 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  509972ms] [INFO] [play] 05:42:22 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  510341ms] [INFO] [play] 05:42:23 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  510464ms] [INFO] [play] 05:42:23 · audio-delta bytes=84168 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  510631ms] [INFO] [play] 05:42:23 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  510770ms] [INFO] [play] 05:42:23 · audio-delta bytes=140928 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  510880ms] [INFO] [play] 05:42:23 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  510880ms] [INFO] [play] 05:42:23 · audio-delta bytes=5232 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:547
+[  510881ms] [INFO] [resp] 05:42:23 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786771957276:596
+[  652735ms] [INFO] [vad] 05:44:45 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:474
+[  653171ms] [INFO] [stt] 05:44:46 · transcript="¿Cuál es el proveedor con más órdenes de compra concluidas este periodo?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:531
+[  653171ms] [INFO] [voice] 05:44:46 · transcript="¿Cuál es el proveedor con más órdenes de compra concluidas este periodo?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1256
+[  653171ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1280
+[  653171ms] [INFO] [play] 05:44:46 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  653172ms] [INFO] [play] 05:44:46 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  653180ms] [INFO] [resp] 05:44:46 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:582
+[  653767ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1366
+[  653767ms] [INFO] [voz] 05:44:46 · El top lo encabeza Poly Películas Impresas con 84 órdenes cerradas, seguido de A @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[  653857ms] [INFO] [resp] 05:44:46 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  654019ms] [INFO] [resp] 05:44:46 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:582
+[  654280ms] [INFO] [resp] 05:44:47 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  685292ms] [INFO] [vad] 05:45:18 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:474
+[  709845ms] [INFO] [vad] 05:45:42 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:474
+[  710252ms] [INFO] [stt] 05:45:43 · transcript="¿Cuáles son las últimas cinco órdenes de compra de polipelículas impresas?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:531
+[  710252ms] [INFO] [voice] 05:45:43 · transcript="¿Cuáles son las últimas cinco órdenes de compra de polipelículas impresas?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1256
+[  710252ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1280
+[  710253ms] [INFO] [play] 05:45:43 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  710253ms] [INFO] [play] 05:45:43 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  710349ms] [INFO] [resp] 05:45:43 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:582
+[  710928ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1366
+[  710929ms] [INFO] [voz] 05:45:43 · Entendido. Su «Sí» no corresponde a ninguna pregunta pendiente (la última consul @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[  711020ms] [INFO] [resp] 05:45:43 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  711180ms] [INFO] [resp] 05:45:44 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:582
+[  711389ms] [INFO] [resp] 05:45:44 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  782198ms] [INFO] [vad] 05:46:55 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:474
+[  782548ms] [INFO] [stt] 05:46:55 · transcript="Busca al proveedor Leticia." @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:531
+[  782548ms] [INFO] [voice] 05:46:55 · transcript="Busca al proveedor Leticia." busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1256
+[  782548ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1280
+[  782548ms] [INFO] [play] 05:46:55 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  782549ms] [INFO] [play] 05:46:55 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  782647ms] [INFO] [resp] 05:46:55 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:582
+[  782748ms] [INFO] [resp] 05:46:55 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  786553ms] [INFO] [voz] 05:46:59 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[  786775ms] [INFO] [resp] 05:46:59 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:589
+[  787499ms] [INFO] [play] 05:47:00 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  787798ms] [INFO] [play] 05:47:00 · audio-delta bytes=60680 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  787880ms] [INFO] [play] 05:47:00 · audio-delta bytes=9788 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  787880ms] [INFO] [play] 05:47:00 · audio-delta bytes=5400 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  787881ms] [INFO] [resp] 05:47:00 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  792348ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1366
+[  792348ms] [INFO] [voz] 05:47:05 · El único proveedor activo es Leticia Marquez Valenzuela, de Zacatecas, clasifica @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[  792582ms] [INFO] [resp] 05:47:05 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:589
+[  793124ms] [INFO] [play] 05:47:06 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  793298ms] [INFO] [play] 05:47:06 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  793400ms] [INFO] [play] 05:47:06 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  793402ms] [INFO] [play] 05:47:06 · audio-delta bytes=11744 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  793679ms] [INFO] [play] 05:47:06 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  794039ms] [INFO] [play] 05:47:06 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  794188ms] [INFO] [play] 05:47:07 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  794389ms] [INFO] [play] 05:47:07 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  794530ms] [INFO] [play] 05:47:07 · audio-delta bytes=144844 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  794547ms] [INFO] [play] 05:47:07 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  794560ms] [INFO] [play] 05:47:07 · audio-delta bytes=4668 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  794560ms] [INFO] [resp] 05:47:07 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  903049ms] [INFO] [vad] 05:48:55 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:474
+[  903448ms] [INFO] [stt] 05:48:56 · transcript="¿Cuánto le compré a Leticia en los últimos dos meses?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:531
+[  903448ms] [INFO] [voice] 05:48:56 · transcript="¿Cuánto le compré a Leticia en los últimos dos meses?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1256
+[  903448ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1280
+[  903448ms] [INFO] [play] 05:48:56 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  903450ms] [INFO] [play] 05:48:56 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  903557ms] [INFO] [resp] 05:48:56 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:582
+[  903667ms] [INFO] [resp] 05:48:56 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  907458ms] [INFO] [voz] 05:49:00 · Un momento… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[  907696ms] [INFO] [resp] 05:49:00 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:589
+[  908287ms] [INFO] [play] 05:49:01 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  908444ms] [INFO] [play] 05:49:01 · audio-delta bytes=37192 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  908453ms] [INFO] [play] 05:49:01 · audio-delta bytes=13704 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  908456ms] [INFO] [play] 05:49:01 · audio-delta bytes=4480 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  908456ms] [INFO] [resp] 05:49:01 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  958865ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1366
+[  958866ms] [INFO] [voz] 05:49:51 · En los últimos dos meses compraste a Leticia casi 54 millones de pesos en 64 mov @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[  959086ms] [INFO] [resp] 05:49:52 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:589
+[  959716ms] [INFO] [play] 05:49:52 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  959955ms] [INFO] [play] 05:49:52 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  959967ms] [INFO] [play] 05:49:52 · audio-delta bytes=9788 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  960178ms] [INFO] [play] 05:49:53 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  960577ms] [INFO] [play] 05:49:53 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  960727ms] [INFO] [play] 05:49:53 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  960945ms] [INFO] [play] 05:49:53 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  961147ms] [INFO] [play] 05:49:54 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  961293ms] [INFO] [play] 05:49:54 · audio-delta bytes=150716 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  961315ms] [INFO] [play] 05:49:54 · audio-delta bytes=23488 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  961316ms] [INFO] [play] 05:49:54 · audio-delta bytes=4856 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  961317ms] [INFO] [resp] 05:49:54 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  988829ms] [INFO] [vad] 05:50:21 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:474
+[  989156ms] [INFO] [stt] 05:50:22 · transcript="¿Qué?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:531
+[  989157ms] [INFO] [voice] 05:50:22 · transcript="¿Qué?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1256
+[  989157ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1280
+[  989157ms] [INFO] [play] 05:50:22 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  989157ms] [INFO] [play] 05:50:22 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[  989266ms] [INFO] [resp] 05:50:22 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:582
+[  989366ms] [INFO] [resp] 05:50:22 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[  993164ms] [INFO] [voz] 05:50:26 · Déjame consultarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[  993434ms] [INFO] [resp] 05:50:26 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:589
+[  994026ms] [INFO] [play] 05:50:26 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  994433ms] [INFO] [play] 05:50:27 · audio-delta bytes=60680 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  994434ms] [INFO] [play] 05:50:27 · audio-delta bytes=9788 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  994434ms] [INFO] [play] 05:50:27 · audio-delta bytes=5400 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[  994434ms] [INFO] [resp] 05:50:27 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[ 1003004ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1366
+[ 1003005ms] [INFO] [voz] 05:50:35 · El total de 54 millones duplica por juntar todo el ciclo. Las compras reales rec @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[ 1003252ms] [INFO] [resp] 05:50:36 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:589
+[ 1004048ms] [INFO] [play] 05:50:36 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1004171ms] [INFO] [play] 05:50:37 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1004206ms] [INFO] [play] 05:50:37 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1004486ms] [INFO] [play] 05:50:37 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1004787ms] [INFO] [play] 05:50:37 · audio-delta bytes=76336 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1004981ms] [INFO] [play] 05:50:37 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1005162ms] [INFO] [play] 05:50:38 · audio-delta bytes=138972 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1005212ms] [INFO] [play] 05:50:38 · audio-delta bytes=19576 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1005216ms] [INFO] [play] 05:50:38 · audio-delta bytes=5432 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1005217ms] [INFO] [resp] 05:50:38 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[ 1107821ms] [INFO] [vad] 05:52:20 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:474
+[ 1108165ms] [INFO] [stt] 05:52:21 · transcript="Say something random" @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:531
+[ 1108165ms] [INFO] [voice] 05:52:21 · transcript="Say something random" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1256
+[ 1108165ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1280
+[ 1108165ms] [INFO] [play] 05:52:21 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[ 1108165ms] [INFO] [play] 05:52:21 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:720
+[ 1108266ms] [INFO] [resp] 05:52:21 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:582
+[ 1108365ms] [INFO] [resp] 05:52:21 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[ 1112170ms] [INFO] [voz] 05:52:25 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[ 1112461ms] [INFO] [resp] 05:52:25 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:589
+[ 1112906ms] [INFO] [play] 05:52:25 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1113071ms] [INFO] [play] 05:52:26 · audio-delta bytes=54808 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1113073ms] [INFO] [play] 05:52:26 · audio-delta bytes=9788 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1113082ms] [INFO] [play] 05:52:26 · audio-delta bytes=5532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1113082ms] [INFO] [resp] 05:52:26 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596
+[ 1113590ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786772638045:1366
+[ 1113591ms] [INFO] [voz] 05:52:26 · Dato curioso: una taza de frijol seco rehidratado rinde dos y media tazas cocida @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:325
+[ 1113814ms] [INFO] [resp] 05:52:26 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:589
+[ 1114516ms] [INFO] [play] 05:52:27 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1114630ms] [INFO] [play] 05:52:27 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1114643ms] [INFO] [play] 05:52:27 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1114902ms] [INFO] [play] 05:52:27 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1114934ms] [INFO] [play] 05:52:27 · audio-delta bytes=31320 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1115114ms] [INFO] [play] 05:52:28 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1115275ms] [INFO] [play] 05:52:28 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1115485ms] [INFO] [play] 05:52:28 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1115639ms] [INFO] [play] 05:52:28 · audio-delta bytes=146800 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1115642ms] [INFO] [play] 05:52:28 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1115642ms] [INFO] [play] 05:52:28 · audio-delta bytes=4460 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:547
+[ 1115644ms] [INFO] [resp] 05:52:28 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786772638045:596

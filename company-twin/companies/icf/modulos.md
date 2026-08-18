@@ -32,6 +32,11 @@ varias corridas, 2026-08-05):
 - `CXP`, `CxpD`, `CxpConSaldo`, `CXPD`
 - `CtaDinero`, `Dinero`, `DineroD`
 
+Tampoco están publicadas algunas entidades que el kernel/skills documentan como
+universales (EntityNotFound verificado en runtime, 2026-08-06/14):
+- `DimTiempoSemana` (usar `CalendarioFC` para traducir semanas), `ArtAlm`,
+  `UtLogEjcProMrp` (bitácora del MRP; ver `mrp/mrp-explosion.md` para proxies)
+
 Los nombres pueden variar en mayúsculas/minúsculas (`CXP`/`Cxp`/`cxp`); en todos los casos
 la entidad no existe en la configuración del DAB de ICF.
 

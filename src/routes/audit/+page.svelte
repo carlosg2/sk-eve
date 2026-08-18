@@ -26,10 +26,11 @@
   };
   // Inyecciones de contexto (lóbulo frontal + memoria episódica) — radiografía
   // durable del middleware: llm_inputs las captura PRE-middleware, por eso aquí.
+  // `body` es el CONTENIDO COMPLETO que se inyectó al prompt (2026-08-15).
   type Injection = {
     sessionId: string; at: string; kind: "plan" | "memory";
     tag: string; chars: number; hits?: number; message?: string;
-    sources?: Array<{ sessionId: string; type: string }>;
+    sources?: Array<{ sessionId: string; type: string }>; body?: string;
   };
   // Evaluaciones de CALIDAD (fábrica, para graduación de skills).
   type Evaluacion = {
@@ -95,6 +96,12 @@
     const next = new Set(expandedEval);
     next.has(i) ? next.delete(i) : next.add(i);
     expandedEval = next;
+  }
+  let expandedInj = $state<Set<number>>(new Set());
+  function toggleInj(i: number) {
+    const next = new Set(expandedInj);
+    next.has(i) ? next.delete(i) : next.add(i);
+    expandedInj = next;
   }
 
   const KIND_BADGE: Record<string, string> = {
@@ -343,7 +350,17 @@
                     <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold ${inj.kind === 'plan' ? 'bg-violet-950 text-violet-300 border border-violet-800/60' : 'bg-cyan-950 text-cyan-300 border border-cyan-800/60'}">
                       {inj.kind === "plan" ? "plan" : "memoria"}
                     </span>
-                    <span class="font-mono text-[10px] text-zinc-500">{inj.tag}</span>
+                    <span class="flex items-center gap-2">
+                      <span class="font-mono text-[10px] text-zinc-500">{inj.tag}</span>
+                      {#if inj.body}
+                        <button
+                          class="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
+                          onclick={() => toggleInj(i)}
+                        >
+                          {expandedInj.has(i) ? "ocultar contenido" : "ver contenido"}
+                        </button>
+                      {/if}
+                    </span>
                   </div>
                   <div class="mt-1 flex flex-wrap gap-x-2 text-[10px] tabular-nums text-zinc-500">
                     <span>{fmtK(inj.chars)} chars</span>
@@ -361,6 +378,9 @@
                   {/if}
                   {#if inj.message}
                     <div class="mt-1 truncate text-[10px] text-zinc-600" title={inj.message}>{inj.message}</div>
+                  {/if}
+                  {#if expandedInj.has(i) && inj.body}
+                    <pre class="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-zinc-800 bg-black/40 p-2 font-mono text-[10px] leading-relaxed text-zinc-400">{inj.body}</pre>
                   {/if}
                 </li>
               {/each}
@@ -446,8 +466,9 @@
                           <pre class="whitespace-pre-wrap rounded-lg bg-black/60 border border-zinc-800 p-2.5 text-[11px] text-cyan-200/80 max-h-40 overflow-y-auto">{JSON.stringify(item.input ?? null, null, 2)}</pre>
                         {:else if item.kind === "tool-result"}
                           <button class="text-[11px] text-zinc-400 hover:underline" onclick={() => toggle(i)}>
-                            {expanded.has(i) ? "▾ ocultar output" : "▸ ver output"}
+                            {expanded.has(i) ? "▾ ocultar detalle" : "▸ ver detalle"}
                           </button>
+                          <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-black/60 border border-cyan-900/40 p-2.5 text-[11px] text-cyan-200/80 max-h-40 overflow-y-auto">{JSON.stringify(item.input ?? null, null, 2)}</pre>
                           <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-black/60 border border-zinc-800 p-2.5 text-[11px] text-zinc-300 ${expanded.has(i) ? 'max-h-[45vh] overflow-y-auto' : 'max-h-24 overflow-hidden'}">{expanded.has(i) ? item.output : trunc(String(item.output ?? ""), 600)}</pre>
                         {:else if item.kind === "message" && item.text}
                           <div class="rounded-lg bg-black/40 border border-zinc-800/70 px-3 py-2 text-[12px] text-zinc-200 whitespace-pre-wrap max-h-44 overflow-y-auto">{item.text}</div>

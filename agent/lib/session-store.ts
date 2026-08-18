@@ -173,7 +173,8 @@ function getDb(): DatabaseSync {
       chars INTEGER NOT NULL,
       hits INTEGER,
       message TEXT,
-      sources TEXT
+      sources TEXT,
+      body TEXT
     );
     CREATE INDEX IF NOT EXISTS prompt_injections_session ON prompt_injections (sessionId, id);
 
@@ -201,6 +202,25 @@ function getDb(): DatabaseSync {
       respuesta TEXT
     );
     CREATE INDEX IF NOT EXISTS evaluaciones_caso ON evaluaciones (caso, id);
+
+    -- Telemetria de VOZ (capa delgada realtime, /chat y /voice). El
+    -- diagnostico de "dijo algo y no se registro" ocurre CLIENT-SIDE (antes de
+    -- que llegue a Eve), asi que el espejo events NO tiene rastro de la
+    -- perdida. Estos eventos los emiten grok-voice.ts / ChatSession.svelte
+    -- (vad, mic drops, commits, STT, playback, respuestas y decisiones del
+    -- transcript) y los persiste POST /api/voice/telemetry (la unica
+    -- evidencia durable para reconstruir que paso cuando una pregunta por voz
+    -- no se registra). sessionId puede ser null (eventos previos a que el
+    -- agente asigne sesion). Sin tope (mineria), como events.
+    CREATE TABLE IF NOT EXISTS voice_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sessionId TEXT,
+      at TEXT NOT NULL,
+      type TEXT NOT NULL,
+      data TEXT
+    );
+    CREATE INDEX IF NOT EXISTS voice_events_session ON voice_events (sessionId, id);
+    CREATE INDEX IF NOT EXISTS voice_events_at ON voice_events (at);
   `);
   // Migración: `archived` se añadió después de la creación original de la
   // tabla — SQLite no soporta `ADD COLUMN IF NOT EXISTS`, así que se checa
@@ -227,6 +247,14 @@ function getDb(): DatabaseSync {
     if (!ecols.some((c) => c.name === name)) {
       db.exec(`ALTER TABLE evaluaciones ADD COLUMN ${name} ${def}`);
     }
+  }
+  // Migración de `prompt_injections` (2026-08-15): columna `body` con el
+  // CONTENIDO COMPLETO de la inyección (plan de contexto / memoria episódica).
+  // Bases viejas solo guardaban metadatos (chars/message); ahora el debugger
+  // puede mostrar exactamente qué se inyectó en cada llamada.
+  const icols = db.prepare("PRAGMA table_info(prompt_injections)").all() as unknown as { name: string }[];
+  if (!icols.some((c) => c.name === "body")) {
+    db.exec("ALTER TABLE prompt_injections ADD COLUMN body TEXT");
   }
   // Arranque del proceso: ningún turno puede estar corriendo en un proceso
   // recién creado, así que limpiar flags `active` huérfanos (un kill del dev
@@ -374,7 +402,74 @@ export async function deleteSession(id: string): Promise<void> {
   conn.prepare("DELETE FROM events WHERE sessionId = ?").run(id);
   conn.prepare("DELETE FROM llm_inputs WHERE sessionId = ?").run(id);
   conn.prepare("DELETE FROM turn_summaries WHERE sessionId = ?").run(id);
+  conn.prepare("DELETE FROM voice_events WHERE sessionId = ?").run(id);
   conn.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+}
+
+// ── Telemetría de voz (durable) ────────────────────────────────────────────
+// El diagnóstico de "dijo algo por voz y no se registró" ocurre en el CLIENTE
+// (capa delgada realtime), ANTES de que el texto llegue a Eve — el espejo
+// `events` no tiene rastro de la pérdida. Estos eventos (vad, mic drops,
+// commits, STT, playback, respuestas) los emite grok-voice.ts / ChatSession
+// y se persisten aquí vía POST /api/voice/telemetry.
+
+export interface VoiceTelemetryEvent {
+  /** ISO; default = ahora. */
+  at?: string;
+  type: string;
+  data?: Record<string, unknown> | null;
+}
+
+/** Persiste eventos de telemetría de voz en lote. Blindado: nunca lanza. */
+export function appendVoiceEvents(events: VoiceTelemetryEvent[], sessionId?: string | null): void {
+  if (!events || events.length === 0) return;
+  try {
+    const conn = getDb();
+    const ins = conn.prepare("INSERT INTO voice_events (sessionId, at, type, data) VALUES (?, ?, ?, ?)");
+    const now = new Date().toISOString();
+    for (const ev of events) {
+      ins.run(sessionId ?? null, ev.at ?? now, ev.type, ev.data != null ? JSON.stringify(ev.data) : null);
+    }
+  } catch {
+    // nunca romper el turno/UI por telemetría
+  }
+}
+
+export interface VoiceEventRecord {
+  sessionId: string | null;
+  at: string;
+  type: string;
+  data: unknown;
+}
+
+/** Lee telemetría de voz (más recientes primero); opcional por sesión. */
+export function listVoiceEvents(opts: { sessionId?: string; limit?: number } = {}): VoiceEventRecord[] {
+  try {
+    const conn = getDb();
+    const limit = Math.max(1, Math.min(opts.limit ?? 200, 5000));
+    if (opts.sessionId) {
+      return (
+        conn
+          .prepare("SELECT sessionId, at, type, data FROM voice_events WHERE sessionId = ? ORDER BY id DESC LIMIT ?")
+          .all(opts.sessionId, limit) as unknown as Array<{ sessionId: string | null; at: string; type: string; data: string | null }>
+      ).map((r) => ({ sessionId: r.sessionId, at: r.at, type: r.type, data: r.data ? safeParse(r.data) : null }));
+    }
+    return (
+      conn
+        .prepare("SELECT sessionId, at, type, data FROM voice_events ORDER BY id DESC LIMIT ?")
+        .all(limit) as unknown as Array<{ sessionId: string | null; at: string; type: string; data: string | null }>
+    ).map((r) => ({ sessionId: r.sessionId, at: r.at, type: r.type, data: r.data ? safeParse(r.data) : null }));
+  } catch {
+    return [];
+  }
+}
+
+function safeParse(s: string): unknown {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
 }
 
 // ── Espejo del stream completo (mineria) ──────────────────────────────────
@@ -592,6 +687,8 @@ export interface PromptInjectionRecord {
   hits?: number;
   message?: string;
   sources?: Array<{ sessionId: string; type: string }>;
+  /** Contenido COMPLETO que se inyectó al prompt (visible en el debugger). */
+  body?: string;
 }
 
 /** Persiste una inyección de contexto (durable; llm_inputs no la captura). */
@@ -599,8 +696,8 @@ export async function appendPromptInjection(rec: PromptInjectionRecord): Promise
   try {
     getDb()
       .prepare(
-        `INSERT INTO prompt_injections (sessionId, at, kind, tag, chars, hits, message, sources)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO prompt_injections (sessionId, at, kind, tag, chars, hits, message, sources, body)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         rec.sessionId,
@@ -611,6 +708,7 @@ export async function appendPromptInjection(rec: PromptInjectionRecord): Promise
         rec.hits ?? null,
         rec.message ? String(rec.message).slice(0, 300) : null,
         rec.sources ? JSON.stringify(rec.sources) : null,
+        rec.body ?? null,
       );
   } catch {
     // nunca romper el turno por un fallo de persistencia
@@ -646,6 +744,7 @@ export async function listPromptInjections(
     hits: r.hits == null ? undefined : Number(r.hits),
     message: r.message == null ? undefined : String(r.message),
     sources: r.sources ? JSON.parse(String(r.sources)) : undefined,
+    body: r.body == null ? undefined : String(r.body),
   }));
 }
 

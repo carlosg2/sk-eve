@@ -1,0 +1,40 @@
+- generic [ref=f38e4]:
+  - generic [ref=f38e7]:
+    - generic [ref=f38e8]:
+      - generic [ref=f38e9]:
+        - generic [ref=f38e10]: Conversaciones
+        - button "Nueva conversación" [ref=f38e12]
+      - separator [ref=f38e13]
+    - navigation "Historial de sesiones" [ref=f38e18]:
+      - paragraph [ref=f38e19]: Sin conversaciones todavía.
+    - generic [ref=f38e20]:
+      - separator [ref=f38e21]
+      - generic [ref=f38e22]:
+        - button "Todas" [pressed] [ref=f38e23]
+        - button "Chat" [ref=f38e24]
+        - button "Evals" [ref=f38e25]
+      - link "Voz (Grok Voice)" [ref=f38e26] [cursor=pointer]:
+        - /url: /voice
+      - button "Ver archivadas" [ref=f38e28]
+  - main [ref=f38e30]:
+    - generic [ref=f38e32]:
+      - generic [ref=f38e33]:
+        - generic [ref=f38e34]: Chat IA
+        - button "Reiniciar conversación" [ref=f38e40]
+      - separator [ref=f38e41]
+      - generic [ref=f38e42]:
+        - generic [ref=f38e44]:
+          - generic [ref=f38e46]: Chat IA
+          - generic [ref=f38e47]: ¿En qué puedo ayudarte?
+        - group [ref=f38e50]:
+          - textbox "Escribe tu mensaje…" [ref=f38e51]
+          - group [ref=f38e52]:
+            - button "Activar voz" [ref=f38e53]
+            - button "Adjuntar" [ref=f38e55]
+            - button "Enviar" [disabled]
+      - generic [ref=f38e56]:
+        - button "▼ DevTools 0 / 0 eventos · 0 tok" [ref=f38e57]:
+          - generic [ref=f38e58]: ▼ DevTools
+          - generic [ref=f38e61]: 0 / 0 eventos · 0 tok
+        - region "Agent inspector":
+          - generic "Inspector (texto plano · sin screenshots)" [ref=f38e62]: "# AGENT INSPECTOR status: ready events: 0 · messages: 0 tokens: in=0 out=0 total=0 ## DIAGNOSTICS turn=0ms steps=0 model=0ms tools=0ms calls=0 tokens: input=0 output=0 throughput=0 tok/s cache: hit=0% read=0 write=0 warnings: none ## TRACE"

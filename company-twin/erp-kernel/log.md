@@ -2,6 +2,22 @@
 
 Historial de promociones del ERP Kernel (capa universal Intelisis). Más nuevo primero.
 
+## 2026-08-17
+
+- **Corrección** regla "Campos en UPPERCASE" de `index.md` §Capacidades OData — era una
+  sobre-generalización (promovida 2026-08-05 de los primeros `fld-read_records-*`) que causó
+  25+ errores `Invalid field` en entidades camelCase (p.ej. `FECHAEMISION` en Compra — el
+  campo real es `FechaEmision`). Nueva regla: casing POR VISTA, verificar con
+  `read_records(<Ent>, first:1)`.
+- **Creation** `casing.md` — `type: Intelisis Casing Reference`: mapa camelCase vs UPPERCASE
+  por entidad (verificado con selects de skills, linter 0 críticos) + tabla de correcciones
+  que resuelve por cross-referencia los ~25 learnings ambiguos del buffer ICF
+  (`FECHAEMISION`→`FechaEmision`, `FOLIO`→`MovID`, `EXISTENCIA`→`Disponible`,
+  `VARIEDAD`→`VariedadCF`, `ANO`→`Ano`, `UNIDAD`→ArtDisponibleDesc,
+  `APARTADO`/`DISPMENOSAPARTADO`→ArtDisponible, etc.).
+- **Hook** `agent/hooks/memory.ts` — el hint de campo inexistente ya NO afirma "UPPERCASE" a
+  ciegas; apunta a casing.md + `read_records(first:1)`.
+
 ## 2026-08-13
 
 - **Update** `art.md` — **higiene de conocimiento (capa de fábrica)**: el concepto ahora

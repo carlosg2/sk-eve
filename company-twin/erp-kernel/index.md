@@ -62,7 +62,8 @@ Las transiciones se ejecutan con el SP [Afectar](afectar.md), no con `update_rec
 
 Capacidad transversal del **motor** (aplica a **todas** las entidades). Fuente única:
 los módulos no la repiten, solo apuntan aquí. El contrato completo de parámetros y respuestas
-de cada tool vive en [Contrato de MCP tools](/erp-kernel/mcp-tools.md).
+de cada tool vive en [Contrato de MCP tools](/erp-kernel/mcp-tools.md). El mapa de casing
+por entidad (camelCase vs UPPERCASE) vive en [Casing por vista](/erp-kernel/casing.md).
 
 * **Operadores de filtro:** `eq, ne, gt, ge, lt, le, and, or, not`.
 * **NO soportados en filtro:** `contains`, `startswith`, `endswith`, `regex`. El OData URI parser
@@ -82,7 +83,35 @@ de cada tool vive en [Contrato de MCP tools](/erp-kernel/mcp-tools.md).
   entidad dependiente en paso 2 con `campo eq 'v1' or campo eq 'v2'`).
 * **Fechas sin comillas:** `Vencimiento le 2026-12-31`.
 * **Strings con comillas simples:** `Estatus eq 'PENDIENTE'`.
-* **Campos en UPPERCASE:** los nombres de columnas de Intelisis/DAB se referencian en MAYÚSCULAS
-  (`SEMANA`, `PORPRODUCIR`, `DESCRIPCION1`). Usar minúsculas (`semana`) falla con
-  `BadRequest: Invalid field to be returned requested/used in filter`. (Promovido del buffer
-  `fld-read_records-*`, 2026-08-05.)
+* **Casing por vista (regla corregida 2026-08-17):** NO existe "campos en UPPERCASE"
+  universal. La mayoría de entidades (catálogos y movimientos) se exponen en **camelCase**
+  (`FechaEmision`, `Articulo`, `Cantidad`, `MovID`, `Descripcion1`); SOLO vistas de módulos
+  específicos (p.ej. `ForecastPlanProduccion`/`UV_QV_PPTOCOMPRA` en ICF) son UPPERCASE
+  (`SEMANA`, `PORPRODUCIR`). Ante cualquier duda verificar con `read_records(<Ent>, first:1)`.
+  Mapa completo por entidad: [casing.md](/erp-kernel/casing.md). (La regla genérica
+  "UPPERCASE" promovida el 2026-08-05 era una sobre-generalización que causó 25+ errores
+  `Invalid field` en entidades camelCase — ver erp-kernel/log.md 2026-08-17.)
+
+## Módulos de negocio — cómo decirlos (canal de voz y etiquetas)
+
+Mapa de entidad → módulo de negocio (el nivel que el usuario entiende). Al narrar,
+rotular o responder se habla de MÓDULOS, nunca de tablas: "en el módulo de compras",
+no "en Compra". Es conocimiento universal de Intelisis.
+
+| Entidad | Módulo de negocio |
+|---|---|
+| Compra, CompraD | Compras |
+| Venta, VentaD, VentaTCalc | Ventas |
+| Cte | Clientes |
+| Prov | Proveedores |
+| Art, ArtFamFC, ArtMaterial, ResumenPlaneacionCF | Catálogo y clasificación de artículos |
+| ArtDisponible, ArtDisponibleDesc | Existencias / inventario |
+| Alm | Almacenes |
+| Inv | Inventario / traspasos |
+| MovTipo | Tipos de movimiento |
+| CXP, CxpD, CxpConSaldo | Cuentas por pagar |
+| CtaDinero, Dinero, DineroD | Tesorería / cuentas bancarias |
+| ForecastPlanProduccion, CalendarioFC, ExplocionMatCF, WebInicio, CentroFCTemp, EstacionTFCTemp, Prod, ProdD | Producción / planeación (MRP-FC) |
+| UV_QV_PPTOCOMPRA | Presupuesto de compras |
+| PlanArtOP | Sugerido de compra (MRP) |
+| Arribos12, FCArribos | Arribos / abasto proyectado |

@@ -1,0 +1,30 @@
+[   20945ms] [INFO] [vad] 04:08:49 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:441
+[   21301ms] [INFO] [stt] 04:08:49 · transcript="¿Qué tenemos de frijol negro en el almacén?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:498
+[   21301ms] [INFO] [voice] 04:08:49 · transcript="¿Qué tenemos de frijol negro en el almacén?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786766877574:1256
+[   21301ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786766877574:1280
+[   21301ms] [INFO] [play] 04:08:49 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:677
+[   21302ms] [INFO] [play] 04:08:49 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:677
+[   21318ms] [INFO] [resp] 04:08:49 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:549
+[   21521ms] [INFO] [resp] 04:08:49 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:563
+[   25305ms] [INFO] [voz] 04:08:53 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:312
+[   25485ms] [INFO] [resp] 04:08:53 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:556
+[   26027ms] [INFO] [play] 04:08:54 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:514
+[   26195ms] [INFO] [play] 04:08:54 · audio-delta bytes=33276 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:514
+[   26285ms] [INFO] [play] 04:08:54 · audio-delta bytes=33276 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:514
+[   26745ms] [INFO] [play] 04:08:54 · audio-delta bytes=127228 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:514
+[   26797ms] [INFO] [play] 04:08:54 · audio-delta bytes=17616 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:514
+[   26798ms] [INFO] [play] 04:08:54 · audio-delta bytes=7288 @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:514
+[   26798ms] [INFO] [resp] 04:08:54 · DONE (cola=1 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:563
+[   26798ms] [INFO] [voz] 04:08:54 · Déjame revisar las existencias de frijol negro en el almacén… @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:312
+[   26925ms] [INFO] [play] 04:08:55 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:677
+[   27265ms] [INFO] [resp] 04:08:55 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:556
+[   28625ms] [INFO] [vad] 04:08:56 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:441
+[   28927ms] [INFO] [stt] 04:08:57 · transcript="Perfecto." @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:498
+[   28927ms] [INFO] [voice] 04:08:57 · transcript="Perfecto." busy=true hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786766877574:1256
+[   28927ms] [INFO] [voice] → INTENTO (agente ocupado): "Perfecto." @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786766877574:1271
+[   28927ms] [INFO] [play] 04:08:57 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:677
+[   28927ms] [INFO] [play] 04:08:57 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:677
+[   28927ms] [INFO] [resp] 04:08:57 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:549
+[   29127ms] [INFO] [resp] 04:08:57 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts?t=1786766877574:563
+[   45336ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:5173/api/sessions:0
+[   65185ms] [INFO] [voice] maybeSpeakAnswer → ENVÍA INTENTO: "Perfecto." @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786766877574:1347

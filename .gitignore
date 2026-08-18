@@ -28,3 +28,6 @@ vite.config.ts.timestamp-*
 
 # Persistent app data (SQLite, sobrevive purgas de .eve/)
 .data/
+
+# Repos de referencia clonados (vercel/ai, xai-cookbook) — solo estudio de la fábrica
+references/

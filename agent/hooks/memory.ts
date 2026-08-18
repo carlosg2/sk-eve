@@ -1,5 +1,6 @@
 import { defineHook } from "eve/hooks";
 import { recordLearning } from "../lib/twin-memory.js";
+import { getCurrentSessionId } from "../lib/current-session.js";
 
 // Meta-fábrica (forma mínima): captura errores de las tools del ERP y los
 // registra como aprendizajes en el Company Twin. La próxima sesión los lee
@@ -69,10 +70,12 @@ function deriveLearning(
   toolName: string,
   err: { type: string; message: string },
   entity: string,
+  sessionId: string,
 ): { key: string; text: string } | null {
   const short = toolName.replace(CONNECTION_PREFIX, "");
   const type = err.type ?? "";
   const message = err.message ?? "";
+  const ref = sessionId ? ` (sesión ${sessionId})` : "";
 
   // 1) Entidad inexistente (EntityNotFound) — el nombre vive en skills/twin stale.
   if (type === "EntityNotFound" || /entity\s*.*not\s*found/i.test(message)) {
@@ -80,7 +83,7 @@ function deriveLearning(
       entity || message.match(/entity\s+'?([A-Za-z0-9_]+)'?/i)?.[1] || short;
     return {
       key: `ent-inexistente-${ent}`,
-      text: `La entidad '${ent}' NO existe en el MCP de esta empresa (${type}). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada.`,
+      text: `La entidad '${ent}' NO existe en el MCP de esta empresa (${type}). Verificar el nombre real en el Company Twin / dab-config. Si un skill la documenta, está desactualizada.${ref}`,
     };
   }
 
@@ -94,13 +97,22 @@ function deriveLearning(
     message.match(/Invalid field to be used in (?:filter|orderby|groupby)[^:]*:\s*([A-Za-z0-9_]+)/i)?.[1] ??
     message.match(/Could not find a property named '?([A-Za-z0-9_]+)'?/i)?.[1];
   if (field) {
+    // ⚠️ GOTCHA: result.input NO expone la entidad (RuntimeToolResultActionResult),
+    // pero el mensaje DAB "...on type '...Compra'" SÍ la trae. Sin ella la entrada
+    // decía "no existe en 'read_records'" (ambiguo).
+    const typeEnt = message.match(/on type '?([A-Za-z0-9_.]+)'?/i)?.[1];
+    const ent = entity || (typeEnt ? typeEnt.replace(/^\.+/, "").split(".").pop()! : short);
     const isLowercase = field !== field.toUpperCase();
+    // ⚠️ El hint UPPERCASE es genérico y puede inducir a error (casos reales:
+    // 'FAMILIACF' → real `FamiliaCF`, 'ANO' → real `Ano`, 'FECHAEMISION' → real
+    // `FechaEmision` — todos camelCase). Solo sugerir UPPERCASE cuando el campo
+    // que falló es camelCase; si ya es UPPERCASE, apuntar al twin del entidad.
     const hint = isLowercase
-      ? ` Los campos DAB/Intelisis son UPPERCASE: usar '${field.toUpperCase()}', no '${field}'.`
-      : ` Quitar el campo del select o usar la vista correcta (ej. ArtDisponibleDesc en vez de ArtDisponible para Descripcion1).`;
+      ? ` El casing NO es universal: la mayoría de entidades son camelCase (p.ej. 'FechaEmision' en Compra). Verificar el campo real en erp-kernel/casing.md o con read_records('${ent}', first:1) antes de asumir UPPERCASE (solo vistas como ForecastPlanProduccion/UV_QV_PPTOCOMPRA lo son).`
+      : ` El UPPERCASE es ESPECÍFICO de vistas como ForecastPlanProduccion/UV_QV_PPTOCOMPRA — verificar el nombre real del campo en erp-kernel/casing.md (puede ser camelCase o requerir otra vista, ej. ArtDisponibleDesc en vez de ArtDisponible).`;
     return {
       key: `fld-${short}-${field.toLowerCase()}`,
-      text: `El campo '${field}' no existe en '${entity || short}' (${type}).${hint}`,
+      text: `El campo '${field}' no existe en '${ent}' (${type}).${hint}${ref}`,
     };
   }
 
@@ -157,8 +169,9 @@ export default defineHook({
 
         const input = (result.input ?? {}) as Record<string, unknown>;
         const entity = String(input.entity ?? input.entidad ?? "");
+        const sessionId = getCurrentSessionId() ?? "";
 
-        const learning = deriveLearning(result.toolName, err, entity);
+        const learning = deriveLearning(result.toolName, err, entity, sessionId);
         if (!learning) return;
 
         await recordLearning(learning.key, learning.text);

@@ -1,0 +1,39 @@
+[   67155ms] [INFO] [vad] 04:55:51 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   68067ms] [INFO] [stt] 04:55:52 · transcript="¿Cuál es el proveedor con más órdenes de compra pendientes?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts:518
+[   68067ms] [INFO] [voice] 04:55:52 · transcript="¿Cuál es el proveedor con más órdenes de compra pendientes?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786769659983:1256
+[   68068ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786769659983:1280
+[   68068ms] [INFO] [play] 04:55:52 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[   68068ms] [INFO] [play] 04:55:52 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[   68175ms] [INFO] [resp] 04:55:52 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts:569
+[   68344ms] [INFO] [resp] 04:55:52 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[   72075ms] [INFO] [voz] 04:55:56 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[   72275ms] [INFO] [resp] 04:55:56 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[   73020ms] [INFO] [play] 04:55:56 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   73166ms] [INFO] [play] 04:55:57 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   73184ms] [INFO] [play] 04:55:57 · audio-delta bytes=19576 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   73685ms] [INFO] [play] 04:55:57 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   73926ms] [INFO] [play] 04:55:57 · audio-delta bytes=133100 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   73936ms] [INFO] [play] 04:55:57 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   73937ms] [INFO] [play] 04:55:57 · audio-delta bytes=5552 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   73937ms] [INFO] [resp] 04:55:57 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[   74612ms] [INFO] [voz] 04:55:58 · Contando órdenes pendientes por proveedor… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[   74794ms] [INFO] [resp] 04:55:58 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[   75403ms] [INFO] [play] 04:55:59 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   75592ms] [INFO] [play] 04:55:59 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   75624ms] [INFO] [play] 04:55:59 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   75735ms] [INFO] [play] 04:55:59 · audio-delta bytes=56764 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   75750ms] [INFO] [play] 04:55:59 · audio-delta bytes=17616 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   75750ms] [INFO] [play] 04:55:59 · audio-delta bytes=7576 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   75756ms] [INFO] [resp] 04:55:59 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[   82301ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte?t=1786769659983:1366
+[   82301ms] [INFO] [voz] 04:56:06 · El proveedor con más órdenes pendientes es Poly Películas Impresas, con 28. @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[   82484ms] [INFO] [resp] 04:56:06 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[   83104ms] [INFO] [play] 04:56:07 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   83323ms] [INFO] [play] 04:56:07 · audio-delta bytes=37192 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   83331ms] [INFO] [play] 04:56:07 · audio-delta bytes=33276 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   83633ms] [INFO] [play] 04:56:07 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   83882ms] [INFO] [play] 04:56:07 · audio-delta bytes=146800 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   83894ms] [INFO] [play] 04:56:07 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   83900ms] [INFO] [play] 04:56:07 · audio-delta bytes=5784 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   83900ms] [INFO] [resp] 04:56:07 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  164444ms] [INFO] [vad] 04:57:28 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461

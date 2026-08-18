@@ -1,0 +1,116 @@
+[    1875ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5174/api/sessions:0
+[   44890ms] [INFO] [vad] 04:38:52 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[   45217ms] [INFO] [stt] 04:38:52 · transcript="¿En qué estatus están las órdenes de compra del mes?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts:518
+[   45218ms] [INFO] [voice] 04:38:52 · transcript="¿En qué estatus están las órdenes de compra del mes?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1256
+[   45218ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1280
+[   45218ms] [INFO] [play] 04:38:52 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[   45219ms] [INFO] [play] 04:38:52 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[   45241ms] [INFO] [resp] 04:38:53 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts:569
+[   45533ms] [INFO] [resp] 04:38:53 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[   49223ms] [INFO] [voz] 04:38:56 · Déjame revisarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[   49452ms] [INFO] [resp] 04:38:57 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[   49978ms] [INFO] [play] 04:38:57 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   50193ms] [INFO] [play] 04:38:57 · audio-delta bytes=60680 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   50195ms] [INFO] [play] 04:38:57 · audio-delta bytes=9788 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   50205ms] [INFO] [play] 04:38:57 · audio-delta bytes=5400 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   50205ms] [INFO] [resp] 04:38:57 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[   50322ms] [INFO] [voz] 04:38:58 · Revisando el estatus de las órdenes de compra del mes… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[   50547ms] [INFO] [resp] 04:38:58 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[   50970ms] [INFO] [play] 04:38:58 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   51073ms] [INFO] [play] 04:38:58 · audio-delta bytes=33276 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   51134ms] [INFO] [play] 04:38:58 · audio-delta bytes=33276 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   51458ms] [INFO] [play] 04:38:59 · audio-delta bytes=99824 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   51517ms] [INFO] [play] 04:38:59 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   51519ms] [INFO] [play] 04:38:59 · audio-delta bytes=5728 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   51519ms] [INFO] [resp] 04:38:59 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[   59209ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1366
+[   59209ms] [INFO] [voz] 04:39:06 · Las órdenes de compra del mes suman 233: 131 por surtir, 89 concluidas y 13 canc @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[   59394ms] [INFO] [resp] 04:39:07 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[   59973ms] [INFO] [play] 04:39:07 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   60122ms] [INFO] [play] 04:39:07 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   60143ms] [INFO] [play] 04:39:07 · audio-delta bytes=23488 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   60534ms] [INFO] [play] 04:39:08 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   60684ms] [INFO] [play] 04:39:08 · audio-delta bytes=84168 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   60944ms] [INFO] [play] 04:39:08 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   61153ms] [INFO] [play] 04:39:08 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   61453ms] [INFO] [play] 04:39:09 · audio-delta bytes=142888 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   61460ms] [INFO] [play] 04:39:09 · audio-delta bytes=19576 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   61461ms] [INFO] [play] 04:39:09 · audio-delta bytes=5720 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[   61461ms] [INFO] [resp] 04:39:09 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  116443ms] [INFO] [vad] 04:40:04 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  116783ms] [INFO] [stt] 04:40:04 · transcript="¿Qué monto ascienden las concluidas?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts:518
+[  116784ms] [INFO] [voice] 04:40:04 · transcript="¿Qué monto ascienden las concluidas?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1256
+[  116784ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1280
+[  116784ms] [INFO] [play] 04:40:04 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[  116784ms] [INFO] [play] 04:40:04 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[  116788ms] [INFO] [resp] 04:40:04 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts:569
+[  117094ms] [INFO] [resp] 04:40:04 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  120788ms] [INFO] [voz] 04:40:08 · Un momento… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  120994ms] [INFO] [resp] 04:40:08 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  121437ms] [INFO] [play] 04:40:09 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  121537ms] [INFO] [play] 04:40:09 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  121546ms] [INFO] [play] 04:40:09 · audio-delta bytes=7832 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  121585ms] [INFO] [play] 04:40:09 · audio-delta bytes=7952 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  121587ms] [INFO] [resp] 04:40:09 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  123612ms] [INFO] [voz] 04:40:11 · Sumo el importe de las órdenes concluidas… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  124104ms] [INFO] [resp] 04:40:11 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  124627ms] [INFO] [play] 04:40:12 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  124780ms] [INFO] [play] 04:40:12 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  124805ms] [INFO] [play] 04:40:12 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  124915ms] [INFO] [play] 04:40:12 · audio-delta bytes=66552 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  124938ms] [INFO] [play] 04:40:12 · audio-delta bytes=19576 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  124939ms] [INFO] [play] 04:40:12 · audio-delta bytes=5728 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  124943ms] [INFO] [resp] 04:40:12 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  127606ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1366
+[  127607ms] [INFO] [voz] 04:40:15 · Las 89 órdenes de compra concluidas suman 9 millones 208 mil 980 pesos. @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  127793ms] [INFO] [resp] 04:40:15 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  128344ms] [INFO] [play] 04:40:16 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  128582ms] [INFO] [play] 04:40:16 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  128595ms] [INFO] [play] 04:40:16 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  128835ms] [INFO] [play] 04:40:16 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  129008ms] [INFO] [play] 04:40:16 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  129197ms] [INFO] [play] 04:40:16 · audio-delta bytes=84168 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  129359ms] [INFO] [play] 04:40:17 · audio-delta bytes=107656 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  129363ms] [INFO] [play] 04:40:17 · audio-delta bytes=19576 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  129371ms] [INFO] [play] 04:40:17 · audio-delta bytes=5328 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  129371ms] [INFO] [resp] 04:40:17 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  139969ms] [INFO] [vad] 04:40:27 · COMMIT audio (enviando input-audio-commit) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:461
+[  140292ms] [INFO] [stt] 04:40:28 · transcript="¿Cuál fue la más grande?" @ http://localhost:5173/src/lib/realtime/grok-voice.ts:518
+[  140292ms] [INFO] [voice] 04:40:28 · transcript="¿Cuál fue la más grande?" busy=false hitl=0 @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1256
+[  140292ms] [INFO] [voice] → pregunta nueva (submit) @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1280
+[  140292ms] [INFO] [play] 04:40:28 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[  140293ms] [INFO] [play] 04:40:28 · CUT playback @ http://localhost:5173/src/lib/realtime/grok-voice.ts:697
+[  140386ms] [INFO] [resp] 04:40:28 · CREATED AUTOMÁTICA → CANCEL @ http://localhost:5173/src/lib/realtime/grok-voice.ts:569
+[  140488ms] [INFO] [resp] 04:40:28 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  144295ms] [INFO] [voz] 04:40:32 · Déjame consultarlo… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  144482ms] [INFO] [resp] 04:40:32 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  145027ms] [INFO] [play] 04:40:32 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  145400ms] [INFO] [play] 04:40:33 · audio-delta bytes=60680 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  145401ms] [INFO] [play] 04:40:33 · audio-delta bytes=9788 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  145401ms] [INFO] [play] 04:40:33 · audio-delta bytes=5388 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  145401ms] [INFO] [resp] 04:40:33 · DONE (cola=1 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  145401ms] [INFO] [voz] 04:40:33 · Buscando la orden de compra de mayor importe… @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  145593ms] [INFO] [resp] 04:40:33 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  146284ms] [INFO] [play] 04:40:34 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  146476ms] [INFO] [play] 04:40:34 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  147177ms] [INFO] [play] 04:40:34 · audio-delta bytes=29360 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  147256ms] [INFO] [play] 04:40:35 · audio-delta bytes=62636 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  147280ms] [INFO] [play] 04:40:35 · audio-delta bytes=19576 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  147293ms] [INFO] [play] 04:40:35 · audio-delta bytes=5312 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  147293ms] [INFO] [resp] 04:40:35 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583
+[  152629ms] [INFO] [voice] maybeSpeakAnswer → lee respuesta (modo=none) @ http://localhost:5173/src/routes/chat/ChatSession.svelte:1366
+[  152629ms] [INFO] [voz] 04:40:40 · La orden más grande es el folio 17883, de Comercial de Tubos del Bajío, por 678  @ http://localhost:5173/src/lib/realtime/grok-voice.ts:312
+[  152884ms] [INFO] [resp] 04:40:40 · CREATED (pedida) autoCancel=true @ http://localhost:5173/src/lib/realtime/grok-voice.ts:576
+[  153508ms] [INFO] [play] 04:40:41 · audio-delta bytes=15660 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  153730ms] [INFO] [play] 04:40:41 · audio-delta bytes=41104 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  153730ms] [INFO] [play] 04:40:41 · audio-delta bytes=9788 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  153943ms] [INFO] [play] 04:40:41 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  154114ms] [INFO] [play] 04:40:41 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  154365ms] [INFO] [play] 04:40:42 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  154590ms] [INFO] [play] 04:40:42 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  154810ms] [INFO] [play] 04:40:42 · audio-delta bytes=82208 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  154926ms] [INFO] [play] 04:40:42 · audio-delta bytes=80252 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  155059ms] [INFO] [play] 04:40:42 · audio-delta bytes=107656 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  155072ms] [INFO] [play] 04:40:42 · audio-delta bytes=21532 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  155083ms] [INFO] [play] 04:40:42 · audio-delta bytes=5432 @ http://localhost:5173/src/lib/realtime/grok-voice.ts:534
+[  155084ms] [INFO] [resp] 04:40:42 · DONE (cola=0 pending) @ http://localhost:5173/src/lib/realtime/grok-voice.ts:583

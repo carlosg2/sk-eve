@@ -137,27 +137,70 @@ export function detectMcpError(output: unknown): string | null {
 	return null;
 }
 
+// Mapa entidad → módulo de negocio (el nivel que el usuario entiende). Las
+// etiquetas y el fallback de voz hablan de MÓDULOS, no de tablas. Espejo del
+// kernel (company-twin/erp-kernel/index.md §Módulos de negocio).
+const ENTITY_MODULE_LABELS: Record<string, string> = {
+	Prov: 'proveedores',
+	Cte: 'clientes',
+	Art: 'catálogo de artículos',
+	ArtFamFC: 'familias de producto',
+	ArtMaterial: 'lista de materiales',
+	ResumenPlaneacionCF: 'clasificación de artículos',
+	ArtDisponible: 'existencias',
+	ArtDisponibleDesc: 'existencias',
+	Alm: 'almacenes',
+	Inv: 'inventario',
+	MovTipo: 'tipos de movimiento',
+	Compra: 'compras',
+	CompraD: 'compras',
+	Venta: 'ventas',
+	VentaD: 'ventas',
+	VentaTCalc: 'ventas',
+	CXP: 'cuentas por pagar',
+	CxpD: 'cuentas por pagar',
+	CxpConSaldo: 'cuentas por pagar',
+	CtaDinero: 'tesorería',
+	Dinero: 'tesorería',
+	DineroD: 'tesorería',
+	ForecastPlanProduccion: 'plan de producción',
+	CalendarioFC: 'calendario de producción',
+	ExplocionMatCF: 'explosión de materiales',
+	WebInicio: 'programa de producción',
+	CentroFCTemp: 'centros de trabajo',
+	EstacionTFCTemp: 'estaciones de trabajo',
+	Prod: 'producción',
+	ProdD: 'producción',
+	UV_QV_PPTOCOMPRA: 'presupuesto de compras',
+	PlanArtOP: 'sugerido de compra',
+	Arribos12: 'arribos',
+	FCArribos: 'arribos',
+};
+
 /** Etiqueta amigable para el usuario a partir de un tool name (indicador live). */
 export function friendlyToolLabel(name: string, input: Record<string, unknown> = {}): string {
-	const entity = String(input.entidad ?? input.entity ?? "");
+	const entity = String(input.entidad ?? input.entity ?? '');
+	const module = ENTITY_MODULE_LABELS[entity];
 	if (/buscar_registro/.test(name)) {
-		if (entity === "Prov") return "Buscando proveedor…";
-		if (entity === "Cte") return "Buscando cliente…";
-		if (/^Art/.test(entity)) return "Buscando artículo…";
-		return "Buscando coincidencias…";
+		if (entity === 'Prov') return 'Buscando proveedor…';
+		if (entity === 'Cte') return 'Buscando cliente…';
+		if (/^Art/.test(entity)) return 'Buscando artículo…';
+		return module ? `Buscando en ${module}…` : 'Buscando coincidencias…';
 	}
-	if (/aggregate_records/.test(name)) return "Calculando totales…";
+	if (/aggregate_records/.test(name)) {
+		return module ? `Calculando totales de ${module}…` : 'Calculando totales…';
+	}
 	if (/read_records/.test(name)) {
-		if (entity === "Compra") return "Consultando compras…";
-		if (entity === "Venta") return "Consultando ventas…";
-		if (/^ArtDisponible/.test(entity)) return "Consultando existencias…";
-		return "Consultando el ERP…";
+		if (entity === 'Compra') return 'Consultando compras…';
+		if (entity === 'Venta') return 'Consultando ventas…';
+		if (/^ArtDisponible/.test(entity)) return 'Consultando existencias…';
+		return module ? `Consultando ${module}…` : 'Consultando el ERP…';
 	}
-	if (/describe_entities/.test(name)) return "Revisando estructura…";
-	if (/query_company_twin/.test(name)) return "Consultando conocimiento…";
+	if (/describe_entities/.test(name)) return 'Revisando estructura…';
+	if (/query_company_twin/.test(name)) return 'Consultando conocimiento…';
 	if (/create_record|update_record|delete_record|execute_entity|afectar|cambiar_situacion/.test(name))
-		return "Preparando cambio…";
-	return "Trabajando…";
+		return 'Preparando cambio…';
+	return 'Trabajando…';
 }
 
 /**

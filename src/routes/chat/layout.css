@@ -185,3 +185,26 @@ body:has([data-streamdown='table-fullscreen']) [data-slot='bubble-content'] {
 	-webkit-mask-image: none !important;
 	mask-image: none !important;
 }
+/* ── Resaltado de la entidad narrada (voz = pantalla) ───────────────────────
+   message-animated.svelte añade/remueve `narrate-flash` en la celda/fila que
+   contiene la entidad que la voz está diciendo, sincronizado con el playback:
+   el resaltado se PRENDE al empezar la narración (narrate:start) y se APAGA al
+   terminar el audio (narrate:end) — NO es un flash que se desvanece. Las
+   transiciones dan la sensación de "prenderse" (entrada) y "apagarse" (salida)
+   suaves; la negrita determinista de la entidad sí permanece. */
+span[data-streamdown-strong] {
+        transition:
+                background-color 0.35s ease,
+                box-shadow 0.35s ease;
+}
+span[data-streamdown-strong].narrate-flash {
+        background-color: color-mix(in oklab, var(--primary) 18%, transparent);
+        border-radius: 0.2rem;
+        box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 12%, transparent);
+}
+tr[data-streamdown-tr] td {
+        transition: background-color 0.35s ease;
+}
+tr[data-streamdown-tr].narrate-flash td {
+        background-color: color-mix(in oklab, var(--primary) 13%, transparent);
+}

@@ -12,6 +12,7 @@
 	import ArchiveIcon from '@lucide/svelte/icons/archive';
 	import ArchiveRestoreIcon from '@lucide/svelte/icons/archive-restore';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import MicIcon from '@lucide/svelte/icons/mic';
 
 	// Índice de sesiones (para el sidebar) — GET /api/sessions, escrito por
 	// agent/hooks/session-log.ts. Se refresca por polling: los eventos que
@@ -290,6 +291,13 @@
 					</button>
 				{/each}
 			</div>
+			<a
+				href="/voice"
+				class="text-muted-foreground flex items-center gap-1.5 px-3 py-2 text-xs hover:bg-accent"
+			>
+				<MicIcon class="size-3.5" />
+				Voz (Grok Voice)
+			</a>
 			<button
 				type="button"
 				class="text-muted-foreground flex items-center gap-1.5 px-3 py-2 text-xs hover:bg-accent"
