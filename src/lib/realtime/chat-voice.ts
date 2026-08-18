@@ -14,7 +14,7 @@
 //
 // El manejo de audio va blindado en try/catch: un fallo del micrófono o del
 // playback NUNCA debe crashear el turno (convención del proyecto).
-import { GrokVoiceClient } from "./grok-voice";
+import { GrokVoiceClient, type AecInfo, type AecMode } from "./grok-voice";
 
 export type ChatVoiceCallbacks = {
 	/** Transcripción final del usuario (una por frase detectada por el VAD).
@@ -31,6 +31,18 @@ export type ChatVoiceCallbacks = {
 	 * los persiste en lote (POST /api/voice/telemetry). Blindado.
 	 */
 	onTelemetry?: (ev: { at: string; type: string; data?: Record<string, unknown> }) => void;
+	/**
+	 * El modo AEC/no-AEC del cliente de voz cambió (Fase B2): detectado en cada
+	 * `startMic` (o por el override conductual al degradar en caliente). La UI lo
+	 * usa para mostrar el aviso "modo sin cancelación de eco" o el chip de AEC
+	 * activo. Blindado: nunca lanza.
+	 */
+	onAecChange?: (mode: AecMode, aec: AecInfo) => void;
+	/**
+	 * Inactividad del mic (Fase B3, idle watchdog): tier 1 = aviso "¿Sigues ahí?",
+	 * tier 2 = desconexión amable por inactividad. Propagado desde el cliente.
+	 */
+	onIdle?: (tier: 1 | 2) => void;
 };
 
 /** Limpia la respuesta del agente para leerla en voz alta. */
@@ -494,6 +506,8 @@ export class ChatVoiceLayer {
 					},
 					onError: (e) => this.callbacks.onError?.(e),
 					onTelemetry: (ev) => this.callbacks.onTelemetry?.(ev),
+					onModeChange: (mode, aec) => this.callbacks.onAecChange?.(mode, aec),
+					onIdle: (tier) => this.callbacks.onIdle?.(tier),
 				},
 				{ autoCancelAfterTranscript: true, tokenUrl: "/api/realtime/chat-token" },
 			);
@@ -578,6 +592,21 @@ export class ChatVoiceLayer {
 	cutPlayback(): void {
 		try {
 			this.client?.cutPlayback();
+		} catch {
+			/* noop */
+		}
+	}
+
+	/**
+	 * Rearma el idle watchdog del cliente (actividad del usuario). La UI lo llama
+	 * mientras el AGENTE de /chat trabaja (isBusy): en turnos largos de DeepSeek
+	 * el mic queda en silencio pero el usuario NO está ausente — sin este rearmado
+	 * el watchdog apagaba la voz a los 90s y se perdía la siguiente pregunta
+	 * (validado en el E2E de conversación larga 2026-08-17).
+	 */
+	noteActivity(): void {
+		try {
+			this.client?.noteActivity();
 		} catch {
 			/* noop */
 		}

@@ -32,7 +32,9 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import MicIcon from '@lucide/svelte/icons/mic';
 	import Volume2Icon from '@lucide/svelte/icons/volume-2';
+	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import { ChatVoiceLayer } from '$lib/realtime/chat-voice';
+	import type { AecInfo } from '$lib/realtime/grok-voice';
 
 	// Props de rehidratación: al abrir una sesión pasada desde el sidebar, el
 	// shell (+page.svelte) carga { session, events } vía GET /api/sessions/[id]
@@ -968,6 +970,24 @@
 	let voiceError = $state('');
 	let voiceStatus = $state('');
 	let voicePendingSpeak = $state(false);
+	// Modo AEC/no-AEC del mic (Fase B2): lo reporta el cliente de voz en cada
+	// `startMic` (o al degradar en caliente por eco). 'unknown' hasta el primer
+	// reporte (o al desactivar la voz).
+	let voiceAec = $state<'aec' | 'no-aec' | 'unknown'>('unknown');
+	// Detección completa del AEC del último startMic (diagnóstico/chip).
+	let voiceAecInfo = $state<AecInfo | null>(null);
+	// Aviso no-AEC dismissible (banner) y chip informativo de AEC (una vez por ciclo).
+	let voiceAecNoticeDismissed = $state(false);
+	let voiceAecChipDismissed = $state(false);
+	// Inactividad (Fase B3, idle watchdog): tier activo para el estado visual.
+	// 'none' = sin inactividad; 1 = "¿Sigues ahí?" (aviso hablado UNA vez por
+	// ventana); 2 = "En pausa por inactividad…" (desconexión amable).
+	let voiceIdleTier = $state<'none' | 1 | 2>('none');
+	// Anti-spam del aviso hablado del tier 1 (se resetea al restaurar actividad).
+	let voiceIdleTier1Spoken = $state(false);
+	// Retraso amable antes de desconectar la voz en el tier 2 (que el aviso
+	// hablado "Voy a pausar la voz por inactividad" termine de sonar).
+	const VOICE_IDLE_PAUSE_DELAY_MS = 4000;
 	// Modo de lectura aplicado por speakAgentAnswer (speech/full/truncated/none) y
 	// guard del preámbulo hablado (1× por pregunta por voz mientras el agente trabaja).
 	let voiceSpeakMode = $state<'none' | 'speech' | 'full' | 'truncated'>('none');
@@ -977,6 +997,13 @@
 	// inicio (tras gracia) cubre el silencio inicial; la respuesta se encola sin
 	// cortar el audio en curso. `voiceLastNarrationAt` marca el gap anti-spam.
 	let voiceLastNarrationAt = 0;
+	// Keepalive del idle watchdog: mientras el AGENTE de /chat trabaja (isBusy)
+	// la UI rearma el watchdog periódicamente (ver watch de isBusy). Sin esto, en
+	// turnos largos de DeepSeek el watchdog avisaba "¿Sigues ahí?" y llegaba a
+	// APAGAR la voz (idle tier 2) perdiendo la siguiente pregunta (E2E 2026-08-17).
+	// Tipado `number` (DOM): `window.setInterval` devuelve number, NO Timeout de
+	// Node (gotcha documentado del repo con voiceNarrationTimer).
+	let voiceBusyKeepalive: number | null = null;
 	// Commentary channel: ids de eventos `narrar` ya procesados (dedupe — el
 	// stream re-emite eventos al reabrir y el watch escanea una ventana).
 	let voiceNarratedEventIds = new Set<string>();
@@ -1058,6 +1085,9 @@
 		const layer = new ChatVoiceLayer({
 			onTranscript: (t, meta) => {
 				console.info(`[voice] ${new Date().toISOString().slice(11, 19)} · transcript="${t.slice(0, 100)}" busy=${isBusy} hitl=${voiceHitl.length} peakRms=${meta?.peakRms ?? '?'}`);
+				// Fase B3: el usuario volvió a hablar → se limpia el estado de inactividad.
+				voiceIdleTier = 'none';
+				voiceIdleTier1Spoken = false;
 				// Anti-eco: si el STT devuelve el MISMO texto de la pregunta en los
 				// segundos siguientes (el gateway re-transcribe audio ya commiteado),
 				// se ignora — no se encola como intent ni se envía al agente. Mata la
@@ -1144,6 +1174,52 @@
 				voiceError = e;
 			},
 			onTelemetry: (ev) => pushVoiceTelemetry(ev.type, ev.data),
+			onAecChange: (mode, aec) => {
+				voiceAec = mode;
+				voiceAecInfo = aec;
+				console.info(
+					`[voice] modo AEC=${mode} (${mode === 'aec' ? 'barge-in por voz activo' : 'el mic se pausa durante playback'})`
+				);
+				pushVoiceTelemetry('aec_ui', { mode, aecEnabled: aec.aecEnabled });
+			},
+			onIdle: (tier) => {
+				// Fase B3: watchdog de inactividad (el mic quedó "Escuchando…" y el
+				// usuario no habla). El cliente NUNCA desconecta solo: delega aquí.
+				if (tier === 1) {
+					console.info(`[voice] idle tier 1 — aviso de inactividad (25s en silencio)`);
+					pushVoiceTelemetry('idle_tier1_ui');
+					if (!voiceIdleTier1Spoken) {
+						voiceIdleTier1Spoken = true;
+						voiceIdleTier = 1;
+						voiceStatus = '¿Sigues ahí?';
+						try {
+							voiceLayer?.speakNarration('¿Sigues ahí? Puedes preguntarme lo que necesites.');
+						} catch {
+							/* noop */
+						}
+					}
+					return;
+				}
+				if (tier === 2) {
+					console.info(`[voice] idle tier 2 — pausando voz por inactividad (90s en silencio)`);
+					pushVoiceTelemetry('idle_timeout_ui');
+					voiceIdleTier1Spoken = false;
+					voiceIdleTier = 2;
+					voiceStatus = 'En pausa por inactividad…';
+					// Aviso hablado breve y desconexión amable (la conversación de chat
+					// no se pierde: la voz es solo el canal). Espera a que el aviso
+					// termine de sonar antes de cortar la sesión realtime.
+					try {
+						voiceLayer?.speakNarration('Voy a pausar la voz por inactividad.');
+					} catch {
+						/* noop */
+					}
+					window.setTimeout(() => {
+						if (!voiceActive || voiceIdleTier !== 2) return;
+						void toggleVoice();
+					}, VOICE_IDLE_PAUSE_DELAY_MS);
+				}
+			},
 		});
 		voiceLayer = layer;
 		return layer;
@@ -1164,10 +1240,22 @@
 			voicePendingIntent = null;
 			voiceHitlKey = '';
 			voiceHitlSpoken = false;
+			// Fase B2: al apagar la voz se olvida el modo AEC y los avisos
+			// (volverán a mostrarse en la próxima activación).
+			voiceAec = 'unknown';
+			voiceAecInfo = null;
+			voiceAecNoticeDismissed = false;
+			voiceAecChipDismissed = false;
+			// Fase B3: limpiar el estado visual de inactividad al apagar la voz.
+			voiceIdleTier = 'none';
+			voiceIdleTier1Spoken = false;
 			flushVoiceTelemetry();
 			return;
 		}
 		voiceError = '';
+		// Fase B3: al reactivar la voz se limpia cualquier estado de inactividad.
+		voiceIdleTier = 'none';
+		voiceIdleTier1Spoken = false;
 		try {
 			await v.connect();
 			voiceActive = true;
@@ -1245,6 +1333,33 @@
 	}
 
 	watch([() => isBusy], ([busy]) => {
+		// Keepalive del idle watchdog: mientras el AGENTE de /chat trabaja (isBusy)
+		// el usuario espera en silencio pero NO está ausente. El watchdog del cliente
+		// solo mira el canal realtime; sin este rearmado, en turnos largos de DeepSeek
+		// avisaba "¿Sigues ahí?" (idle tier 1 ×7 en el E2E) y APAGABA la voz a los 90s
+		// (idle tier 2 → pregunta 4 perdida). Al terminar el turno se limpia y se
+		// rearma el contador para detectar ausencia real tras la respuesta.
+		if (voiceActive) {
+			if (busy) {
+				if (!voiceBusyKeepalive) {
+					voiceBusyKeepalive = window.setInterval(() => {
+						try {
+							voiceLayer?.noteActivity();
+						} catch {
+							/* noop */
+						}
+					}, VOICE_BUSY_KEEPALIVE_MS);
+				}
+			} else if (voiceBusyKeepalive) {
+				window.clearInterval(voiceBusyKeepalive);
+				voiceBusyKeepalive = null;
+				try {
+					voiceLayer?.noteActivity();
+				} catch {
+					/* noop */
+				}
+			}
+		}
 		if (busy && voicePendingSpeak && voiceActive && !voiceFillerSpoken) {
 			voiceFillerSpoken = true;
 			// Filler con GRACIA: solo si el agente sigue ocupado tras la gracia y el
@@ -1269,6 +1384,7 @@
 	// por timer (eso pisaba frases y repetía). La respuesta se encola sin cortar.
 	const VOICE_FILLER_GRACE_MS = 4000;
 	const VOICE_NARRATION_GAP_MS = 4500;
+	const VOICE_BUSY_KEEPALIVE_MS = 20000; // rearmar el idle watchdog cada 20s mientras isBusy
 
 	// HITL por voz: gates pendientes del último mensaje assistant (inputRequest
 	// sin inputResponse). Fuente: parts dynamic-tool del mensaje.
@@ -1695,6 +1811,10 @@
 									{voiceStatus || 'Entendido, lo agrego…'}
 								{:else if isBusy && voicePendingSpeak}
 									Consultando… te aviso en cuanto tenga la respuesta
+								{:else if voiceIdleTier === 2}
+									En pausa por inactividad…
+								{:else if voiceIdleTier === 1}
+									¿Sigues ahí? Puedes preguntarme lo que necesites…
 								{:else if voiceListening}
 									Escuchando… habla para preguntar
 								{:else if voiceError}
@@ -1714,6 +1834,49 @@
 								<XIcon class="size-3" />
 							</button>
 						</div>
+						{#if voiceAec === 'no-aec' && !voiceAecNoticeDismissed}
+							<div
+								class="mb-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-300"
+								role="status"
+							>
+								<AlertCircleIcon class="mt-px size-3.5 shrink-0" />
+								<span class="min-w-0 flex-1">
+									<span class="font-medium">Modo sin cancelación de eco.</span>{' '}
+									Tu micrófono se pausa mientras el asistente responde: evita hablar en ese
+									momento. El barge-in por voz está desactivado (puedes interrumpir escribiendo o
+									con Detener).
+								</span>
+								<button
+									type="button"
+									class="shrink-0 text-amber-700/70 hover:text-amber-700 dark:text-amber-300/70 dark:hover:text-amber-300"
+									aria-label="Cerrar aviso de modo sin cancelación de eco"
+									onclick={() => (voiceAecNoticeDismissed = true)}
+								>
+									<XIcon class="size-3" />
+								</button>
+							</div>
+						{/if}
+						{#if voiceAec === 'aec' && !voiceAecChipDismissed}
+							<div
+								class="mb-2 flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-300"
+								role="status"
+							>
+								<span class="relative flex size-2 shrink-0">
+									<span class="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
+								</span>
+								<span class="min-w-0 flex-1">
+									Cancelación de eco activa — puedes interrumpir hablando.
+								</span>
+								<button
+									type="button"
+									class="shrink-0 text-emerald-700/70 hover:text-emerald-700 dark:text-emerald-300/70 dark:hover:text-emerald-300"
+									aria-label="Cerrar aviso de cancelación de eco"
+									onclick={() => (voiceAecChipDismissed = true)}
+								>
+									<XIcon class="size-3" />
+								</button>
+							</div>
+						{/if}
 					{/if}
 					{#if composerFiles.length}
 						<div class="mb-2 flex flex-wrap gap-2">

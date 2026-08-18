@@ -4,6 +4,7 @@ import { createGateway } from "@ai-sdk/gateway";
 // runtime SSR NO expone `.env.local` en `process.env` (la lib del gateway lee
 // `process.env.AI_GATEWAY_API_KEY` y por eso hay que pasarla explícitamente).
 import { AI_GATEWAY_API_KEY } from "$env/static/private";
+import { SERVER_VAD_CONFIG, TURN_DETECTION_DEFAULT } from "$lib/realtime/voice-session-config";
 import type { RequestHandler } from "./$types";
 
 const REALTIME_MODEL = "xai/grok-voice-think-fast-2.0";
@@ -42,21 +43,32 @@ const VOICE_INSTRUCTIONS = [
  *      salida de audio (TTS), VAD de servidor para detectar fin de frase.
  * La UI aplica todo en `session-update` tras abrir el WebSocket.
  */
-export const POST: RequestHandler = async () => {
+export const POST: RequestHandler = async ({ url }) => {
 	try {
-		const { token, url, expiresAt } = await gw.experimental_realtime.getToken({
+		// `turnDetection` es configurable por query param para poder probar el modo
+		// server-vad (AEC) en E2E sin depender de la detección de AEC del mic:
+		//   ?turnDetection=server-vad → SERVER_VAD_CONFIG (patrón canónico)
+		//   (ausente/cualquier otro)   → TURN_DETECTION_DEFAULT (disabled, seguro)
+		const turnDetection =
+			url.searchParams.get("turnDetection") === "server-vad"
+				? SERVER_VAD_CONFIG
+				: TURN_DETECTION_DEFAULT;
+		const { token, url: wsUrl, expiresAt } = await gw.experimental_realtime.getToken({
 			model: REALTIME_MODEL,
 		});
 		return json({
 			token,
-			url,
+			url: wsUrl,
 			expiresAt,
 			sessionConfig: {
 				instructions: VOICE_INSTRUCTIONS,
 				outputModalities: ["audio"],
 				inputAudioFormat: { type: "audio/pcm", rate: 24000 },
 				outputAudioFormat: { type: "audio/pcm", rate: 24000 },
-				turnDetection: { type: "disabled" },
+				// Default seguro (no-AEC). En modo AEC el cliente lo sobreescribe
+				// con `SERVER_VAD_CONFIG` vía `session-update` tras detectar AEC
+				// (y aquí puede forzarse por query param para pruebas).
+				turnDetection,
 				inputAudioTranscription: { model: "xai/grok-stt", language: "es" },
 			},
 		});

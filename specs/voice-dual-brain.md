@@ -449,6 +449,87 @@ cantidades + la entidad; `narrate:end` apaga todo. 11/11 casos node (incluye el 
 (falso positivo coherente). "once" sin magnitud no matchea "11,189,740" (el SPEECH no dice
 "once millones" — el contexto implícito no se modela).
 
+## 5septies. Roadmap ejecutado (2026-08-17) — server VAD, barge-in, AEC, idle watchdog, overlay
+
+Ejecutado por la meta-fábrica con subagentes, comparando contra las referencias de voz
+(`references/xai-cookbook` ejemplo Android + `references/vercel-ai` AI SDK realtime). La
+investigación y el diseño viven en `research-n-dev/voice-canonical-patterns.md` y
+`research-n-dev/voice-aec-web.md` (material de FÁBRICA, el runtime no los lee).
+
+### A. Modo AEC vs modo no-AEC (server VAD + barge-in real) — P1/P4
+
+El cliente detecta el AEC real al abrir el mic: `track.getSettings().echoCancellation === true`
+(la verdad aplicada, best-effort; `getCapabilities?.()` con guard Safari) → `aecMode`.
+
+| Aspecto | **Modo AEC** | **Modo no-AEC** (fallback, intacto) |
+|---|---|---|
+| `turnDetection` | `server-vad` (`SERVER_VAD_CONFIG`: threshold 0.5 / silence 700ms / prefix 300ms) vía `session-update` | `disabled` |
+| Mic durante playback | SIEMPRE appendea (el AEC cancela al asistente) | Gate `_playing` + cooldown 1500ms |
+| Commit | El server decide (`speech-stopped`); fallback cliente a 8s (`SERVER_VAD_COMMIT_FALLBACK_MS` → `vad_server_fallback`) | VAD cliente por RMS (silencio 1200ms) |
+| Barge-in | **Real**: `speech-started` → `cutPlayback()` + `clearSpokenQueue()` (`barge_in`) | No por voz; solo vía UI/transcript |
+| Reciclaje proactivo | No corre (era un parche no-AEC) | Corre (`maybeRecycleIdle`) |
+| `session_resync` | Sí (con config del modo) | Sí |
+
+- La config de turnDetection vive en un módulo compartido `src/lib/realtime/voice-session-config.ts`
+  (fuente única endpoint + cliente; formato camelCase normalizado del AI SDK).
+- El endpoint `chat-token` acepta `?turnDetection=server-vad` para probar el modo AEC sin mic.
+- El barge-in NO depende de `conversation-item-truncate` (el gateway puede descartarlo) — se corta
+  client-side. El auto-cancel de `input-transcription-completed` sigue matando la respuesta
+  automática del modelo (thin-layer: el modelo realtime solo transcribe/lee).
+
+### B. Override conductual del AEC (defensa del "AEC declarado pero inefectivo") — P2
+
+- `getSettings()` puede decir `true` y el eco persistir (caso real de esta máquina). En el
+  `worklet.port.onmessage` del modo AEC, `monitorAecEcho()` mide el RMS del mic mientras `_playing`:
+  si se sostiene ≥ `AEC_ECHO_RMS_OVERRIDE` (0.03) durante ≥ `AEC_ECHO_CONFIRM_MS` (1800ms) →
+  `downgradeToNoAec("eco-sostenido-durante-playback")` en caliente: re-envía `session-update` con
+  `disabled`, vuelve al gate del append, telemetría `aec_downgrade`. Se resetea en cada `startMic`.
+- Limitación aceptada: un barge-in real y continuo (~2s) también degrada — degradar es seguro (solo
+  suprime el mic durante playback; la pregunta no se pierde, se transcribe al terminar el asistente).
+
+### C. Aviso de UI del modo (P2)
+
+- `ChatVoiceCallbacks.onAecChange` → `ChatSession.svelte` estado `voiceAec`.
+- no-AEC: banner ámbar dismissible "Modo sin cancelación de eco. Tu micrófono se pausa mientras el
+  asistente responde… El barge-in por voz está desactivado (puedes interrumpir escribiendo o con
+  Detener)".
+- AEC: chip verde informativo "Cancelación de eco activa — puedes interrumpir hablando".
+
+### D. Idle watchdog (referencia Android `IDLE_TIERS`) — P3
+
+- 2 escalones configurados (`VOICE_IDLE_TIER1_MS` 25s / `VOICE_IDLE_TIER2_MS` 90s), poll 1s.
+- `noteActivity()` rearmera en: `startMic`, `vadTick` (habla), `input-transcription-completed`,
+  `play_start`, `response-done`, `speak()`. Se pospone mientras el asistente habla / respuesta en
+  vuelo / cola con utterances. Se cancela en `stopMic`/`disconnect`.
+- Tier 1 → `onIdle(1)` (una vez por ventana) → la UI habla "¿Sigues ahí? Puedes preguntarme lo que
+  necesites." + estado visual.
+- Tier 2 → `onIdle(2)` → la UI habla "Voy a pausar la voz por inactividad." y apaga la voz a los 4s
+  (la conversación de chat NO se pierde; la voz es solo el canal).
+
+### E. Overlay buffer — lo que dices mientras suena el asistente (P5, EXPERIMENTAL)
+
+- Flag `VOICE_BUFFER_DURING_PLAYBACK = false` (OFF por defecto; con OFF el comportamiento es
+  byte-identical al actual). Solo aplica en modo no-AEC (en AEC el mic ya appendea y hay barge-in).
+- `capturePlaybackOverlay()` acumula el audio del mic durante `_playing` en un buffer aparte
+  (`playbackOverlayChunks`, cap 10s), discriminando voz del usuario vs eco del asistente por
+  heurística de RMS (`echoFloorRms` EMA del mic, "voz probable" si `micRms > floor*1.4+0.01`
+  sostenida ≥342ms, bootstrap anti-loop 400ms).
+- Al terminar el playback (`onended` con `activeSources===0`) y tras el cooldown, si hay
+  ≥ `PLAYBACK_OVERLAY_MIN_VOICE_MS` (600ms) de voz → re-append + `input-audio-commit` →
+  `startCommitWatchdog` (misma recuperación del flujo normal). Telemetría
+  `overlay_capture/overlay_discard/overlay_commit/overlay_limit`.
+- Riesgo conocido (documentado): sin AEC puede haber doble transcripción si el usuario sigue
+  hablando tras el playback; el flag lo neutraliza.
+
+### F. Investigación del patrón canónico (P6)
+
+- `research-n-dev/voice-canonical-patterns.md`: nuestro `GrokVoiceClient` ya implementa ~80% del
+  patrón canónico; `BrowserRealtimeAudio` NO es importable standalone desde `ai` (interno del hook)
+  y su captura usa `ScriptProcessorNode` deprecado → NO reemplazar nuestro
+  `RealtimePcmBatcher`/playback (la cola, el gate anti-eco, el watchdog y la telemetría son la razón
+  de ser del thin-layer). `experimental_encodeRealtimeAudio` ≡ `encodeRealtimeAudio` (alias).
+  Adopción pendiente: `getPlaybackOffsetMs()` para sincronizar el resaltado con el progreso del audio.
+
 ## 6. Fases futuras (no implementadas, por diseño)
 
 1. **Proactive silence**: el agente decide NO hablar si la respuesta ya está visible (respuestas
