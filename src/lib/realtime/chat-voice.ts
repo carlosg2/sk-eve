@@ -21,6 +21,9 @@ export type ChatVoiceCallbacks = {
 	 *  `meta.peakRms` = energía pico del commit que la produjo (el consumidor la
 	 *  usa para distinguir voz real de ECO del altavoz — bucle 2026-08-17). */
 	onTranscript?: (text: string, meta?: { peakRms?: number }) => void;
+	/** Nivel del mic en vivo (0..1, throttled): glow reactivo del botón de voz
+	 *  estilo VS Code Copilot (`--dictation-mic-level`). Blindado. */
+	onMicLevel?: (level: number) => void;
 	onListeningChange?: (listening: boolean) => void;
 	onSpeakingChange?: (speaking: boolean) => void;
 	onStatus?: (status: string) => void;
@@ -62,12 +65,21 @@ export function normalizeForSpeech(text: string, maxChars = 3000): string {
 	}
 }
 
-// Naturalidad conversacional (anti-eco de la pregunta + anti-duplicados):
-// módulo PURO `./voice-naturalidad`, reexportado aquí para los consumidores
-// (ChatSession.svelte). El modelo es la fuente de la narración; estas
-// heurísticas son el filtro de naturalidad de la capa.
-import { normCompare } from "./voice-naturalidad";
-export { narrationEchoesQuestion, isNearDuplicateNarration } from "./voice-naturalidad";
+/** Normalización local para matching léxico (anti-eco del propio audio):
+ *  minúsculas, sin acentos (NFD), sin puntuación, espacios colapsados. */
+function normCompareLocal(s: string): string {
+	try {
+		return s
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.toLowerCase()
+			.replace(/[^a-z0-9\s]/g, " ")
+			.replace(/\s+/g, " ")
+			.trim();
+	} catch {
+		return "";
+	}
+}
 
 // ── Canal de voz (Canal-Aware Dual-Brain) ───────────────────────────────────
 // El agente de texto (DeepSeek) sabe cuándo la voz está activa (vía clientContext)
@@ -503,6 +515,24 @@ const GENERIC_TOOL_LABEL = 'Trabajando…';
 const FINAL_ANSWER_INSTRUCTIONS =
 	'Respuesta final: léela clara, pausada y con seguridad, como quien entrega el dato.';
 
+/** Puentes de entrega del SPEECH con los que el agente puede abrir su resumen
+ *  (regla Variety de OpenAI: no repetir el mismo puente en turnos consecutivos).
+ *  Si el speech de este turno abre con el MISMO puente que el turno anterior,
+ *  la capa lo STRIP del audio (el dato queda directo; el cuerpo no se toca). */
+const SPEECH_BRIDGES = [
+	'ya lo tengo',
+	'aquí tienes',
+	'te cuento',
+	'el dato es',
+	'resultado',
+	'revisé las compras',
+	'aquí está',
+	'te confirmo',
+	'perfecto',
+	'claro',
+	'mira',
+];
+
 export class ChatVoiceLayer {
 	private client: GrokVoiceClient | null = null;
 	private callbacks: ChatVoiceCallbacks;
@@ -522,11 +552,18 @@ export class ChatVoiceLayer {
 	 * el asistente acaba de decir y lo descarta.
 	 */
 	private lastSpoken: Array<{ norm: string; at: number }> = [];
+	/**
+	 * Puente de entrega del ÚLTIMO speech hablado (regla Variety de OpenAI: no
+	 * repetir el mismo puente en turnos consecutivos). Lo actualiza
+	 * `speakAgentAnswer`; si el siguiente speech abre con el mismo puente, la
+	 * capa lo STRIP del audio y lo resetea a "" (para no quitar dos veces).
+	 */
+	private lastSpeechBridge = "";
 
 	/** Registra un texto que el asistente está a punto de hablar (anti-eco). */
 	private recordSpoken(text: string): void {
 		try {
-			const norm = normCompare(text);
+			const norm = normCompareLocal(text);
 			if (!norm) return;
 			const now = Date.now();
 			this.lastSpoken.push({ norm, at: now });
@@ -534,6 +571,42 @@ export class ChatVoiceLayer {
 			this.lastSpoken = this.lastSpoken.filter((e) => now - e.at < 12000);
 		} catch {
 			/* noop */
+		}
+	}
+
+	/** Extrae el puente de entrega con el que abre el speech (si es uno conocido,
+	 *  ver `SPEECH_BRIDGES`): normaliza el speech y compara su inicio (1-3
+	 *  palabras, multi-word primero) contra el catálogo. Devuelve la forma
+	 *  canónica del puente o null. Blindada. */
+	private extractSpeechBridge(speech: string): string | null {
+		try {
+			const norm = normCompareLocal(speech);
+			if (!norm) return null;
+			const bridges = [...SPEECH_BRIDGES].sort(
+				(a, b) => b.split(/\s+/).length - a.split(/\s+/).length,
+			);
+			for (const b of bridges) {
+				const bn = normCompareLocal(b);
+				if (!bn) continue;
+				if (norm === bn || norm.startsWith(`${bn} `)) return b;
+			}
+			return null;
+		} catch {
+			return null;
+		}
+	}
+
+	/** Quita el puente del INICIO del texto hablado (solo audio):
+	 *  "Ya lo tengo — Hay 2,585 proveedores activos." → "Hay 2,585 proveedores
+	 *  activos." Blindada. */
+	private stripSpeechBridge(text: string, bridge: string): string {
+		try {
+			const escaped = bridge.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			return text
+				.replace(new RegExp(`^\\s*${escaped}\\s*[—:,-]?\\s*`, 'i'), '')
+				.trim();
+		} catch {
+			return text;
 		}
 	}
 
@@ -547,7 +620,7 @@ export class ChatVoiceLayer {
 	 */
 	isLikelyEchoOfAssistant(text: string): boolean {
 		try {
-			const norm = normCompare(text);
+			const norm = normCompareLocal(text);
 			if (!norm || norm.length < 4) return false;
 			const now = Date.now();
 			return this.lastSpoken.some((e) => {
@@ -585,6 +658,7 @@ export class ChatVoiceLayer {
 				{
 					onStatus: (s) => this.callbacks.onStatus?.(s),
 					onUserTranscript: (t, meta) => this.callbacks.onTranscript?.(t, meta),
+					onMicLevel: (l) => this.callbacks.onMicLevel?.(l),
 					onListeningChange: (l) => {
 						this._listening = l;
 						this.callbacks.onListeningChange?.(l);
@@ -760,6 +834,21 @@ export class ChatVoiceLayer {
 			if (!clean) return 'none';
 			if (clean.length > 260) clean = condenseForSpeech(clean, 120, 240);
 			try {
+				// Dedupe de puente SPEECH (regla Variety de OpenAI): no repetir el
+				// mismo puente en turnos consecutivos. Si el agente abrió este speech
+				// con el MISMO puente que el turno anterior ("Ya lo tengo —" ×2), se
+				// STRIP del AUDIO (el dato queda directo) y se resetea el puente para
+				// no quitar dos veces. El cuerpo visible (`rest`) NO se toca.
+				const bridge = this.extractSpeechBridge(speech);
+				if (bridge) {
+					if (bridge === this.lastSpeechBridge) {
+						clean = this.stripSpeechBridge(clean, bridge);
+						this.lastSpeechBridge = "";
+					} else {
+						this.lastSpeechBridge = bridge;
+					}
+				}
+				if (!clean) return 'none';
 				// `narrate: true`: el cliente emite narrate:start/end para que la UI
 				// PRENDA el resaltado de la entidad mientras la voz la narra. Tono de
 				// RESPUESTA FINAL: entrega el dato con seguridad.

@@ -1,36 +1,34 @@
 <script lang="ts">
   import { onMount } from "svelte";
 
-  // Vista holística de la radiografía: elige sesión → turnos → y ve TODO lo
-  // que pasó en la SECUENCIA real (timeline): razonamiento por paso, tool
-  // calls con su input/output y duración, tokens por step, mensajes, HITL.
-  // Fuente: /api/audit/* (SQLite durable).
+  // Auditoría SECUENCIAL de la sesión COMPLETA: línea de tiempo cronológica que
+  // fusiona TODO lo que sucedió en una sesión — voz (voice_events: mic, VAD,
+  // STT, transcripciones, playback, respuestas, idle, AEC), inyecciones de
+  // contexto (lóbulo frontal + memoria episódica) y los turnos del agente
+  // (pregunta, razonamiento, tool calls con input/output, respuesta, HITL).
+  // Fuente: /api/audit/session (SQLite durable).
 
   type Session = { id: string; title: string; updatedAt: string };
-  type TurnRow = {
-    turn: number; turnId: string; at: string | null; turnMs: number | null;
-    steps: number; toolCalls: number; inputTok: number; cacheHit: number;
-    errors: number; status: string; question: string | null; planTag: string | null;
+  type TurnInfo = {
+    turnId: string; turnIndex: number; question: string | null; answer: string | null;
+    at: string | null; turnMs: number | null; steps: number; toolCalls: number;
+    inputTok: number; outputTok: number; cacheRead: number; cacheHit: number;
+    errors: number; status: string; warnings: number;
   };
   type TlItem = {
-    kind: string; stepIndex: number; at: string; t: number;
-    label?: string; name?: string; input?: unknown; output?: unknown;
-    state?: string; text?: string; meta?: Record<string, unknown>;
+    seq: number; source: "voice" | "injection" | "turn"; at: string; t: number;
+    turnId?: string; turnIndex?: number; isTurnHeader?: boolean;
+    kind?: string; stepIndex?: number; label?: string; name?: string;
+    input?: unknown; output?: unknown; state?: string; text?: string; meta?: Record<string, unknown>;
+    question?: string | null; turn?: TurnInfo;
+    voiceType?: string; voiceData?: unknown;
+    injKind?: "plan" | "memory"; injTag?: string; injChars?: number; injHits?: number;
+    injMessage?: string; injSources?: Array<{ sessionId: string; type: string }>; injBody?: string;
   };
-  type TurnDetail = {
-    turnId: string; at: string | null; turnMs: number | null; status: string; warnings: number;
-    steps: number; toolCalls: number; inputTok: number; outputTok: number;
-    cacheHit: number; errors: number; question: string | null; answer: string | null;
-    reasoning: string; planTag: string | null; hitl: string[];
-    timeline: TlItem[];
-  };
-  // Inyecciones de contexto (lóbulo frontal + memoria episódica) — radiografía
-  // durable del middleware: llm_inputs las captura PRE-middleware, por eso aquí.
-  // `body` es el CONTENIDO COMPLETO que se inyectó al prompt (2026-08-15).
-  type Injection = {
-    sessionId: string; at: string; kind: "plan" | "memory";
-    tag: string; chars: number; hits?: number; message?: string;
-    sources?: Array<{ sessionId: string; type: string }>; body?: string;
+  type SessionData = {
+    sessionId: string; turnCount: number; voiceCount: number; injectionCount: number;
+    firstAt: string | null; lastAt: string | null; durationMs: number | null;
+    turns: TurnInfo[]; timeline: TlItem[];
   };
   // Evaluaciones de CALIDAD (fábrica, para graduación de skills).
   type Evaluacion = {
@@ -59,14 +57,18 @@
 
   let sessions = $state<Session[]>([]);
   let selectedSession = $state<string | null>(null);
-  let turns = $state<TurnRow[]>([]);
-  let selectedTurnId = $state<string | null>(null);
-  let detail = $state<TurnDetail | null>(null);
-  let injections = $state<Injection[]>([]);
-  let injectionsLoading = $state(false);
+  let data = $state<SessionData | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
+  // Filtros por fuente + tope defensivo de eventos de voz para el DOM.
+  let showVoice = $state(true);
+  let showInjection = $state(true);
+  let showTurn = $state(true);
+  const VOICE_RENDER_CAP = 400;
+  let voiceCap = $state(VOICE_RENDER_CAP);
   let expanded = $state<Set<number>>(new Set());
+  let expandedInj = $state<Set<number>>(new Set());
+  let expandedVoice = $state<Set<number>>(new Set());
   // Vista + evaluaciones de calidad.
   let view = $state<"radiografia" | "evaluaciones">("radiografia");
   let evaluaciones = $state<Evaluacion[]>([]);
@@ -87,23 +89,31 @@
     if (!s) return "";
     return s.length > n ? s.slice(0, n) + "…" : s;
   }
-  function toggle(i: number) {
+  function toggle(key: number) {
     const next = new Set(expanded);
-    next.has(i) ? next.delete(i) : next.add(i);
+    next.has(key) ? next.delete(key) : next.add(key);
     expanded = next;
+  }
+  function toggleInj(key: number) {
+    const next = new Set(expandedInj);
+    next.has(key) ? next.delete(key) : next.add(key);
+    expandedInj = next;
+  }
+  function toggleVoice(key: number) {
+    const next = new Set(expandedVoice);
+    next.has(key) ? next.delete(key) : next.add(key);
+    expandedVoice = next;
   }
   function toggleEval(i: number) {
     const next = new Set(expandedEval);
     next.has(i) ? next.delete(i) : next.add(i);
     expandedEval = next;
   }
-  let expandedInj = $state<Set<number>>(new Set());
-  function toggleInj(i: number) {
-    const next = new Set(expandedInj);
-    next.has(i) ? next.delete(i) : next.add(i);
-    expandedInj = next;
+  function isLong(text: string | undefined | null, n = 500): boolean {
+    return (text?.length ?? 0) > n;
   }
 
+  // ── Estilos por tipo de item de turno ──────────────────────────────────────
   const KIND_BADGE: Record<string, string> = {
     step: "bg-sky-950 text-sky-300 border-sky-700/60",
     reasoning: "bg-violet-950 text-violet-300 border-violet-700/60",
@@ -126,28 +136,152 @@
   };
   function badgeClass(item: TlItem): string {
     if (item.kind === "tool-result" && item.state === "error") return KIND_BADGE["tool-result-error"];
-    return KIND_BADGE[item.kind] ?? "bg-zinc-900 text-zinc-400 border-zinc-700/60";
+    return KIND_BADGE[item.kind ?? ""] ?? "bg-zinc-900 text-zinc-400 border-zinc-700/60";
   }
   function dotClass(item: TlItem): string {
     if (item.kind === "tool-result" && item.state === "error") return KIND_DOT["tool-result-error"];
-    return KIND_DOT[item.kind] ?? "bg-zinc-600";
+    return KIND_DOT[item.kind ?? ""] ?? "bg-zinc-600";
   }
   function labelOf(item: TlItem): string {
     switch (item.kind) {
-      case "step": return item.label ?? `Paso ${item.stepIndex + 1}`;
+      case "step": return item.label ?? `Paso ${(item.stepIndex ?? 0) + 1}`;
       case "reasoning": return `Razonamiento · ${fmtK((item.meta?.chars as number) ?? 0)} chars`;
       case "tool-call": return `→ ${item.name ?? "(tool)"}`;
       case "tool-result": return `← ${item.name ?? "(tool)"} · ${item.state === "error" ? "ERROR" : "ok"}`;
       case "message": return item.label ?? "mensaje";
       case "hitl": return "Aprobación / pregunta humana";
-      case "step-done": return `Fin paso ${item.stepIndex + 1}`;
-      default: return item.kind;
+      case "step-done": return `Fin paso ${(item.stepIndex ?? 0) + 1}`;
+      default: return item.kind ?? "";
     }
   }
-  function isLong(text: string | undefined | null, n = 500): boolean {
-    return (text?.length ?? 0) > n;
+
+  // ── Voz: etiquetas + agrupación para la UI ────────────────────────────────
+  const VOICE_LABELS: Record<string, string> = {
+    mic_start: "Micrófono activado",
+    mic_stop: "Micrófono desactivado",
+    mic_error: "Error de micrófono",
+    mic_drop: "Audio descartado (barge-in/eco)",
+    ws_open: "WebSocket abierto",
+    ws_close: "WebSocket cerrado",
+    ws_error: "Error WebSocket",
+    connect_error: "Error de conexión",
+    event_error: "Error de evento",
+    vad_speech: "Voz en curso",
+    vad_commit: "Voz detectada (commit)",
+    vad_server_fallback: "VAD servidor (fallback)",
+    vad_server_stop: "VAD servidor detenido",
+    stt: "Transcripción (STT)",
+    commit_no_transcript: "Voz sin transcripción",
+    commit_retry: "Reintento de commit",
+    commit_reappend: "Re-anexado de audio",
+    commit_gave_up: "Commit abandonado",
+    transcript_decision: "Decisión del transcript",
+    transcript_duplicate: "Transcript duplicado (dedupe)",
+    echo_reject_intent: "Eco rechazado (intención)",
+    echo_reject_assistant: "Eco rechazado (asistente)",
+    echo_reject_vad: "Eco rechazado (VAD)",
+    unclear_audio: "Audio poco claro",
+    speak: "Asistente habla",
+    speak_answer: "Respuesta leída en voz alta",
+    speak_queue_cleared: "Cola de habla vaciada",
+    speak_item: "Item de habla confirmado",
+    play_start: "Playback iniciado",
+    play_end: "Playback terminado",
+    play_stop: "Playback detenido",
+    play_cut: "Playback cortado (barge-in)",
+    resp_created: "Respuesta creada",
+    resp_auto_cancel: "Respuesta automática cancelada",
+    resp_cancel: "Respuesta cancelada",
+    resp_done: "Respuesta completada",
+    barge_in: "Interrupción (barge-in)",
+    barge_in_ignored: "Interrupción ignorada",
+    idle_tier1: "Inactividad nivel 1",
+    idle_tier2: "Inactividad nivel 2",
+    idle_tier1_ui: "UI inactividad nivel 1",
+    idle_timeout_ui: "Timeout de inactividad",
+    aec_status: "Estado AEC",
+    aec_downgrade: "AEC degradado",
+    aec_ui: "Cambio AEC en UI",
+    session_mode: "Modo de sesión",
+    session_resync: "Re-sync de sesión",
+    session_recycle: "Reciclaje de sesión",
+    session_recycled: "Sesión reciclada",
+    session_recycle_failed: "Reciclaje fallido",
+    session_recover: "Recuperación de sesión",
+    session_recovered: "Sesión recuperada",
+    session_recover_failed: "Recuperación fallida",
+    overlay_commit: "Overlay commiteado",
+    overlay_discard: "Overlay descartado",
+    narration_echo_question: "Eco de narración (pregunta)",
+    narration_duplicate: "Narración duplicada",
+    post_answer_auto_off: "Auto-apagado post-respuesta",
+  };
+  function voiceGroup(type: string): string {
+    if (type.startsWith("mic_")) return "mic";
+    if (type === "ws_open" || type === "ws_close" || type === "ws_error" || type === "connect_error" || type === "event_error") return "conexion";
+    if (type.startsWith("vad_") || type === "stt" || type.startsWith("commit_")) return "stt";
+    if (type.startsWith("transcript_") || type.startsWith("echo_reject_") || type === "unclear_audio") return "transcripcion";
+    if (type.startsWith("speak") || type.startsWith("play_")) return "habla";
+    if (type.startsWith("resp_") || type.startsWith("barge_in")) return "respuesta";
+    if (type.startsWith("idle_")) return "idle";
+    if (type.startsWith("aec_")) return "aec";
+    if (type.startsWith("session_")) return "sesion";
+    if (type.startsWith("overlay_")) return "overlay";
+    if (type.startsWith("narration_")) return "narracion";
+    if (type === "post_answer_auto_off") return "autooff";
+    return "otro";
+  }
+  const VOICE_GROUP_LABEL: Record<string, string> = {
+    mic: "mic", conexion: "conexión", stt: "STT", transcripcion: "transcripción",
+    habla: "habla", respuesta: "respuesta", idle: "idle", aec: "AEC",
+    sesion: "sesión", overlay: "overlay", narracion: "narración", autooff: "auto-off", otro: "voz",
+  };
+  const VOICE_GROUP_BADGE: Record<string, string> = {
+    mic: "bg-zinc-900 text-zinc-300 border-zinc-700",
+    conexion: "bg-zinc-900 text-zinc-400 border-zinc-700",
+    stt: "bg-fuchsia-950 text-fuchsia-300 border-fuchsia-700/60",
+    transcripcion: "bg-pink-950 text-pink-300 border-pink-700/60",
+    habla: "bg-rose-950 text-rose-300 border-rose-700/60",
+    respuesta: "bg-purple-950 text-purple-300 border-purple-700/60",
+    idle: "bg-amber-950 text-amber-300 border-amber-700/60",
+    aec: "bg-teal-950 text-teal-300 border-teal-700/60",
+    sesion: "bg-orange-950 text-orange-300 border-orange-700/60",
+    overlay: "bg-indigo-950 text-indigo-300 border-indigo-700/60",
+    narracion: "bg-lime-950 text-lime-300 border-lime-700/60",
+    autooff: "bg-cyan-950 text-cyan-300 border-cyan-700/60",
+    otro: "bg-zinc-900 text-zinc-400 border-zinc-700",
+  };
+  const VOICE_GROUP_DOT: Record<string, string> = {
+    mic: "bg-zinc-400", conexion: "bg-zinc-500", stt: "bg-fuchsia-500",
+    transcripcion: "bg-pink-500", habla: "bg-rose-500", respuesta: "bg-purple-500",
+    idle: "bg-amber-500", aec: "bg-teal-500", sesion: "bg-orange-500",
+    overlay: "bg-indigo-500", narracion: "bg-lime-500", autooff: "bg-cyan-500", otro: "bg-zinc-500",
+  };
+  function voiceBadge(item: TlItem): string {
+    return VOICE_GROUP_BADGE[voiceGroup(item.voiceType ?? "")] ?? VOICE_GROUP_BADGE["otro"];
+  }
+  function voiceDot(item: TlItem): string {
+    return VOICE_GROUP_DOT[voiceGroup(item.voiceType ?? "")] ?? VOICE_GROUP_DOT["otro"];
+  }
+  function voiceLabel(item: TlItem): string {
+    return VOICE_LABELS[item.voiceType ?? ""] ?? item.voiceType ?? "voz";
+  }
+  function voiceSummary(d: unknown): string {
+    if (d == null) return "";
+    const obj = typeof d === "object" && !Array.isArray(d) ? (d as Record<string, unknown>) : null;
+    if (obj) {
+      if (typeof obj.text === "string") return String(obj.text);
+      if (typeof obj.path === "string") return `→ ${obj.path}`;
+      if (typeof obj.reason === "string") return obj.reason;
+      if (typeof obj.mode === "string") return `mode=${obj.mode}`;
+      if (typeof obj.rms === "number") return `rms=${obj.rms}`;
+      if (typeof obj.hits === "number") return `${obj.hits} hits`;
+    }
+    const s = JSON.stringify(d);
+    return s && s.length > 160 ? s.slice(0, 160) + "…" : (s ?? "");
   }
 
+  // ── Carga de datos ────────────────────────────────────────────────────────
   async function loadSessions() {
     try {
       const res = await fetch("/api/sessions");
@@ -159,58 +293,26 @@
     }
   }
 
-  async function loadTurns() {
+  async function loadSession() {
     if (!selectedSession) return;
-    loading = true;
-    error = null;
-    try {
-      const res = await fetch(`/api/audit/turns?sessionId=${encodeURIComponent(selectedSession)}&limit=100`);
-      const j = await res.json();
-      turns = (j.turns ?? []).map((t: any) => ({
-        turn: t.turn, turnId: t.turnId, at: t.at, turnMs: t.turnMs, steps: t.steps, toolCalls: t.toolCalls,
-        inputTok: t.inputTok, cacheHit: t.cacheHit, errors: t.errors, status: t.status,
-        question: t.question, planTag: t.planTag,
-      }));
-      if (turns.length) selectedTurnId = turns[turns.length - 1].turnId;
-      else selectedTurnId = null;
-      detail = null;
-    } catch (e) {
-      error = String(e);
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function loadDetail(turnId: string) {
-    if (!selectedSession) return;
-    selectedTurnId = turnId;
     loading = true;
     error = null;
     expanded = new Set();
+    expandedInj = new Set();
+    expandedVoice = new Set();
+    voiceCap = VOICE_RENDER_CAP;
     try {
-      const res = await fetch(`/api/audit/turn?sessionId=${encodeURIComponent(selectedSession)}&turnId=${encodeURIComponent(turnId)}`);
+      const res = await fetch(`/api/audit/session?sessionId=${encodeURIComponent(selectedSession)}`);
       const j = await res.json();
       if (j.error) throw new Error(j.error);
-      detail = j;
+      const raw = (j.timeline ?? []) as Array<Record<string, unknown>>;
+      const timeline = raw.map((item, i) => ({ ...item, seq: i })) as unknown as TlItem[];
+      data = { ...j, timeline } as SessionData;
     } catch (e) {
       error = String(e);
-      detail = null;
+      data = null;
     } finally {
       loading = false;
-    }
-  }
-
-  async function loadInjections() {
-    if (!selectedSession) return;
-    injectionsLoading = true;
-    try {
-      const res = await fetch(`/api/audit/injections?session=${encodeURIComponent(selectedSession)}&limit=100`);
-      const j = await res.json();
-      injections = j.injections ?? [];
-    } catch {
-      injections = [];
-    } finally {
-      injectionsLoading = false;
     }
   }
 
@@ -229,6 +331,32 @@
     }
   }
 
+  // Línea de tiempo filtrada por fuente + tope defensivo de voz.
+  const filtered = $derived.by(() => {
+    if (!data) return [];
+    const out: TlItem[] = [];
+    let voiceSeen = 0;
+    for (const item of data.timeline) {
+      if (item.source === "voice") {
+        if (!showVoice) continue;
+        if (voiceSeen >= voiceCap) continue;
+        voiceSeen++;
+      }
+      if (item.source === "injection" && !showInjection) continue;
+      if (item.source === "turn" && !showTurn) continue;
+      out.push(item);
+    }
+    return out;
+  });
+
+  function scrollToTurn(turnIndex: number) {
+    try {
+      document.getElementById(`audit-turn-${turnIndex}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch {
+      // noop
+    }
+  }
+
   onMount(() => {
     void loadSessions();
     void loadEvaluaciones();
@@ -236,8 +364,7 @@
 
   $effect(() => {
     if (selectedSession) {
-      void loadTurns();
-      void loadInjections();
+      void loadSession();
     }
   });
 </script>
@@ -253,7 +380,7 @@
         <div class="flex flex-col gap-2">
           <div>
             <h1 class="text-sm font-semibold text-zinc-50 leading-tight">Auditoría — radiografía</h1>
-            <p class="text-[11px] text-zinc-500">qué pensó · cómo ejecutó · en qué falló · cuánto costó</p>
+            <p class="text-[11px] text-zinc-500">todo lo que pasó en la sesión · voz · contexto · turnos</p>
           </div>
           <div class="flex w-fit items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5">
             <button
@@ -284,7 +411,7 @@
 
     {#if view === "radiografia"}
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-      <!-- Sidebar: sesiones + turnos -->
+      <!-- Sidebar: sesión + resumen + navegación por turnos -->
       <aside class="space-y-5">
         <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
           <label for="audit-session-select" class="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Sesión</label>
@@ -300,16 +427,46 @@
         </div>
 
         <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+          <h2 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Sesión</h2>
+          {#if data}
+            <div class="grid grid-cols-2 gap-2">
+              <div class="rounded-lg border border-zinc-800 bg-black/40 p-2 text-center">
+                <div class="text-lg font-bold text-cyan-300">{data.turnCount}</div>
+                <div class="text-[9px] uppercase tracking-wider text-zinc-500">turnos</div>
+              </div>
+              <div class="rounded-lg border border-zinc-800 bg-black/40 p-2 text-center">
+                <div class="text-lg font-bold text-fuchsia-300">{data.voiceCount}</div>
+                <div class="text-[9px] uppercase tracking-wider text-zinc-500">eventos voz</div>
+              </div>
+              <div class="rounded-lg border border-zinc-800 bg-black/40 p-2 text-center">
+                <div class="text-lg font-bold text-violet-300">{data.injectionCount}</div>
+                <div class="text-[9px] uppercase tracking-wider text-zinc-500">inyecciones</div>
+              </div>
+              <div class="rounded-lg border border-zinc-800 bg-black/40 p-2 text-center">
+                <div class="text-lg font-bold text-zinc-200">{fmt(data.durationMs)}</div>
+                <div class="text-[9px] uppercase tracking-wider text-zinc-500">duración</div>
+              </div>
+            </div>
+            <div class="mt-2 flex flex-wrap items-center gap-x-2 text-[10px] text-zinc-500">
+              {#if data.firstAt}<span>inicio {new Date(data.firstAt).toLocaleString()}</span>{/if}
+              {#if data.lastAt}<span>· fin {new Date(data.lastAt).toLocaleTimeString()}</span>{/if}
+            </div>
+          {:else}
+            <p class="py-3 text-center text-[11px] text-zinc-600">Cargando…</p>
+          {/if}
+        </div>
+
+        <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
           <h2 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-            Turnos {turns.length ? `(${turns.length})` : ""}
+            Turnos {data?.turns.length ? `(${data.turns.length})` : ""}
           </h2>
-          {#if turns.length}
+          {#if data?.turns.length}
             <ul class="max-h-[62vh] space-y-1.5 overflow-y-auto pr-1">
-              {#each turns as t, i (t.turnId)}
+              {#each data.turns as t (t.turnId)}
                 <li>
                   <button
-                    class="w-full rounded-lg border px-3 py-2 text-left transition-colors ${selectedTurnId === t.turnId ? 'border-cyan-700 bg-cyan-950/40' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-800/70'}"
-                    onclick={() => loadDetail(t.turnId)}
+                    class="w-full rounded-lg border px-3 py-2 text-left transition-colors border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-800/70"
+                    onclick={() => scrollToTurn(t.turnIndex)}
                   >
                     <div class="flex items-center justify-between gap-2">
                       <span class="truncate text-[13px] text-zinc-100">{t.question ? trunc(t.question, 55) : "(sin pregunta)"}</span>
@@ -328,119 +485,126 @@
                 </li>
               {/each}
             </ul>
-          {:else if !loading}
-            <p class="py-4 text-center text-xs text-zinc-600">Sin turnos espejados para esta sesión.</p>
-          {/if}
-        </div>
-
-        <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-          <h2 class="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-            Inyecciones de contexto {injections.length ? `(${injections.length})` : ""}
-          </h2>
-          <p class="mb-2 text-[10px] leading-relaxed text-zinc-600">
-            Lóbulo frontal (plan) + memoria episódica — no visibles en llm_inputs (pre-middleware).
-          </p>
-          {#if injectionsLoading}
+          {:else if loading}
             <p class="py-3 text-center text-[11px] text-zinc-600">Cargando…</p>
-          {:else if injections.length}
-            <ul class="max-h-[40vh] space-y-1.5 overflow-y-auto pr-1">
-              {#each injections as inj, i (i)}
-                <li class="rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold ${inj.kind === 'plan' ? 'bg-violet-950 text-violet-300 border border-violet-800/60' : 'bg-cyan-950 text-cyan-300 border border-cyan-800/60'}">
-                      {inj.kind === "plan" ? "plan" : "memoria"}
-                    </span>
-                    <span class="flex items-center gap-2">
-                      <span class="font-mono text-[10px] text-zinc-500">{inj.tag}</span>
-                      {#if inj.body}
-                        <button
-                          class="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
-                          onclick={() => toggleInj(i)}
-                        >
-                          {expandedInj.has(i) ? "ocultar contenido" : "ver contenido"}
-                        </button>
-                      {/if}
-                    </span>
-                  </div>
-                  <div class="mt-1 flex flex-wrap gap-x-2 text-[10px] tabular-nums text-zinc-500">
-                    <span>{fmtK(inj.chars)} chars</span>
-                    {#if inj.kind === "memory"}
-                      <span>{inj.hits} hits</span>
-                    {/if}
-                    <span>{new Date(inj.at).toLocaleTimeString()}</span>
-                  </div>
-                  {#if inj.sources?.length}
-                    <div class="mt-1 flex flex-wrap gap-1">
-                      {#each inj.sources as src}
-                        <span class="rounded bg-zinc-800 px-1 py-0.5 font-mono text-[9px] text-zinc-400">{src.type}·{String(src.sessionId).slice(-8)}</span>
-                      {/each}
-                    </div>
-                  {/if}
-                  {#if inj.message}
-                    <div class="mt-1 truncate text-[10px] text-zinc-600" title={inj.message}>{inj.message}</div>
-                  {/if}
-                  {#if expandedInj.has(i) && inj.body}
-                    <pre class="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-zinc-800 bg-black/40 p-2 font-mono text-[10px] leading-relaxed text-zinc-400">{inj.body}</pre>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
           {:else}
-            <p class="py-3 text-center text-[11px] text-zinc-600">
-              Sin inyecciones registradas para esta sesión.
-            </p>
+            <p class="py-3 text-center text-[11px] text-zinc-600">Sin turnos espejados para esta sesión.</p>
           {/if}
         </div>
       </aside>
 
-      <!-- Detalle del turno -->
+      <!-- Main: línea de tiempo secuencial de la sesión -->
       <section class="min-w-0">
         {#if loading}
-          <div class="flex h-64 items-center justify-center text-sm text-zinc-500">Cargando turno…</div>
-        {:else if detail}
-          <!-- Métricas -->
-          <div class="mb-4 flex flex-wrap items-center gap-2">
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs font-semibold text-cyan-300">{detail.turnId}</span>
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs ${detail.status === 'error' ? 'text-red-400' : detail.status === 'waiting' ? 'text-yellow-300' : 'text-emerald-300'}">{detail.status}</span>
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">⏱ {fmt(detail.turnMs)}</span>
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">{detail.steps} pasos</span>
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">{detail.toolCalls} calls</span>
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">in {fmtK(detail.inputTok)}</span>
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">out {fmtK(detail.outputTok)}</span>
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">cache {detail.cacheHit}%</span>
-            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs ${detail.errors ? 'text-red-400' : 'text-emerald-300'}">{detail.errors} err</span>
-            {#if detail.planTag}
-              <span class="rounded-md bg-violet-950 border border-violet-800 px-2.5 py-1 text-xs text-violet-300">plan:{detail.planTag}</span>
-            {/if}
-            {#if detail.at}
-              <span class="rounded-md bg-zinc-900 border border-zinc-800 px-2.5 py-1 text-xs text-zinc-600">{new Date(detail.at).toLocaleTimeString()}</span>
-            {/if}
+          <div class="flex h-64 items-center justify-center text-sm text-zinc-500">Cargando línea de tiempo…</div>
+        {:else if data}
+          <!-- Filtros + métricas -->
+          <div class="mb-3 flex flex-wrap items-center gap-2">
+            <button
+              class="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${showTurn ? 'border-cyan-700 bg-cyan-950/50 text-cyan-300' : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-zinc-300'}"
+              onclick={() => (showTurn = !showTurn)}
+            >turnos ({data.turnCount})</button>
+            <button
+              class="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${showVoice ? 'border-fuchsia-700 bg-fuchsia-950/50 text-fuchsia-300' : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-zinc-300'}"
+              onclick={() => (showVoice = !showVoice)}
+            >voz ({data.voiceCount})</button>
+            <button
+              class="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${showInjection ? 'border-violet-700 bg-violet-950/50 text-violet-300' : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-zinc-300'}"
+              onclick={() => (showInjection = !showInjection)}
+            >inyecciones ({data.injectionCount})</button>
+            <span class="ml-auto text-[10px] tabular-nums text-zinc-600">{filtered.length} eventos visibles</span>
           </div>
 
-          <div class="space-y-5">
-            <!-- Pregunta / respuesta -->
-            {#if detail.question}
-              <div class="rounded-xl border border-zinc-800 bg-zinc-900/40">
-                <div class="border-b border-zinc-800 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Pregunta</div>
-                <div class="px-4 py-3 text-sm whitespace-pre-wrap">{detail.question}</div>
-              </div>
-            {/if}
-            {#if detail.answer}
-              <div class="rounded-xl border border-zinc-800 bg-zinc-900/40">
-                <div class="border-b border-zinc-800 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Respuesta</div>
-                <div class="px-4 py-3 text-sm whitespace-pre-wrap max-h-72 overflow-y-auto">{detail.answer}</div>
-              </div>
-            {/if}
-
-            <!-- Timeline: trayectoria secuencial -->
-            <div class="rounded-xl border border-zinc-800 bg-zinc-900/40">
-              <div class="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
-                <h2 class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Trayectoria del turno ({detail.timeline.length} eventos)</h2>
-                <button class="text-[11px] text-cyan-400 hover:underline" onclick={() => (expanded = new Set())}>colapsar todo</button>
-              </div>
-              <div class="relative ml-5 border-l-2 border-zinc-800 py-4 pl-6">
-                <div class="space-y-4">
-                  {#each detail.timeline as item, i (i)}
+          <!-- Timeline secuencial -->
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/40">
+            <div class="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                Línea de tiempo de la sesión ({filtered.length} eventos · secuencial)
+              </h2>
+              <button class="text-[11px] text-cyan-400 hover:underline" onclick={() => { expanded = new Set(); expandedInj = new Set(); expandedVoice = new Set(); }}>colapsar todo</button>
+            </div>
+            <div class="relative ml-5 border-l-2 border-zinc-800 py-4 pl-6">
+              <div class="space-y-4">
+                {#each filtered as item (item.seq)}
+                  {#if item.source === "turn" && item.isTurnHeader}
+                    <!-- Cabecera de turno -->
+                    <div id={`audit-turn-${item.turnIndex}`} class="relative -ml-1 scroll-mt-24">
+                      <span class="absolute -left-[31px] top-[9px] h-3 w-3 rounded-full bg-cyan-500 ring-4 ring-zinc-950"></span>
+                      <div class="rounded-lg border border-cyan-800/70 bg-cyan-950/20 px-3 py-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="rounded-md bg-cyan-950 border border-cyan-800 px-2 py-0.5 text-[11px] font-bold text-cyan-300">TURNO {(item.turnIndex ?? 0) + 1}</span>
+                          <span class="text-[10px] tabular-nums text-zinc-500">{item.at ? new Date(item.at).toLocaleTimeString() : ""}</span>
+                          <span class="text-[10px] tabular-nums text-zinc-600">t+{fmt(item.t)}</span>
+                          {#if item.turn}
+                            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2 py-0.5 text-[10px] ${item.turn.errors ? 'text-red-400' : 'text-emerald-400'}">{item.turn.errors} err</span>
+                            <span class="text-[10px] tabular-nums text-zinc-400">{item.turn.steps} pasos · {item.turn.toolCalls} calls · in {fmtK(item.turn.inputTok)} · cache {item.turn.cacheHit}% · {fmt(item.turn.turnMs)}</span>
+                            <span class="rounded-md bg-zinc-900 border border-zinc-700 px-2 py-0.5 text-[10px] text-zinc-400">{item.turn.status}</span>
+                          {/if}
+                        </div>
+                        {#if item.question}
+                          <p class="mt-1 text-[12px] whitespace-pre-wrap text-zinc-200">{item.question}</p>
+                        {/if}
+                      </div>
+                    </div>
+                  {:else if item.source === "voice"}
+                    <!-- Evento de voz -->
+                    <div class="relative">
+                      <span class="absolute -left-[31px] top-[7px] h-3 w-3 rounded-full ${voiceDot(item)} ring-4 ring-zinc-950"></span>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="rounded-md border px-2 py-0.5 text-[11px] font-semibold ${voiceBadge(item)}">
+                          <span class="font-mono text-[9px] opacity-70">{VOICE_GROUP_LABEL[voiceGroup(item.voiceType ?? "")]}</span> · {voiceLabel(item)}
+                        </span>
+                        <span class="text-[10px] tabular-nums text-zinc-500">t+{fmt(item.t)}</span>
+                        {#if item.voiceType}<span class="font-mono text-[9px] text-zinc-600">{item.voiceType}</span>{/if}
+                        {#if item.voiceData != null && isLong(JSON.stringify(item.voiceData), 120)}
+                          <button class="text-[11px] text-zinc-400 hover:underline" onclick={() => toggleVoice(item.seq)}>
+                            {expandedVoice.has(item.seq) ? "▾ ocultar datos" : "▸ ver datos"}
+                          </button>
+                        {/if}
+                      </div>
+                      {#if item.voiceData != null}
+                        <div class="mt-1 text-[11px] text-zinc-400">{voiceSummary(item.voiceData)}</div>
+                      {/if}
+                      {#if expandedVoice.has(item.seq) && item.voiceData != null}
+                        <pre class="mt-1 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg border border-fuchsia-900/40 bg-black/60 p-2.5 font-mono text-[10px] leading-relaxed text-fuchsia-100/80">{JSON.stringify(item.voiceData, null, 2)}</pre>
+                      {/if}
+                    </div>
+                  {:else if item.source === "injection"}
+                    <!-- Inyección de contexto -->
+                    <div class="relative">
+                      <span class="absolute -left-[31px] top-[7px] h-3 w-3 rounded-full ${item.injKind === 'plan' ? 'bg-violet-500' : 'bg-cyan-500'} ring-4 ring-zinc-950"></span>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="rounded-md border px-2 py-0.5 text-[11px] font-semibold ${item.injKind === 'plan' ? 'bg-violet-950 text-violet-300 border-violet-700/60' : 'bg-cyan-950 text-cyan-300 border-cyan-700/60'}">
+                          {item.injKind === "plan" ? "plan (lóbulo frontal)" : "memoria episódica"}
+                        </span>
+                        <span class="font-mono text-[10px] text-zinc-500">{item.injTag}</span>
+                        <span class="text-[10px] tabular-nums text-zinc-500">t+{fmt(item.t)}</span>
+                        <span class="text-[10px] tabular-nums text-zinc-500">{fmtK(item.injChars)} chars</span>
+                        {#if item.injKind === "memory" && item.injHits != null}
+                          <span class="text-[10px] text-zinc-500">{item.injHits} hits</span>
+                        {/if}
+                        {#if item.injBody}
+                          <button class="text-[11px] text-zinc-400 hover:underline" onclick={() => toggleInj(item.seq)}>
+                            {expandedInj.has(item.seq) ? "▾ ocultar contenido" : "▸ ver contenido"}
+                          </button>
+                        {/if}
+                      </div>
+                      {#if item.injMessage}
+                        <div class="mt-1 truncate text-[10px] text-zinc-600" title={item.injMessage}>↳ mensaje: {item.injMessage}</div>
+                      {/if}
+                      {#if item.injSources?.length}
+                        <div class="mt-1 flex flex-wrap gap-1">
+                          {#each item.injSources as src}
+                            <span class="rounded bg-zinc-800 px-1 py-0.5 font-mono text-[9px] text-zinc-400">{src.type}·{String(src.sessionId).slice(-8)}</span>
+                          {/each}
+                        </div>
+                      {/if}
+                      {#if expandedInj.has(item.seq) && item.injBody}
+                        <pre class="mt-1 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-zinc-800 bg-black/40 p-2 font-mono text-[10px] leading-relaxed text-zinc-400">{item.injBody}</pre>
+                      {/if}
+                    </div>
+                  {:else}
+                    <!-- Item de turno -->
                     <div class="relative">
                       <span class="absolute -left-[31px] top-[7px] h-3 w-3 rounded-full ${dotClass(item)} ring-4 ring-zinc-950"></span>
                       <div class="flex flex-wrap items-center gap-2">
@@ -458,18 +622,18 @@
 
                       <div class="mt-1.5">
                         {#if item.kind === "reasoning" && item.text}
-                          <button class="text-[11px] text-violet-400 hover:underline" onclick={() => toggle(i)}>
-                            {expanded.has(i) ? "▾ ocultar" : "▸ ver razonamiento"}
+                          <button class="text-[11px] text-violet-400 hover:underline" onclick={() => toggle(item.seq)}>
+                            {expanded.has(item.seq) ? "▾ ocultar" : "▸ ver razonamiento"}
                           </button>
-                          <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-black/60 border border-violet-900/40 p-3 text-[12px] leading-relaxed text-violet-100/90 ${expanded.has(i) ? 'max-h-[45vh] overflow-y-auto' : 'max-h-28 overflow-hidden'}">{expanded.has(i) ? item.text : trunc(item.text, 700)}</pre>
+                          <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-black/60 border border-violet-900/40 p-3 text-[12px] leading-relaxed text-violet-100/90 ${expanded.has(item.seq) ? 'max-h-[45vh] overflow-y-auto' : 'max-h-28 overflow-hidden'}">{expanded.has(item.seq) ? item.text : trunc(item.text, 700)}</pre>
                         {:else if item.kind === "tool-call"}
                           <pre class="whitespace-pre-wrap rounded-lg bg-black/60 border border-zinc-800 p-2.5 text-[11px] text-cyan-200/80 max-h-40 overflow-y-auto">{JSON.stringify(item.input ?? null, null, 2)}</pre>
                         {:else if item.kind === "tool-result"}
-                          <button class="text-[11px] text-zinc-400 hover:underline" onclick={() => toggle(i)}>
-                            {expanded.has(i) ? "▾ ocultar detalle" : "▸ ver detalle"}
+                          <button class="text-[11px] text-zinc-400 hover:underline" onclick={() => toggle(item.seq)}>
+                            {expanded.has(item.seq) ? "▾ ocultar detalle" : "▸ ver detalle"}
                           </button>
                           <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-black/60 border border-cyan-900/40 p-2.5 text-[11px] text-cyan-200/80 max-h-40 overflow-y-auto">{JSON.stringify(item.input ?? null, null, 2)}</pre>
-                          <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-black/60 border border-zinc-800 p-2.5 text-[11px] text-zinc-300 ${expanded.has(i) ? 'max-h-[45vh] overflow-y-auto' : 'max-h-24 overflow-hidden'}">{expanded.has(i) ? item.output : trunc(String(item.output ?? ""), 600)}</pre>
+                          <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-black/60 border border-zinc-800 p-2.5 text-[11px] text-zinc-300 ${expanded.has(item.seq) ? 'max-h-[45vh] overflow-y-auto' : 'max-h-24 overflow-hidden'}">{expanded.has(item.seq) ? item.output : trunc(String(item.output ?? ""), 600)}</pre>
                         {:else if item.kind === "message" && item.text}
                           <div class="rounded-lg bg-black/40 border border-zinc-800/70 px-3 py-2 text-[12px] text-zinc-200 whitespace-pre-wrap max-h-44 overflow-y-auto">{item.text}</div>
                         {:else if item.kind === "hitl" && item.text}
@@ -477,13 +641,21 @@
                         {/if}
                       </div>
                     </div>
-                  {/each}
-                </div>
+                  {/if}
+                {/each}
               </div>
             </div>
+            {#if showVoice && data.voiceCount > VOICE_RENDER_CAP && voiceCap <= VOICE_RENDER_CAP}
+              <div class="border-t border-zinc-800 px-4 py-3 text-center">
+                <button
+                  class="rounded-lg border border-fuchsia-800 bg-fuchsia-950/40 px-4 py-1.5 text-xs text-fuchsia-300 hover:bg-fuchsia-950/70"
+                  onclick={() => (voiceCap = 10000)}
+                >Mostrar los {data.voiceCount - VOICE_RENDER_CAP} eventos de voz restantes</button>
+              </div>
+            {/if}
           </div>
         {:else}
-          <div class="flex h-64 items-center justify-center text-sm text-zinc-600">Selecciona una sesión y un turno para ver la trayectoria completa.</div>
+          <div class="flex h-64 items-center justify-center text-sm text-zinc-600">Selecciona una sesión para ver la línea de tiempo completa.</div>
         {/if}
       </section>
       </div>

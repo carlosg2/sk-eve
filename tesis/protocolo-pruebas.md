@@ -17,6 +17,7 @@ Todas las piezas de la radiografía del self-improvement:
 | Fuente | Qué contiene | Dónde | Sobrevive al purge (`rm -rf .eve`)? |
 |---|---|---|---|
 | **Espejo de eventos** (tabla `events`) | TODO el stream: mensajes, reasoning (el *por qué*), tool calls input/output (el *cómo*), errores, HITL | `.data/sessions.sqlite3` | ✅ sí (fuera de `.eve/`) |
+| **Telemetría de VOZ** (tabla `voice_events`) | la capa delgada realtime: mic/VAD/STT/transcripts/playback/respuestas/idle/AEC/decisiones — la única evidencia de "dijo algo por voz y no se registró" (client-side, antes de Eve) | `.data/sessions.sqlite3` | ✅ sí |
 | **Inputs reales al LLM** (tabla `llm_inputs`) | instructions (system resuelto) + messages por step | `.data/sessions.sqlite3` | ✅ sí |
 | **Resúmenes de turno** (tabla `turn_summaries`) | tokens in/out, cache, steps, calls, errores, duración, status, tools | `.data/sessions.sqlite3` | ✅ sí |
 | **Índice de sesiones** (tabla `sessions`) | título, activo, turnos, archivado | `.data/sessions.sqlite3` | ✅ sí |
@@ -44,11 +45,21 @@ curl -s 'http://localhost:5173/api/audit/llm?limit=50&sessionId=<id>'
 # Vista HOLÍSTICA de un turno (todo en una llamada): question/answer/reasoning/tools/hitl/métricas
 curl -s 'http://localhost:5173/api/audit/turn?sessionId=<id>&turnId=turn_0'
 
+# ⭐ Línea de tiempo SECUENCIAL de la sesión COMPLETA (2026-08-18): fusiona en
+# orden cronológico la VOZ (voice_events), las INYECCIONES de contexto
+# (prompt_injections: lóbulo frontal + memoria episódica) y los TURNOS del
+# agente (espejo events). Es la vista para auditar TODO lo que sucedió en una
+# sesión (incluido "dijo algo por voz y no se registró" — client-side).
+curl -s 'http://localhost:5173/api/audit/session?sessionId=<id>'
+
 # Página navegable de auditoría (la forma holística de VERLO todo):
 #   http://localhost:5173/audit
-#   → elige sesión → lista de turnos (métricas) → clic: TRAYECTORIA SECUENCIAL
-#   (timeline) con razonamiento por paso, tool calls con input/output y duración,
-#   tokens por step, mensajes y HITL, ordenados con tiempo relativo (t+).
+#   → elige sesión → LÍNEA DE TIEMPO SECUENCIAL de toda la sesión con filtros
+#   (turnos / voz / inyecciones): cabecera de cada turno con métricas,
+#   razonamiento por paso, tool calls con input/output y duración, tokens por
+#   step, mensajes, HITL, eventos de voz (mic/VAD/STT/transcript/playback/
+#   respuestas/idle/AEC) e inyecciones de contexto (plan + memoria) — todo
+#   ordenado por timestamp con tiempo relativo (t+).
 
 # Resúmenes + tendencia (inspector / DevTools)
 curl -s 'http://localhost:5173/api/traces?limit=50'

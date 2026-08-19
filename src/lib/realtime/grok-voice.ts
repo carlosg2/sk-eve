@@ -45,6 +45,8 @@ const TARGET_RATE = 24000;
 
 /** Umbral RMS (0-1 sobre PCM Float32): por debajo es silencio. */
 const VOICE_RMS_THRESHOLD = 0.012;
+/** Throttle del nivel del mic en vivo (onMicLevel → glow del botón estilo VS Code). */
+const VOICE_LEVEL_EMIT_MS = 90;
 /** Silencio requerido tras hablar para considerar fin de frase (no corta prematuramente). */
 const VOICE_SILENCE_MS = 1200;
 /** Umbral RMS para barge-in REAL: el usuario hablando MUY fuerte encima del audio del asistente. */
@@ -55,14 +57,6 @@ const VOICE_PLAYBACK_COOLDOWN_MS = 1500;
  *  altavoz (evidencia 2026-08-17: ecos de 0.022/0.032 vs voz real 0.125/0.143),
  *  no voz real del usuario. */
 const VOICE_ECHO_RMS_FLOOR = 0.045;
-// Gracia de arranque del barge-in por server VAD (2026-08-18): con mic +
-// altavoz compartidos y AEC imperfecto, el server VAD puede detectar el ECO
-// del ARRANQUE del propio audio del asistente como "habla del usuario" y
-// cortarlo (auto-interrupción: "se corta a sí mismo entre preámbulos y
-// respuestas"). Si el playback del asistente lleva < este ms sonando, el
-// speech-started se considera eco del inicio y NO se corta — el usuario que
-// interrumpe de verdad habla sobre audio ya establecido.
-const VOICE_BARGE_IN_GRACE_MS = 600;
 /** Ventana tras el último audio del asistente en la que se aplica el piso de eco. */
 const VOICE_ECHO_WINDOW_MS = 6000;
 
@@ -295,6 +289,13 @@ export type GrokVoiceCallbacks = {
 	 *  que la produjo (el consumidor la usa para distinguir voz real de ECO). */
 	onUserTranscript?: (text: string, meta?: { peakRms?: number }) => void;
 	/**
+	 * Nivel del mic en vivo (0..1), emitido throttled (~cada VOICE_LEVEL_EMIT_MS)
+	 * mientras el VAD corre. La UI lo usa para el glow reactivo del botón de voz
+	 * estilo VS Code Copilot (dictation-mic-active + `--dictation-mic-level`).
+	 * Blindado: nunca lanza.
+	 */
+	onMicLevel?: (level: number) => void;
+	/**
 	 * Texto del asistente. `delta` = fragmento en streaming (se anexa al
 	 * segmento actual); `done` = transcript final del item (reemplaza el
 	 * segmento para evitar duplicar cuando el servidor re-emite el texto
@@ -415,6 +416,9 @@ export class GrokVoiceClient {
 	// Peak RMS del ÚLTIMO commit (se propaga en onUserTranscript para que el
 	// consumidor distinga eco de voz real al decidir sobre la transcripción).
 	private lastCommitPeakRms = 0;
+	// Throttle del nivel del mic en vivo (onMicLevel): emitir ~cada
+	// VOICE_LEVEL_EMIT_MS para no inundar la UI con updates a 60fps.
+	private lastMicLevelAt = 0;
 	// Throttle de telemetría `mic_drop` (solo si hay voz real, máx 1 por 1.5s).
 	private lastMicDropTelAt = 0;
 	// Watchdog del commit + RECUPERACIÓN: si el servidor NO devuelve
@@ -512,10 +516,20 @@ export class GrokVoiceClient {
 	private playbackCtx: AudioContext | null = null;
 	private nextPlaybackTime = 0;
 	private activeSources = 0;
+	// Ancla de inicio (ctx.currentTime programado) de la ÚLTIMA fuente creada
+	// en `playAudio`: base del offset reproducido (`getPlaybackOffsetMs`).
+	private sourceStartTime = 0;
 
 	// itemId del último item que emitió transcript de AUDIO: si un item tiene
 	// transcript de audio, ignoramos su canal de texto (evita duplicados).
 	private lastAudioItemId: string | null = null;
+	// itemId del item de NUESTRO speak (drainSpeakQueue) en reproducción: lo
+	// confirma el servidor con `conversation-item-added` y se usa para el
+	// truncate canónico del barge-in por transcripción (`conversation-item-truncate`).
+	private currentSpeakItemId: string | null = null;
+	// true mientras esperamos el `conversation-item-added` del item que acabamos
+	// de crear en `drainSpeakQueue` (solo ESE item se captura en currentSpeakItemId).
+	private pendingSpeakItemCapture = false;
 
 	constructor(
 		callbacks: GrokVoiceCallbacks = {},
@@ -846,6 +860,10 @@ export class GrokVoiceClient {
 			/* noop */
 		}
 		this.tel("speak", { text: text.slice(0, 80), narrate: !!narrate, queue: this.speakQueue.length });
+		// Barge-in canónico: rastrear el itemId de ESTE item para el truncate por
+		// transcripción (el servidor lo confirma con `conversation-item-added`).
+		this.currentSpeakItemId = null;
+		this.pendingSpeakItemCapture = true;
 		this.send({
 			type: "conversation-item-create",
 			item: { type: "text-message", role: "user", text: `Lee en voz alta: ${text}` },
@@ -1467,6 +1485,18 @@ export class GrokVoiceClient {
 			let sum = 0;
 			for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
 			const rms = Math.sqrt(sum / samples.length);
+			// Nivel del mic en vivo (0..1) para el glow reactivo del botón estilo
+			// VS Code Copilot (`--dictation-mic-level`). Se emite también en silencio
+			// (rms ~0) para que la UI muestre la respiración base del glow. Throttle.
+			const level = Math.min(1, rms / 0.15);
+			if (now - this.lastMicLevelAt >= VOICE_LEVEL_EMIT_MS) {
+				this.lastMicLevelAt = now;
+				try {
+					this.callbacks.onMicLevel?.(Number(level.toFixed(3)));
+				} catch {
+					/* noop */
+				}
+			}
 			if (rms >= VOICE_RMS_THRESHOLD) {
 				if (!this.vadSpeaking) {
 					this.vadSpeaking = true;
@@ -1776,31 +1806,33 @@ export class GrokVoiceClient {
 			case "session-created":
 				this.callbacks.onStatus?.("listo");
 				break;
+			case "conversation-item-added":
+				// Rastreo del item de NUESTRO speak (drainSpeakQueue): el servidor
+				// confirma el `conversation-item-create` con `conversation-item-added`
+				// (itemId = el `item.id` del protocolo OpenAI). Se guarda para el
+				// truncate canónico del barge-in por transcripción. Blindado.
+				try {
+					if (this.pendingSpeakItemCapture && ev.itemId) {
+						this.pendingSpeakItemCapture = false;
+						this.currentSpeakItemId = ev.itemId;
+						this.tel("speak_item", { itemId: ev.itemId });
+					}
+				} catch {
+					/* noop */
+				}
+				break;
 			// El VAD del servidor es informativo; el estado real del micrófono
 			// lo gobiernan startMic/stopMic (sin mic local el servidor no oye).
 			case "speech-started":
-				// ── Barge-in real (SOLO modo AEC) ──
-				// El server VAD detectó habla del usuario → corta el audio del
-				// asistente y descarta utterances pendientes. En modo no-AEC es
-				// informativo (el gate del append ya suprime el mic; el barge-in
-				// lo maneja `input-transcription-completed`).
-				// Auto-interrupción (2026-08-18): con AEC imperfecto el server VAD
-				// detecta el ECO del arranque del propio audio como habla → gracia
-				// VOICE_BARGE_IN_GRACE_MS: si el playback del asistente acaba de
-				// empezar, NO se corta (el usuario que interrumpe de verdad habla
-				// sobre audio ya establecido).
-				if (this.aecMode === "aec") {
-					const now = Date.now();
-					if (this._playing && now - this.lastAssistantSpeakAt < VOICE_BARGE_IN_GRACE_MS) {
-						this.tel("barge_in_ignored", { sincePlaybackStartMs: now - this.lastAssistantSpeakAt });
-						break;
-					}
-					const playingBeforeCut = this._playing;
-					console.info(`[voice] BARGE-IN speech-started (playing=${playingBeforeCut})`);
-					this.tel("barge_in", { playing: playingBeforeCut });
-					this.cutPlayback();
-					this.clearSpokenQueue();
-				}
+				// ── INFORMATIVO en AMBOS modos ──
+				// El server VAD detectó habla del usuario pero NO cortamos aquí: con
+				// mic + altavoz compartidos y AEC imperfecto en esta máquina, el server
+				// VAD cortaba al asistente con SU PROPIO audio (auto-interrupción entre
+				// preámbulos y respuestas). El barge-in real lo confirma la TRANSCRIPCIÓN
+				// del usuario (`input-transcription-completed`, patrón vercel/ai no-AEC
+				// + airi suppress), y el mic está suprimido durante el playback por el
+				// gate `_playing`.
+				this.tel("barge_in", { playing: this._playing, mode: this.aecMode });
 				break;
 			case "speech-stopped":
 				// Informativo: el server terminó el turno del usuario (el commit
@@ -1844,18 +1876,27 @@ export class GrokVoiceClient {
 					// (que puede ECOAR la pregunta del usuario); se corta su audio YA
 					// reproducido, se descartan utterances pendientes y se cancela la
 					// respuesta en curso (barge-in: el usuario interrumpió, manda lo nuevo).
-					// Auto-interrupción (2026-08-18): si esta transcripción salió de un
-					// commit de BAJA energía (el ECO del propio asistente transcrito en
-					// un hueco del playback), NO se corta el audio en curso — el usuario
-					// no interrumpió; la UI decide si el texto es pregunta real (tiene
-					// sus propios gates anti-eco). La cancelación de la respuesta
-					// automática y el re-sync siguen igual (son defensivos, no cortan).
+					// Barge-in canónico (SA-1): si llegó una transcripción, el usuario SÍ
+					// habló (el mic está suprimido durante el playback por el gate
+					// `_playing`) → cortar SIEMPRE, sin heurísticas por RMS.
 					if (this.autoCancelAfterTranscript) {
-						if ((this.lastCommitPeakRms ?? 1) < VOICE_ECHO_RMS_FLOOR) {
-							this.tel("echo_no_cut", { peakRms: this.lastCommitPeakRms ?? 0 });
-						} else {
-							this.cutPlayback();
-							this.clearSpokenQueue();
+						// El offset se lee ANTES de cortar (cutPlayback cierra el
+						// AudioContext y el offset quedaría en 0).
+						const offsetMs = this.getPlaybackOffsetMs();
+						this.cutPlayback();
+						this.clearSpokenQueue();
+						// Truncate canónico: recortar en el servidor el item de nuestro
+						// speak a lo REALMENTE reproducido (solo lo hablado entra al
+						// contexto — patrón vercel/ai `getPlaybackOffsetMs`). Guard
+						// `Number.isFinite` (patrón livekit anti-NaN): si el offset no es
+						// finito, NO se envía truncate.
+						if (this.currentSpeakItemId && Number.isFinite(offsetMs)) {
+							this.send({
+								type: "conversation-item-truncate",
+								itemId: this.currentSpeakItemId,
+								contentIndex: 0,
+								audioEndMs: offsetMs,
+							});
 						}
 						this.cancelResponse();
 						// Re-sync PREVENTIVO: tras el response-cancel el gateway puede
@@ -2015,6 +2056,9 @@ export class GrokVoiceClient {
 			source.connect(ctx.destination);
 			const now = ctx.currentTime;
 			if (this.nextPlaybackTime < now + 0.05) this.nextPlaybackTime = now + 0.05;
+			// Barge-in canónico: ancla de inicio de ESTA fuente para calcular el
+			// offset reproducido (`getPlaybackOffsetMs`) al truncar por transcripción.
+			this.sourceStartTime = this.nextPlaybackTime;
 			source.start(this.nextPlaybackTime);
 			this.nextPlaybackTime += buffer.duration;
 			const wasIdle = this.activeSources === 0;
@@ -2086,6 +2130,21 @@ export class GrokVoiceClient {
 		if (this.narrateInFlight) {
 			this.narrateInFlight = false;
 			this.dispatchNarrate?.("end");
+		}
+	}
+
+	/**
+	 * Offset reproducido (ms) del audio del asistente en reproducción — el
+	 * ancla del truncate canónico (`conversation-item-truncate` audioEndMs,
+	 * patrón vercel/ai `getPlaybackOffsetMs` / livekit `playbackPositionInS`).
+	 * Devuelve 0 si no hay playback activo o si el cómputo falla. Blindado.
+	 */
+	private getPlaybackOffsetMs(): number {
+		try {
+			if (!this._playing || !this.playbackCtx) return 0;
+			return Math.max(0, this.playbackCtx.currentTime - this.sourceStartTime) * 1000;
+		} catch {
+			return 0;
 		}
 	}
 

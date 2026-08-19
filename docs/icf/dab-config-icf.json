@@ -1,0 +1,1040 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/download/v2.0.0/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "Server=tcp:WIN-VPHPNBJGH4Q;Database=Intelisis5000;User ID=sa;Password=maserp;Encrypt=false;Connection Timeout=30;"
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/api",
+      "request-body-strict": false
+    },
+    "graphql": {
+      "enabled": true,
+      "path": "/graphql",
+      "allow-introspection": true
+    },
+    "mcp": {
+      "enabled": true,
+      "path": "/mcp"
+    },
+    "host": {
+      "cors": {
+        "origins": ["*"],
+        "allow-credentials": false
+      },
+      "authentication": {
+        "provider": "StaticWebApps"
+      },
+      "mode": "development"
+    }
+  },
+  "entities": {
+    "ArtDisponible": {
+      "source": {
+        "object": "dbo.ArtDisponible",
+        "type": "view",
+        "key-fields": ["Empresa", "Articulo", "Almacen"]
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "ArtDisponible",
+          "plural": "ArtDisponibles"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/art-disponible"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "ArtDisponibleDesc": {
+      "source": {
+        "object": "dbo.ArtDisponibleDesc",
+        "type": "view",
+        "key-fields": ["Empresa", "Articulo", "Almacen"]
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "ArtDisponibleDesc",
+          "plural": "ArtDisponibleDescs"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/art-disponible-desc"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "Compra": {
+      "source": {
+        "object": "dbo.Compra",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Compra",
+          "plural": "Compras"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/compra"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "Venta": {
+      "source": {
+        "object": "dbo.Venta",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Venta",
+          "plural": "Ventas"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/venta"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "Inv": {
+      "source": {
+        "object": "dbo.Inv",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Inv",
+          "plural": "Invs"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/inv"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "VentaD": {
+      "source": {
+        "object": "dbo.VentaD",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "VentaD",
+          "plural": "VentaDs"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/venta-d"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "Cte": {
+      "source": {
+        "object": "dbo.Cte",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Cte",
+          "plural": "Ctes"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/cte"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "CompraD": {
+      "source": {
+        "object": "dbo.CompraD",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "CompraD",
+          "plural": "CompraDs"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/compra-d"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "Prov": {
+      "source": {
+        "object": "dbo.Prov",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Prov",
+          "plural": "Provs"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/prov"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "Art": {
+      "source": {
+        "object": "dbo.Art",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Art",
+          "plural": "Arts"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/art"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "GastoT": {
+      "source": {
+        "object": "dbo.GastoT",
+        "type": "view",
+        "key-fields": ["ID", "Renglon"]
+      },
+      "health": { "enabled": false },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "GastoT",
+          "plural": "GastoTs"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/gasto-t"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "Alm": {
+      "source": {
+        "object": "dbo.Alm",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Alm",
+          "plural": "Alms"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/alm"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "MovTipo": {
+      "source": {
+        "object": "dbo.MovTipo",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "MovTipo",
+          "plural": "MovTipos"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/mov-tipo"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "ArtMaterial": {
+      "source": {
+        "object": "dbo.ArtMaterial",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "ArtMaterial",
+          "plural": "ArtMateriales"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/art-material"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "ArtFam": {
+      "source": {
+        "object": "dbo.ArtFam",
+        "type": "table"
+      },
+      "mcp": {
+        "dml-tools": true
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "ArtFam",
+          "plural": "ArtFams"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/art-fam"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ]
+    },
+    "FaltanteInsumos": {
+      "description": "Reporte de faltantes de insumos de producción. Compara inventario requerido contra disponibilidad ICF para artículos del grupo 'INSUMOS DE PRODUCCION'. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": {
+        "object": "dbo.spWebFCFaltanteInsumos",
+        "type": "stored-procedure",
+        "object-description": "Calcula el faltante de insumos de producción (inventario requerido vs disponibilidad ICF) por artículo.",
+        "parameters": [
+          {
+            "name": "Usuario",
+            "required": true,
+            "description": "Usuario ERP para el cual se calculó la explosión de materiales (ExplocionMatCF.Usuario)"
+          },
+          {
+            "name": "Ejercicio",
+            "required": true,
+            "description": "Ejercicio fiscal (año), entero. Ejemplo: 2026"
+          },
+          {
+            "name": "Periodo",
+            "required": true,
+            "description": "Periodo/mes del ejercicio, entero. Ejemplo: 7"
+          }
+        ]
+      },
+      "mcp": {
+        "custom-tool": true
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/faltante-insumos",
+        "methods": ["get"]
+      },
+      "graphql": {
+        "enabled": false
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": ["execute"]
+        }
+      ]
+    },
+    "FaltanteMateriaPrima": {
+      "description": "Reporte de faltantes de materia prima. Compara inventario requerido contra disponibilidad ICF para artículos que no se producen (Art.SeProduce = 0) y no son insumos de producción. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": {
+        "object": "dbo.spWebFCFaltanteMateriaPrima",
+        "type": "stored-procedure",
+        "object-description": "Calcula el faltante de materia prima (inventario requerido vs disponibilidad ICF) por artículo.",
+        "parameters": [
+          {
+            "name": "Usuario",
+            "required": true,
+            "description": "Usuario ERP para el cual se calculó la explosión de materiales (ExplocionMatCF.Usuario)"
+          },
+          {
+            "name": "Ejercicio",
+            "required": true,
+            "description": "Ejercicio fiscal (año), entero. Ejemplo: 2026"
+          },
+          {
+            "name": "Periodo",
+            "required": true,
+            "description": "Periodo/mes del ejercicio, entero. Ejemplo: 7"
+          }
+        ]
+      },
+      "mcp": {
+        "custom-tool": true
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/faltante-materia-prima",
+        "methods": ["get"]
+      },
+      "graphql": {
+        "enabled": false
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": ["execute"]
+        }
+      ]
+    },
+    "Arribos12": {
+      "description": "Arribos (recepciones) proyectados a 12 semanas por artículo, capturados por usuario. Módulo: Forecast/Planeación (FC). Columnas S1..S12 = cantidad proyectada de arribo en la semana correspondiente.",
+      "source": { "object": "dbo.Arribos12", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "Arribos12", "plural": "Arribos12s" } },
+      "rest": { "enabled": true, "path": "/arribos-12" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "Arribos12S": {
+      "description": "Arribos proyectados a 12 semanas agrupados por familia/artículo, con desglose semana (Sn) y ajuste (An), capturados por usuario. Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.Arribos12S", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "Arribos12S", "plural": "Arribos12Ss" } },
+      "rest": { "enabled": true, "path": "/arribos-12s" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ArribosSub12S": {
+      "description": "Detalle/subrenglón de arribos proyectados a 12 semanas (relacionado con Arribos12S). Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.ArribosSub12S", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ArribosSub12S", "plural": "ArribosSub12Ss" } },
+      "rest": { "enabled": true, "path": "/arribos-sub-12s" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ArtCentroTemp": {
+      "description": "Tabla temporal de trabajo que asocia artículo-centro-programa por usuario durante la captura de planeación FC. No tiene llave primaria física en la base de datos; se usa la combinación de todas sus columnas como llave lógica. Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.ArtCentroTemp", "type": "table", "key-fields": ["Usuario", "Articulo", "Centro", "Concepto", "Cliente", "Programa"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ArtCentroTemp", "plural": "ArtCentroTemps" } },
+      "rest": { "enabled": true, "path": "/art-centro-temp" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ARTDISPONIBLEVACA": {
+      "description": "Vista de disponibilidad de artículo (Empresa/Articulo/Almacen) equivalente a ArtDisponible, usada por el módulo de planeación ganadera/forecast (VACA). Solo lectura (vista calculada).",
+      "source": { "object": "dbo.ARTDISPONIBLEVACA", "type": "view", "key-fields": ["EMPRESA", "ARTICULO", "ALMACEN"] },
+      "health": { "enabled": false },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ArtDisponibleVaca", "plural": "ArtDisponibleVacas" } },
+      "rest": { "enabled": true, "path": "/art-disponible-vaca" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "ArtFamFC": {
+      "description": "Catálogo de familias de artículos usado por el módulo de Forecast/Planeación (FC), llave Familia.",
+      "source": { "object": "dbo.ArtFamFC", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ArtFamFC", "plural": "ArtFamFCs" } },
+      "rest": { "enabled": true, "path": "/art-fam-fc" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "UV_QV_PPTOCOMPRA": {
+      "description": "Vista de stock mínimo/máximo (en Kg) y máximo de compra por artículo, agrupado por Nivel de agrupamiento/Tipo/Familia/Linea. Fuente de stock de seguridad para materia prima (usada por el skill mrp-cf-analyst en preguntas de 'stock de seguridad' e 'inventario disponible'). Solo lectura (vista calculada). Llave ARTICULO (casi única: 600/601 filas distintas, 1 artículo duplicado).",
+      "source": { "object": "dbo.UV_QV_PPTOCOMPRA", "type": "view", "key-fields": ["ARTICULO"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "UvQvPptoCompra", "plural": "UvQvPptoCompras" } },
+      "rest": { "enabled": true, "path": "/uv-qv-pptocompra" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "BalanceFC": {
+      "description": "Tabla de trabajo (scratch) por usuario con el balance/resultado intermedio del proceso de planeación FC. Se recalcula por cada corrida de un usuario. Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.BalanceFC", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "BalanceFC", "plural": "BalanceFCs" } },
+      "rest": { "enabled": true, "path": "/balance-fc" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "BalanceFCHist": {
+      "description": "Histórico de corridas de BalanceFC (auditoría), con renglón histórico (RID) por usuario. Solo lectura/creación: es una bitácora, no debe modificarse ni borrarse. Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.BalanceFCHist", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "BalanceFCHist", "plural": "BalanceFCHists" } },
+      "rest": { "enabled": true, "path": "/balance-fc-hist" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "CalendarioFC": {
+      "description": "Calendario de semanas (Ano/Semana con rango FechaD-FechaA) configurado por usuario para el módulo de Forecast/Planeación (FC). No tiene llave primaria física; se usa Usuario+Ano+Semana como llave lógica (verificada única en los datos actuales).",
+      "source": { "object": "dbo.CalendarioFC", "type": "table", "key-fields": ["Usuario", "Ano", "Semana"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "CalendarioFC", "plural": "CalendarioFCs" } },
+      "rest": { "enabled": true, "path": "/calendario-fc" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "Centro": {
+      "description": "Catálogo maestro de centros de trabajo/producción (llave Centro).",
+      "source": { "object": "dbo.Centro", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "Centro", "plural": "Centros" } },
+      "rest": { "enabled": true, "path": "/centro" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "CentroFC": {
+      "description": "Configuración de centro de trabajo específica del módulo Forecast/Planeación (FC), llave Centro.",
+      "source": { "object": "dbo.CentroFC", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "CentroFC", "plural": "CentroFCs" } },
+      "rest": { "enabled": true, "path": "/centro-fc" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "CentroFCHist": {
+      "description": "Histórico/bitácora de configuración de CentroFC por usuario (llave ID+Usuario+Centro). Solo lectura/creación: es una bitácora. Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.CentroFCHist", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "CentroFCHist", "plural": "CentroFCHists" } },
+      "rest": { "enabled": true, "path": "/centro-fc-hist" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "CentroFCTemp": {
+      "description": "Tabla temporal de trabajo de centros seleccionados por usuario durante una corrida de planeación FC (llave Usuario+Centro).",
+      "source": { "object": "dbo.CentroFCTemp", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "CentroFCTemp", "plural": "CentroFCTemps" } },
+      "rest": { "enabled": true, "path": "/centro-fc-temp" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "DIM_TIEMPO_SEMANA": {
+      "description": "Dimensión de tiempo (calendario) por semana natural: AÑO (expuesto como 'Anio' por restricción de nombres de GraphQL), MES, SEMANA con fechas de inicio/fin (FECHAINICIO/FECHAFIN) y bandera de periodo cerrado. Tabla de referencia, solo lectura. No tiene llave primaria física; se usa AÑO+SEMANA como llave lógica (verificada única).",
+      "source": { "object": "dbo.DIM_TIEMPO_SEMANA", "type": "table", "key-fields": ["AÑO", "SEMANA"] },
+      "mappings": { "AÑO": "Anio" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "DimTiempoSemana", "plural": "DimTiempoSemanas" } },
+      "rest": { "enabled": true, "path": "/dim-tiempo-semana" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "DIM_TIEMPO_SEMANA_ISO": {
+      "description": "Dimensión de tiempo (calendario) por semana ISO: EJERCICIO+SEMANA_ISO con fechas de inicio/fin (FI/FF). Tabla de referencia, solo lectura. No tiene llave primaria física; se usa EJERCICIO+SEMANA_ISO como llave lógica (verificada única).",
+      "source": { "object": "dbo.DIM_TIEMPO_SEMANA_ISO", "type": "table", "key-fields": ["EJERCICIO", "SEMANA_ISO"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "DimTiempoSemanaIso", "plural": "DimTiempoSemanaIsos" } },
+      "rest": { "enabled": true, "path": "/dim-tiempo-semana-iso" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "Empresa": {
+      "description": "Configuración maestra de la empresa/compañía del ERP (parámetros generales, fiscales y contables). Tabla muy amplia y sensible; expuesta solo de lectura por seguridad. Llave Empresa.",
+      "source": { "object": "dbo.Empresa", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "Empresa", "plural": "Empresas" } },
+      "rest": { "enabled": true, "path": "/empresa" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "EstacionTFC": {
+      "description": "Catálogo de estaciones de trabajo del módulo Forecast/Planeación (FC), llave Estacion.",
+      "source": { "object": "dbo.EstacionTFC", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "EstacionTFC", "plural": "EstacionTFCs" } },
+      "rest": { "enabled": true, "path": "/estacion-tfc" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "EstacionTFCHist": {
+      "description": "Histórico/bitácora de configuración de EstacionTFC por usuario y centro (llave ID+Usuario+Estacion+Centro). Solo lectura/creación: es una bitácora. Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.EstacionTFCHist", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "EstacionTFCHist", "plural": "EstacionTFCHists" } },
+      "rest": { "enabled": true, "path": "/estacion-tfc-hist" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "EstacionTFCTemp": {
+      "description": "Tabla temporal de trabajo de estaciones seleccionadas por usuario durante una corrida de planeación FC (llave Usuario+Estacion).",
+      "source": { "object": "dbo.EstacionTFCTemp", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "EstacionTFCTemp", "plural": "EstacionTFCTemps" } },
+      "rest": { "enabled": true, "path": "/estacion-tfc-temp" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ExplocionMatCF": {
+      "description": "Resultado de la explosión de materiales (requerimientos de materia prima/insumos) calculada por usuario para el módulo de Forecast/Planeación (FC). Es la base de los reportes FaltanteInsumos y FaltanteMateriaPrima. Llave ID+Usuario.",
+      "source": { "object": "dbo.ExplocionMatCF", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ExplocionMatCF", "plural": "ExplocionMatCFs" } },
+      "rest": { "enabled": true, "path": "/explosion-mat-cf" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "FCArribos": {
+      "description": "Arribos (recepciones) capturados por usuario para el módulo de Forecast/Planeación (FC). Llave ID+Usuario.",
+      "source": { "object": "dbo.FCArribos", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "FCArribos", "plural": "FCArriboss" } },
+      "rest": { "enabled": true, "path": "/fc-arribos" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ForecastArtFam12": {
+      "description": "Forecast (pronóstico) a 12 semanas agrupado por familia de artículo, capturado por usuario. Módulo: Forecast/Planeación (FC). Llave ID+Usuario.",
+      "source": { "object": "dbo.ForecastArtFam12", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ForecastArtFam12", "plural": "ForecastArtFam12s" } },
+      "rest": { "enabled": true, "path": "/forecast-art-fam-12" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ForecastAyuda": {
+      "description": "Tabla de ayuda/apoyo auxiliar usada por los procesos de cálculo del módulo Forecast/Planeación (FC). Llave ID.",
+      "source": { "object": "dbo.ForecastAyuda", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ForecastAyuda", "plural": "ForecastAyudas" } },
+      "rest": { "enabled": true, "path": "/forecast-ayuda" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ForecastBBC12": {
+      "description": "Forecast (pronóstico) a 12 semanas específico de la línea/negocio BBC, capturado por usuario. Módulo: Forecast/Planeación (FC). Llave ID+Usuario.",
+      "source": { "object": "dbo.ForecastBBC12", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ForecastBBC12", "plural": "ForecastBBC12s" } },
+      "rest": { "enabled": true, "path": "/forecast-bbc-12" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ForecastHist": {
+      "description": "Bitácora histórica de ejecuciones/movimientos del módulo Forecast (FechaEmision, UltimoCambio, Ejercicio, Periodo, Usuario, MovID). Solo lectura/creación: es una bitácora. Llave ID.",
+      "source": { "object": "dbo.ForecastHist", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ForecastHist", "plural": "ForecastHists" } },
+      "rest": { "enabled": true, "path": "/forecast-hist" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "ForecastPlanProduccion": {
+      "description": "Vista consolidada del plan de producción semanal (Ejercicio/Periodo/CentroTrabajo/Semana/Situacion/Renglon/Articulo) con desglose diario Lun..Dom y totales (PorProducir, Kilos). Solo lectura (vista calculada). Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.ForecastPlanProduccion", "type": "view", "key-fields": ["ID", "RENGLON"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ForecastPlanProduccion", "plural": "ForecastPlanProduccions" } },
+      "rest": { "enabled": true, "path": "/forecast-plan-produccion" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "ForecastPlanSemanal": {
+      "description": "Encabezado del plan de producción semanal por centro de trabajo (Ejercicio/Periodo/Semana/CentroTrabajo/Usuario), con situación de autorización. Módulo: Forecast/Planeación (FC). Llave ID.",
+      "source": { "object": "dbo.ForecastPlanSemanal", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ForecastPlanSemanal", "plural": "ForecastPlanSemanals" } },
+      "rest": { "enabled": true, "path": "/forecast-plan-semanal" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ForecastPlanSemanalD": {
+      "description": "Detalle del plan de producción semanal (renglón por Estacion+Articulo, con cantidades Lun..Dom y Total). Relacionado con ForecastPlanSemanal por ID. Módulo: Forecast/Planeación (FC). Llave ID+Renglon.",
+      "source": { "object": "dbo.ForecastPlanSemanalD", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ForecastPlanSemanalD", "plural": "ForecastPlanSemanalDs" } },
+      "rest": { "enabled": true, "path": "/forecast-plan-semanal-d" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "MensajeLista": {
+      "description": "Catálogo de mensajes (avisos/errores) usados por los procesos del ERP, con tipo y bandera IE. Llave Mensaje.",
+      "source": { "object": "dbo.MensajeLista", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "MensajeLista", "plural": "MensajeListas" } },
+      "rest": { "enabled": true, "path": "/mensaje-lista" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "MovSituacionFC": {
+      "description": "Catálogo de situaciones/estatus de movimientos por módulo (Modulo/Mov/Situacion), con orden y banderas de control de usuarios y visibilidad web. Módulo: Forecast/Planeación (FC). Llave ID.",
+      "source": { "object": "dbo.MovSituacionFC", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "MovSituacionFC", "plural": "MovSituacionFCs" } },
+      "rest": { "enabled": true, "path": "/mov-situacion-fc" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "MovSituacionUsuarioFC": {
+      "description": "Asignación de usuarios autorizados a controlar situaciones de movimientos del módulo Forecast/Planeación (FC). Llave ID+Usuario.",
+      "source": { "object": "dbo.MovSituacionUsuarioFC", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "MovSituacionUsuarioFC", "plural": "MovSituacionUsuarioFCs" } },
+      "rest": { "enabled": true, "path": "/mov-situacion-usuario-fc" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "PortalForecastLog": {
+      "description": "Bitácora de actividad del portal/proceso de Forecast por usuario (Fecha, Proceso, Actividad, Historial). Solo lectura/creación: es una bitácora. Llave ID.",
+      "source": { "object": "dbo.PortalForecastLog", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "PortalForecastLog", "plural": "PortalForecastLogs" } },
+      "rest": { "enabled": true, "path": "/portal-forecast-log" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "ProcesadosCF": {
+      "description": "Resumen de capacidad/eficiencia procesada por centro (CapacidadReal, EficienciaTotal, CapacidadRealTotal). Tabla sin datos actualmente y sin llave primaria física; se usa Centro como llave lógica. Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.ProcesadosCF", "type": "table", "key-fields": ["Centro"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ProcesadosCF", "plural": "ProcesadosCFs" } },
+      "rest": { "enabled": true, "path": "/procesados-cf" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "Prod": {
+      "description": "Encabezado de órdenes/movimientos de producción (equivalente productivo a Compra/Venta): fechas, situación, almacén, prioridad, referencias de origen/destino. Llave ID.",
+      "source": { "object": "dbo.Prod", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "Prod", "plural": "Prods" } },
+      "rest": { "enabled": true, "path": "/prod" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ProdD": {
+      "description": "Detalle de órdenes/movimientos de producción (renglones): artículo, cantidades, costos, estación, tiempos y mermas. Relacionado con Prod por ID. Llave ID+Renglon+RenglonSub.",
+      "source": { "object": "dbo.ProdD", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ProdD", "plural": "ProdDs" } },
+      "rest": { "enabled": true, "path": "/prod-d" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ProgramaProdProcesadosA": {
+      "description": "Programa de producción procesado por usuario/centro de trabajo/familia/artículo, con métricas de venta, ocupación y capacidad. No tiene llave primaria física; se usa Usuario+CentroTrabajo+Familia+Articulo como llave lógica (verificada única). Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.ProgramaProdProcesadosA", "type": "table", "key-fields": ["Usuario", "CentroTrabajo", "Familia", "Articulo"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ProgramaProdProcesadosA", "plural": "ProgramaProdProcesadosAs" } },
+      "rest": { "enabled": true, "path": "/programa-prod-procesados-a" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ProgramaProdSemillasA": {
+      "description": "Programa de producción de semillas por usuario/centro de trabajo, con métricas de venta, ocupación y capacidad. No tiene llave primaria física; se usa Usuario+CentroTrabajo como llave lógica (verificada única). Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.ProgramaProdSemillasA", "type": "table", "key-fields": ["Usuario", "CentroTrabajo"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ProgramaProdSemillasA", "plural": "ProgramaProdSemillasAs" } },
+      "rest": { "enabled": true, "path": "/programa-prod-semillas-a" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ProgramaProdSituacionLog": {
+      "description": "Bitácora de cambios de situación de un programa de producción por módulo/ID de módulo (SituacionUsuario, SituacionFecha, SituacionComentarios). Solo lectura/creación: es una bitácora. Llave ID+Modulo+ModuloID.",
+      "source": { "object": "dbo.ProgramaProdSituacionLog", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ProgramaProdSituacionLog", "plural": "ProgramaProdSituacionLogs" } },
+      "rest": { "enabled": true, "path": "/programa-prod-situacion-log" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "PushDispositivos": {
+      "description": "Registro de dispositivos móviles (tokens push) por usuario y aplicación, con fecha y estatus. Llave Usuario+Aplicacion.",
+      "source": { "object": "dbo.PushDispositivos", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "PushDispositivos", "plural": "PushDispositivoss" } },
+      "rest": { "enabled": true, "path": "/push-dispositivos" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ResumenPlaneacionCF": {
+      "description": "Tabla de trabajo (scratch) por usuario con el resumen de planeación semanal por artículo/cliente/centro de trabajo. Columnas Sn = venta/situación de la semana n y Pn = cantidad a producir de la semana n (n=1..54), más totales de inventario y stock. Módulo: Forecast/Planeación (FC). Llave ID+Usuario.",
+      "source": { "object": "dbo.ResumenPlaneacionCF", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ResumenPlaneacionCF", "plural": "ResumenPlaneacionCFs" } },
+      "rest": { "enabled": true, "path": "/resumen-planeacion-cf" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "ResumenPlaneacionCFHist": {
+      "description": "Histórico/bitácora de ResumenPlaneacionCF (mismas columnas Sn/Pn semanales) conservado por renglón. Solo lectura/creación: es una bitácora. Llave ID+Renglon.",
+      "source": { "object": "dbo.ResumenPlaneacionCFHist", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "ResumenPlaneacionCFHist", "plural": "ResumenPlaneacionCFHists" } },
+      "rest": { "enabled": true, "path": "/resumen-planeacion-cf-hist" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "SerieLote": {
+      "description": "Ledger de existencias por serie/lote/tarima de artículo en almacén (Sucursal/Empresa/Articulo/SubCuenta/SerieLote/Almacen/Tarima), con costos y fechas de caducidad. Tabla núcleo de inventario; expuesta solo de lectura por seguridad para evitar descuadres de inventario. Llave compuesta de 7 columnas.",
+      "source": { "object": "dbo.SerieLote", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "SerieLote", "plural": "SerieLotes" } },
+      "rest": { "enabled": true, "path": "/serie-lote" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "UT_LOG_EJC_PRO_MRP": {
+      "description": "Bitácora de ejecución del proceso de MRP de producción (LOG_ID, LOG_FYH fecha/hora, ORG origen, PRM parámetros). Solo lectura/creación: es una bitácora. No tiene llave primaria física; se usa LOG_ID como llave lógica (verificada única).",
+      "source": { "object": "dbo.UT_LOG_EJC_PRO_MRP", "type": "table", "key-fields": ["LOG_ID"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "UtLogEjcProMrp", "plural": "UtLogEjcProMrps" } },
+      "rest": { "enabled": true, "path": "/ut-log-ejc-pro-mrp" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "UT_MAX_MIN_COMPRA": {
+      "description": "Parámetros de inventario mínimo/máximo (en Kg) por artículo y módulo, usados por el proceso de compras/MRP. No tiene llave primaria física; se usa ID como llave lógica (verificada única).",
+      "source": { "object": "dbo.UT_MAX_MIN_COMPRA", "type": "table", "key-fields": ["ID"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "UtMaxMinCompra", "plural": "UtMaxMinCompras" } },
+      "rest": { "enabled": true, "path": "/ut-max-min-compra" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "UT_MRP_PREVIO_MATERIA_PRIMA": {
+      "description": "Instantánea (staging) del MRP previo de materia prima por semana/almacén/artículo/material/lote, con cantidad requerida. Generada por proceso batch; expuesta solo de lectura. No tiene llave primaria física; se usa EMPRESA+SEMANA+ALMACEN+ARTICULO+MATERIAL+SERIELOTE como llave lógica (verificada única).",
+      "source": { "object": "dbo.UT_MRP_PREVIO_MATERIA_PRIMA", "type": "table", "key-fields": ["EMPRESA", "SEMANA", "ALMACEN", "ARTICULO", "MATERIAL", "SERIELOTE"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "UtMrpPrevioMateriaPrima", "plural": "UtMrpPrevioMateriaPrimas" } },
+      "rest": { "enabled": true, "path": "/ut-mrp-previo-materia-prima" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "VacaPresupuestoVtaCon": {
+      "description": "Encabezado de presupuesto de venta consolidado (versión, ejercicio, semana MRP, estatus), usado por la planeación ganadera/forecast. Llave ID.",
+      "source": { "object": "dbo.VacaPresupuestoVtaCon", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "VacaPresupuestoVtaCon", "plural": "VacaPresupuestoVtaCons" } },
+      "rest": { "enabled": true, "path": "/vaca-presupuesto-vta-con" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "VacaPresupuestoVtaConD": {
+      "description": "Detalle de presupuesto de venta consolidado por artículo/cliente/programa, con columnas semanales Sn (venta) y Pn (producir), n=1..54ish. Relacionado con VacaPresupuestoVtaCon por ID. Llave ID+Renglon.",
+      "source": { "object": "dbo.VacaPresupuestoVtaConD", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "VacaPresupuestoVtaConD", "plural": "VacaPresupuestoVtaConDs" } },
+      "rest": { "enabled": true, "path": "/vaca-presupuesto-vta-con-d" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "VentaTCalc": {
+      "description": "Vista calculada de renglones de venta (transaccional, equivalente a Venta+VentaD con campos derivados de costos, impuestos e importes). Solo lectura (vista). Llave ID+Renglon+RenglonSub.",
+      "source": { "object": "dbo.VentaTCalc", "type": "view", "key-fields": ["ID", "Renglon", "RenglonSub"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "VentaTCalc", "plural": "VentaTCalcs" } },
+      "rest": { "enabled": true, "path": "/venta-t-calc" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "WebInicio": {
+      "description": "Tablero (dashboard) de inicio del portal web por usuario/centro de trabajo con métricas de venta, ocupación y capacidad. No tiene llave primaria física; se usa Usuario+CentroTrabajo como llave lógica (nota: existen ~5 filas duplicadas por calidad de datos histórica). Módulo: Forecast/Planeación (FC).",
+      "source": { "object": "dbo.WebInicio", "type": "table", "key-fields": ["Usuario", "CentroTrabajo"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "WebInicio", "plural": "WebInicios" } },
+      "rest": { "enabled": true, "path": "/web-inicio" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
+    },
+    "WebInicioHist": {
+      "description": "Histórico/bitácora de WebInicio por centro de trabajo. Solo lectura/creación: es una bitácora. No tiene llave primaria física; se usa ID+CentroTrabajo como llave lógica (nota: existen filas duplicadas por calidad de datos histórica).",
+      "source": { "object": "dbo.WebInicioHist", "type": "table", "key-fields": ["ID", "CentroTrabajo"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "WebInicioHist", "plural": "WebInicioHists" } },
+      "rest": { "enabled": true, "path": "/web-inicio-hist" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "buscar_registro": {
+      "description": "Busca registros en cualquier entidad del ERP por texto parcial. Úsalo cuando el usuario mencione un nombre parcial de proveedor, cliente o artículo. Ejemplo: 'Mexicana de Arroz', 'Walmart', 'Frijol Negro'. PARÁMETROS OBLIGATORIOS (siempre deben incluirse): entidad, campo, termino.",
+      "source": {
+        "object": "dbo.spbuscar_registro",
+        "type": "stored-procedure",
+        "object-description": "SP universal de búsqueda LIKE. Devuelve todos los campos de la entidad donde el campo especificado coincide con el patrón de búsqueda.",
+        "parameters": [
+          {
+            "name": "entidad",
+            "required": true,
+            "description": "Entidad a buscar. Valores válidos: Prov, Cte, Art, Compra, Venta, Inv, ArtDisponibleDesc, ArtDisponible, GastoT, CompraD, VentaD, MovTipo, Alm"
+          },
+          {
+            "name": "campo",
+            "required": true,
+            "description": "Campo/columna donde aplicar la búsqueda. Ejemplos: Nombre (en Prov/Cte), Descripcion1 (en Art/ArtDisponibleDesc)"
+          },
+          {
+            "name": "termino",
+            "required": true,
+            "description": "Texto a buscar. Case-insensitive. Ejemplo: 'Mexicana de Arroz', 'Frijol Negro', 'Walmart'"
+          },
+          {
+            "name": "modo",
+            "required": false,
+            "default": "CONTIENE",
+            "description": "Modo LIKE: CONTIENE (default, '%termino%'), EMPIEZA ('termino%'), TERMINA ('%termino')"
+          },
+          {
+            "name": "primero",
+            "required": false,
+            "default": "20",
+            "description": "Máximo de resultados. Rango: 1-500. Default: 20"
+          },
+          {
+            "name": "ordenar",
+            "required": false,
+            "description": "Campo para ORDER BY. Opcional. Ejemplo: Nombre, Descripcion1"
+          }
+        ]
+      },
+      "mcp": {
+        "custom-tool": true
+      },
+      "rest": {
+        "enabled": false
+      },
+      "graphql": {
+        "enabled": false
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": ["execute"]
+        }
+      ]
+    }
+  }
+}

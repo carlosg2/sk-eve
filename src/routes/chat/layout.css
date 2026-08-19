@@ -208,3 +208,197 @@ tr[data-streamdown-tr] td {
 tr[data-streamdown-tr].narrate-flash td {
         background-color: color-mix(in oklab, var(--primary) 13%, transparent);
 }
+
+/* ── Botón de voz estilo "dictate" de VS Code Copilot (v2, 2026-08-18) ─────
+   Réplica fiel del glow "aurora" de Copilot: .voice-glow-rim con 9 gradientes
+   radiales azules (hue 212 / sat 90% / light 66%), anillo (:after), fade
+   interno (:before) y bloom desenfocado (.voice-glow-rim-bloom); reactivo a
+   --dictation-mic-level (vía --vg-strength y opacidad del slot) y con
+   respiración. Estructura DOM idéntica a la de VS Code:
+   <botón .voice-dictate-btn.dictation-mic-active>
+     <span.voice-glow-slot-inline><span.voice-glow-rim><span.voice-glow-rim-bloom/></span></span>
+     <icono/>
+   Reglas tomadas del core (out/vs/workbench/workbench.desktop.main.css). */
+.voice-dictate-btn {
+        --dictation-mic-level: 0;
+        position: relative;
+}
+.voice-dictate-btn > *:not(.voice-glow-slot-inline):not(.voice-connecting-ring):not(.sr-only) {
+        position: relative;
+        z-index: 1;
+}
+/* Slot del glow: oculto en reposo; al activarse aparece con opacidad reactiva
+   al nivel del mic y se atenúa en "settling" (agente procesando transcripción). */
+.voice-dictate-btn .voice-glow-slot-inline {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        opacity: 0;
+        will-change: opacity;
+        transition: opacity 0.26s ease-out;
+}
+.voice-dictate-btn.dictation-mic-active .voice-glow-slot-inline {
+        opacity: calc(0.6 + var(--dictation-mic-level) * 0.4);
+}
+.voice-dictate-btn.dictation-mic-active.dictation-mic-settling .voice-glow-slot-inline {
+        opacity: 0.22;
+}
+/* Fallback sin slot (mismo patrón que VS Code): sólo si no hay glow-slot-inline. */
+.voice-dictate-btn.dictation-mic-active:not(:has(>.voice-glow-slot-inline))::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        background: hsl(212 90% 66% / calc(0.12 + var(--dictation-mic-level) * 0.18));
+        opacity: calc(0.5 + var(--dictation-mic-level) * 0.5);
+        transition: opacity 0.26s ease-out;
+}
+/* El rim: 9 blobs radiales azules + anillo + fade + bloom (réplica del core). */
+.voice-glow-rim {
+        --vg-w1: 1; --vg-h1: 1; --vg-w2: 1; --vg-h2: 1; --vg-w3: 1; --vg-h3: 1;
+        --vg-x1: 0px; --vg-y1: 0px; --vg-x2: 0px; --vg-y2: 0px; --vg-x3: 0px; --vg-y3: 0px;
+        --vg-breath: 1;
+        --vg-op-tl: 1; --vg-op-tr: 1; --vg-op-bl: 1; --vg-op-br: 1;
+        --vg-hue: 212; --vg-sat: 90%; --vg-light: 66%;
+        --vg-strength: calc(0.45 + var(--dictation-mic-level, 0) * 1.5);
+        --vg-size: 1;
+        --vg-blob-scale: var(--vg-size);
+        --vg-ring-width: 1px;
+        --vg-inner-fade: calc(24px * var(--vg-size));
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        overflow: hidden;
+        isolation: isolate;
+        animation: voice-glow-breathe 5.5s ease-in-out infinite;
+}
+.voice-glow-rim::after,
+.voice-glow-rim::before,
+.voice-glow-rim > .voice-glow-rim-bloom {
+        background: radial-gradient(ellipse calc(72px * var(--vg-w1) * var(--vg-blob-scale)) calc(40px * var(--vg-h1) * var(--vg-breath) * var(--vg-blob-scale)) at calc(31% + var(--vg-x1)) calc(-7% + var(--vg-y1)), hsl(calc(var(--vg-hue) - 14) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-tl) * var(--vg-strength))), transparent), radial-gradient(ellipse calc(60px * var(--vg-w2) * var(--vg-blob-scale)) calc(35px * var(--vg-h2) * var(--vg-breath) * var(--vg-blob-scale)) at calc(12% + var(--vg-x2)) calc(-5% + var(--vg-y2)), hsl(calc(var(--vg-hue) + 8) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-tl) * var(--vg-strength))), transparent), radial-gradient(ellipse calc(40px * var(--vg-w3) * var(--vg-blob-scale)) calc(70px * var(--vg-h3) * var(--vg-breath) * var(--vg-blob-scale)) at calc(2% + var(--vg-x3)) calc(68% + var(--vg-y3)), hsl(calc(var(--vg-hue) - 6) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-bl) * var(--vg-strength))), transparent), radial-gradient(ellipse calc(20px * var(--vg-w1) * var(--vg-blob-scale)) calc(35px * var(--vg-h1) * var(--vg-breath) * var(--vg-blob-scale)) at calc(2% + var(--vg-x1)) calc(68% + var(--vg-y1)), hsl(calc(var(--vg-hue) + 16) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-bl) * var(--vg-strength))), transparent), radial-gradient(ellipse calc(180px * var(--vg-w2) * var(--vg-blob-scale)) calc(32px * var(--vg-h2) * var(--vg-breath) * var(--vg-blob-scale)) at calc(74% + var(--vg-x2)) calc(100% + var(--vg-y2)), hsl(calc(var(--vg-hue) + 20) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-br) * var(--vg-strength))), transparent), radial-gradient(ellipse calc(85px * var(--vg-w3) * var(--vg-blob-scale)) calc(26px * var(--vg-h3) * var(--vg-breath) * var(--vg-blob-scale)) at calc(55% + var(--vg-x3)) calc(100% + var(--vg-y3)), hsl(calc(var(--vg-hue) + 2) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-br) * var(--vg-strength))), transparent), radial-gradient(ellipse calc(74px * var(--vg-w1) * var(--vg-blob-scale)) calc(32px * var(--vg-h1) * var(--vg-breath) * var(--vg-blob-scale)) at calc(94% + var(--vg-x1)) calc(0% + var(--vg-y1)), hsl(calc(var(--vg-hue) + 12) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-tr) * var(--vg-strength))), transparent), radial-gradient(ellipse calc(26px * var(--vg-w2) * var(--vg-blob-scale)) calc(42px * var(--vg-h2) * var(--vg-breath) * var(--vg-blob-scale)) at calc(100% + var(--vg-x2)) calc(27% + var(--vg-y2)), hsl(calc(var(--vg-hue) - 10) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-tr) * var(--vg-strength))), transparent), radial-gradient(ellipse calc(52px * var(--vg-w3) * var(--vg-blob-scale)) calc(48px * var(--vg-h3) * var(--vg-breath) * var(--vg-blob-scale)) at calc(100% + var(--vg-x3)) calc(27% + var(--vg-y3)), hsl(calc(var(--vg-hue) + 18) var(--vg-sat) var(--vg-light) / calc(var(--vg-op-tr) * var(--vg-strength))), transparent);
+}
+/* Anillo exterior (1px) */
+.voice-glow-rim::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: var(--vg-ring-width);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        pointer-events: none;
+        z-index: 2;
+        opacity: var(--vg-ring-opacity, 1);
+}
+/* Fade interno */
+.voice-glow-rim::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        --vg-blob-scale: calc(0.72 * var(--vg-size));
+        -webkit-mask-image: linear-gradient(#fff, transparent var(--vg-inner-fade), transparent calc(100% - var(--vg-inner-fade)), #fff), linear-gradient(to right, #fff, transparent var(--vg-inner-fade), transparent calc(100% - var(--vg-inner-fade)), #fff);
+        -webkit-mask-composite: source-over;
+        mask-image: linear-gradient(#fff, transparent var(--vg-inner-fade), transparent calc(100% - var(--vg-inner-fade)), #fff), linear-gradient(to right, #fff, transparent var(--vg-inner-fade), transparent calc(100% - var(--vg-inner-fade)), #fff);
+        mask-composite: add;
+        pointer-events: none;
+        z-index: 1;
+        opacity: var(--vg-inner-opacity, 0.44);
+}
+/* Bloom desenfocado */
+.voice-glow-rim > .voice-glow-rim-bloom {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: var(--vg-ring-width);
+        --vg-blob-scale: calc(1.22 * var(--vg-size));
+        filter: blur(max(4px, calc(8px * var(--vg-size))));
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        pointer-events: none;
+        z-index: 3;
+        opacity: var(--vg-bloom-opacity, 0.66);
+}
+@keyframes voice-glow-breathe {
+        0%,
+        100% {
+                filter: brightness(0.9) saturate(0.95);
+        }
+        50% {
+                filter: brightness(1.16) saturate(1.08);
+        }
+}
+/* Ecualizador de barras (modo "escuchando") — réplica del input-mode de VS Code.
+   Único contenido del botón al escuchar (reemplaza al icono del micrófono). */
+.voice-eq-bars {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        height: 12px;
+}
+.voice-eq-bar {
+        width: 2px;
+        height: 2px;
+        border-radius: 1px;
+        background: currentColor;
+        transform-origin: center center;
+        animation: voice-eq 1s ease-in-out infinite;
+}
+.voice-eq-bar:nth-child(1) { animation-delay: 0ms; }
+.voice-eq-bar:nth-child(2) { animation-delay: 120ms; }
+.voice-eq-bar:nth-child(3) { animation-delay: 240ms; }
+.voice-eq-bar:nth-child(4) { animation-delay: 360ms; }
+.voice-eq-bar:nth-child(5) { animation-delay: 480ms; }
+@keyframes voice-eq {
+        0%,
+        100% {
+                height: 2px;
+        }
+        50% {
+                height: 10px;
+        }
+}
+
+/* Spinner de conexión ("preparando") — réplica del dictation-download-ring del
+   core de VS Code: anillo SVG de 16px que gira (indeterminate, 1.2s) mientras
+   el mic conecta; al quedar listo aparece el glow. */
+.voice-connecting-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 16px;
+        height: 16px;
+        transform: translate(-50%, -50%) rotate(-90deg);
+        pointer-events: none;
+        z-index: 2;
+        animation: voice-connecting-ring-spin 1.2s linear infinite;
+}
+.voice-connecting-ring .voice-connecting-ring-track {
+        fill: none;
+        stroke: var(--primary, #3794ff);
+        stroke-width: 1.5;
+        opacity: 0.25;
+}
+.voice-connecting-ring .voice-connecting-ring-progress {
+        fill: none;
+        stroke: var(--primary, #3794ff);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-dasharray: 26 14.84;
+}
+@keyframes voice-connecting-ring-spin {
+        0% {
+                transform: translate(-50%, -50%) rotate(-90deg);
+        }
+        100% {
+                transform: translate(-50%, -50%) rotate(270deg);
+        }
+}

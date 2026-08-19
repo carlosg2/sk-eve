@@ -33,8 +33,11 @@
 	import MicIcon from '@lucide/svelte/icons/mic';
 	import Volume2Icon from '@lucide/svelte/icons/volume-2';
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
-	import { ChatVoiceLayer, narrationEchoesQuestion, isNearDuplicateNarration } from '$lib/realtime/chat-voice';
+	import { ChatVoiceLayer } from '$lib/realtime/chat-voice';
 	import type { AecInfo } from '$lib/realtime/grok-voice';
+	// Sonidos del botón "dictate" de VS Code Copilot (replicados en este
+	// proyecto — ver src/lib/realtime/voice-sounds.ts).
+	import { unlockVoiceSounds, playDictateStartSound, playDictateStopSound } from '$lib/realtime/voice-sounds';
 
 	// Props de rehidratación: al abrir una sesión pasada desde el sidebar, el
 	// shell (+page.svelte) carga { session, events } vía GET /api/sessions/[id]
@@ -979,6 +982,13 @@
 	let voiceActive = $state(false);
 	let voiceListening = $state(false);
 	let voiceSpeaking = $state(false);
+	// Fase de conexión del mic (spinner estilo Copilot): true desde que el usuario
+	// pulsa "Activar voz" hasta que el mic queda escuchando (connect + startListening).
+	let voiceConnecting = $state(false);
+	// Nivel del mic en vivo (0..1) reportado por el cliente (onMicLevel, throttled):
+	// impulsa el glow reactivo del botón de voz estilo VS Code Copilot
+	// (dictation-mic-active + CSS var --dictation-mic-level).
+	let voiceMicLevel = $state(0);
 	let voiceError = $state('');
 	let voiceStatus = $state('');
 	let voicePendingSpeak = $state(false);
@@ -1007,13 +1017,6 @@
 	// inicio (tras gracia) cubre el silencio inicial; la respuesta se encola sin
 	// cortar el audio en curso. `voiceLastNarrationAt` marca el gap anti-spam.
 	let voiceLastNarrationAt = 0;
-	// Naturalidad conversacional (2026-08-18): `voiceLastNarrationNorm` = última
-	// narración hablada (para descartar duplicados casi-idénticos que el cerebro
-	// emite en el mismo turno) y `voiceUserQuestionNorm` = la pregunta que el
-	// usuario acaba de hacer por voz (para descartar narraciones que la
-	// PARAFRASEAN — un asistente humano no repite lo que acabas de decir).
-	let voiceLastNarrationNorm = '';
-	let voiceUserQuestionNorm = '';
 	// Auto-off post-respuesta (ahorro de recursos, 2026-08-18): al terminar de
 	// sonar la respuesta (o cerrar el turno sin audio) se arma una ventana corta
 	// (VOICE_POST_ANSWER_AUTO_OFF_MS); si el usuario no habla, se DESCONECTA la
@@ -1238,16 +1241,21 @@
 				voiceFillerSpoken = false;
 				voiceSpeakMode = 'none';
 				voiceLastNarrationAt = 0;
-				voiceLastNarrationNorm = '';
-				// La pregunta del usuario (para descartar narraciones que la
-				// parafraseen — anti-eco conversacional, 2026-08-18).
-				voiceUserQuestionNorm = t;
 				voiceNarratedEventIds = new Set();
 				text = t;
 				void submit();
 			},
-			onListeningChange: (l) => (voiceListening = l),
+			onListeningChange: (l) => {
+				const was = voiceListening;
+				voiceListening = l;
+				// Sonido "dictate on" EXACTAMENTE cuando el mic empieza a escuchar
+				// (onListeningChange(true)), no al pulsar ni al terminar de conectar.
+				// El audio ya fue desbloqueado en el click (unlockVoiceSounds) para
+				// que el play() funcione aunque haya pasado el gesto (2026-08-18).
+				if (l && !was) playDictateStartSound();
+			},
 			onSpeakingChange: (s) => (voiceSpeaking = s),
+			onMicLevel: (level) => (voiceMicLevel = level),
 			onStatus: (s) => (voiceStatus = s),
 			onError: (e) => {
 				// El gateway realtime responde "Cancellation failed: no active
@@ -1303,8 +1311,12 @@
 		const v = ensureVoice();
 		if (voiceActive) {
 			voiceActive = false;
+			voiceMicLevel = 0;
 			v.stopListening();
 			v.disconnect();
+			// Sonido "dictate off" (VS Code): al terminar la sesión de voz
+			// (manual, auto-off post-respuesta o idle timeout).
+			playDictateStopSound();
 			// Auto-off post-respuesta: limpiar la ventana y la marca al apagar.
 			cancelPostAnswerAutoOff();
 			voiceAnswerDoneAt = 0;
@@ -1318,8 +1330,6 @@
 			voiceHitlKey = '';
 			voiceHitlSpoken = false;
 			voiceLastNarrationAt = 0;
-			voiceLastNarrationNorm = '';
-			voiceUserQuestionNorm = '';
 			// Reset por turno (S1/S2): hint de módulo, marca de primera tool y filler
 			// temprano pendiente (no debe hablar en una sesión apagada o turno nuevo).
 			voiceTurnToolHint = '';
@@ -1341,6 +1351,12 @@
 			return;
 		}
 		voiceError = '';
+		voiceMicLevel = 0;
+		voiceConnecting = true;
+		// Desbloquear el audio DENTRO del gesto del click (play+pause silencioso):
+		// el sonido real de inicio se tocará cuando el mic empiece a escuchar
+		// (onListeningChange true) y el navegador ya lo permitirá (autoplay).
+		unlockVoiceSounds();
 		// Fase B3: al reactivar la voz se limpia cualquier estado de inactividad.
 		voiceIdleTier = 'none';
 		voiceIdleTier1Spoken = false;
@@ -1358,6 +1374,8 @@
 		} catch (err) {
 			voiceError = err instanceof Error ? err.message : String(err);
 			voiceActive = false;
+		} finally {
+			voiceConnecting = false;
 		}
 	}
 
@@ -1458,18 +1476,21 @@
 			}
 		}
 		if (busy && voicePendingSpeak && voiceActive && !voiceFillerSpoken) {
-			// Filler con GRACIA (S2): el flag NO se marca al programar — se marca al
-			// HABLAR, para que el disparo temprano por primera tool (1800ms) pueda
-			// hablar primero y el flag evite duplicados (el primero que hable gana).
-			// Antes de hablar se verifica que el turno siga vivo (isBusy/voiceActive)
-			// y que el cerebro aún no narró (el commentary es la fuente principal de
-			// voz). El hint de módulo se pasa cuando ya arrancó una tool.
+			// Red de EMERGENCIA (SA-3): el progreso determinista (programado por la
+			// primera tool ERP) y los hallazgos del cerebro (`narrar`) son la fuente
+			// principal de voz. Este filler SOLO suena si tras ~8s ni se narró
+			// progreso ni hallazgo (turno muerto en silencio o DeepSeek tardó sin
+			// llamar tools), con frase genérica del pool y SIN hint de módulo. Una
+			// sola vez por turno (voiceFillerSpoken). Guard `voiceFillerTimer`: si el
+			// progreso determinista ya programó su timer, este emergente NO compite.
+			if (voiceFillerTimer) return;
 			window.setTimeout(() => {
 				if (voiceFillerSpoken || !voiceActive || !isBusy) return;
+				if (voiceFillerTimer) return;
 				if (voiceLastNarrationAt > 0) return;
 				voiceFillerSpoken = true;
 				try {
-					voiceLayer?.speakPreamble(voiceTurnToolHint || undefined);
+					voiceLayer?.speakPreamble();
 				} catch {
 					/* noop */
 				}
@@ -1544,11 +1565,55 @@
 	// La voz NARRA solo lo que el cerebro dice (`narrar`) o el filler único al
 	// inicio. Se ELIMINARON la narración por fases/tools hardcodeada y el latido
 	// por timer (eso pisaba frases y repetía). La respuesta se encola sin cortar.
-	const VOICE_FILLER_GRACE_MS = 5000;
+	const VOICE_FILLER_GRACE_MS = 8000;
 	const VOICE_NARRATION_GAP_MS = 4500;
 	const VOICE_BUSY_KEEPALIVE_MS = 20000; // rearmar el idle watchdog cada 20s mientras isBusy
 	// Ventana de desconexión automática tras la respuesta (ahorro de recursos).
 	const VOICE_POST_ANSWER_AUTO_OFF_MS = 8000;
+	// PROGRESO DETERMINISTA (SA-3): pool de frases de módulo de la capa de voz.
+	// UNA frase cuando arranca la primera tool ERP — SIEMPRE verbo + módulo, NUNCA
+	// el objeto de la pregunta (referencia: OpenAI commentary "I'll check that
+	// order now", nunca "you asked about X"). El cerebro solo narra HALLAZGOS.
+	const PROGRESS_PHRASES_BY_MODULE: Record<string, string[]> = {
+		compras: ['Revisando las compras…', 'Consulto el módulo de compras…', 'Un momento, reviso compras…'],
+		existencias: ['Revisando existencias…', 'Consulto las existencias…', 'Calculando el inventario…'],
+		'catálogo': ['Consulto el catálogo…', 'Buscando en el catálogo…', 'Revisando los registros…'],
+		producción: ['Reviso el plan de producción…', 'Consultando la producción…'],
+		presupuesto: ['Calculo los montos del presupuesto…', 'Revisando el presupuesto…'],
+		tesorería: ['Revisando la tesorería…', 'Consulto los movimientos…'],
+		fallback: ['Un momento, lo reviso…', 'Déjame consultarlo…', 'Ya casi lo tengo…'],
+	};
+	// Historial anti-repetición del progreso (máx 4 frases recientes, por turno).
+	let voiceRecentProgress: string[] = [];
+
+	/** Elige una variante del módulo (o fallback) NO usada recientemente y la registra. */
+	function progressPhraseFor(moduleKey: string): string {
+		const pool = PROGRESS_PHRASES_BY_MODULE[moduleKey] ?? PROGRESS_PHRASES_BY_MODULE.fallback;
+		const unused = pool.filter((p) => !voiceRecentProgress.includes(p));
+		const frase =
+			unused.length > 0
+				? unused[Math.floor(Math.random() * unused.length)]
+				: pool[Math.floor(Math.random() * pool.length)];
+		voiceRecentProgress.push(frase);
+		if (voiceRecentProgress.length > 4) voiceRecentProgress.shift();
+		return frase;
+	}
+
+	/**
+	 * Mapea el hint de friendlyToolLabel (o la etiqueta de la tool) a una clave del
+	 * pool de progreso. Si el hint YA es una frase del pool se usa directo en el
+	 * call site; aquí solo se devuelve la clave de módulo (o 'fallback').
+	 */
+	function moduleKeyFromHint(hint: string): string {
+		const h = (hint ?? '').toLowerCase();
+		if (h.includes('compras')) return 'compras';
+		if (h.includes('existencias') || h.includes('inventario')) return 'existencias';
+		if (h.includes('proveedor') || h.includes('catálogo') || h.includes('catalogo')) return 'catálogo';
+		if (h.includes('producción') || h.includes('produccion') || h.includes('plan')) return 'producción';
+		if (h.includes('presupuesto')) return 'presupuesto';
+		if (h.includes('tesorería') || h.includes('tesoreria') || h.includes('movimientos')) return 'tesorería';
+		return 'fallback';
+	}
 
 	// HITL por voz: gates pendientes del último mensaje assistant (inputRequest
 	// sin inputResponse). Fuente: parts dynamic-tool del mensaje.
@@ -1587,6 +1652,13 @@
 	/** Lee una pregunta HITL en voz alta (con opciones numeradas). */
 	function speakHitl(reqs: VoiceHitlReq[]): void {
 		if (!voiceActive || !voiceLayer) return;
+		// SA-3: la pregunta del agente es el turno final de la UI — se cancela
+		// cualquier progreso/filler pendiente para que nada suene después.
+		if (voiceFillerTimer) {
+			window.clearTimeout(voiceFillerTimer);
+			voiceFillerTimer = null;
+		}
+		voiceFillerSpoken = true;
 		const lines = reqs.map((r) => {
 			let t = r.prompt;
 			if (r.options.length) {
@@ -1663,7 +1735,6 @@
 		voiceFillerSpoken = false;
 		voiceSpeakMode = 'none';
 		voiceLastNarrationAt = 0;
-		voiceLastNarrationNorm = '';
 		voiceNarratedEventIds = new Set();
 		// Reset por turno (S1/S2): nuevo turno tras responder la gate → hint y marca
 		// de primera tool en cero, y se cancela el filler temprano pendiente.
@@ -1732,30 +1803,8 @@
 						// doble (evidencia: "¿A qué semana te refieres…?" ×2 a las
 						// 02:52:26/33 y "¿A qué te refieres…?" ×2 a las 02:42:10/16).
 						if (voiceHitl.length > 0) continue;
-						// F2 — Nunca repetir la pregunta del usuario: si la narración
-						// parafrasea la pregunta recién hecha ("Buscando el inventario
-						// del chícharo mitad…" tras preguntar por el chícharo mitad), se
-						// descarta en silencio (telemetría `narration_echo_question`).
-						if (voiceUserQuestionNorm && narrationEchoesQuestion(texto, voiceUserQuestionNorm)) {
-							console.info(`[voice] narración eco de la pregunta descartada: "${texto.slice(0, 80)}"`);
-							pushVoiceTelemetry('narration_echo_question', { text: texto.slice(0, 120) });
-							continue;
-						}
-						// F3 — Duplicado casi-idéntico a la narración anterior del mismo
-						// turno ("Buscando el inventario del chícharo mitad…" + "Consulto
-						// las existencias del chícharo mitad por almacén…" → solo la 1ª).
-						if (
-							voiceLastNarrationNorm &&
-							isNearDuplicateNarration(texto, voiceLastNarrationNorm) &&
-							Date.now() - voiceLastNarrationAt < VOICE_NARRATION_GAP_MS * 3
-						) {
-							console.info(`[voice] narración duplicada descartada: "${texto.slice(0, 80)}"`);
-							pushVoiceTelemetry('narration_duplicate', { text: texto.slice(0, 120) });
-							continue;
-						}
 						if (Date.now() - voiceLastNarrationAt < VOICE_NARRATION_GAP_MS) continue;
 						voiceLastNarrationAt = Date.now();
-						voiceLastNarrationNorm = texto;
 						// F4 — El cerebro narró → el filler genérico de la UI sobra
 						// (evita "Te lo busco ahora…" + "Buscando el inventario…" juntos):
 						// se cancela el filler pendiente y se marca como hablado.
@@ -1774,35 +1823,42 @@
 						}
 						break;
 					}
-					// S1/S6 — Hint de módulo + S2 — gate de timing real: la PRIMERA tool
-					// ERP del turno (distinta de `narrar`) produce la frase de acción
-					// contextual del preámbulo ("Consultando compras…") y dispara el
-					// filler temprano (1800ms) en vez de esperar la gracia completa de 4s.
+					// PROGRESO DETERMINISTA (SA-3): la PRIMERA tool ERP del turno
+					// (distinta de `narrar`) calcula el hint de módulo y programa UNA
+					// frase de progreso genérica (verbo + módulo, SIN el objeto de la
+					// pregunta) a ~2000ms — el cerebro solo narra HALLAZGOS. Referencia
+					// industria: OpenAI commentary (acción, nunca recapitular el input)
+					// / ElevenLabs soft timeout (1 filler por turno, sin tiempos).
 					if (voiceFirstToolAt === 0) {
 						voiceFirstToolAt = Date.now();
 						if (!voiceTurnToolHint) {
 							const hintInput = (rec?.input ?? rec?.arguments ?? {}) as Record<string, unknown>;
 							voiceTurnToolHint = friendlyToolLabel(name, hintInput);
 						}
-						// Filler temprano: solo si el cerebro aún no narró y no se ha
-						// hablado filler; al hablar marca el flag (el mismo flag evita
-						// duplicados con la gracia de 4s). Se limpia antes de programar.
-						if (voiceLastNarrationAt === 0 && !voiceFillerSpoken) {
-							if (voiceFillerTimer) {
-								window.clearTimeout(voiceFillerTimer);
-								voiceFillerTimer = null;
-							}
-							voiceFillerTimer = window.setTimeout(() => {
-								voiceFillerTimer = null;
-								try {
-									if (!voiceActive || !isBusy || voiceFillerSpoken || voiceLastNarrationAt > 0) return;
-									voiceFillerSpoken = true;
-									voiceLayer?.speakPreamble(voiceTurnToolHint || undefined);
-								} catch {
-									/* noop */
-								}
-							}, 3000);
+						if (voiceFillerTimer) {
+							window.clearTimeout(voiceFillerTimer);
+							voiceFillerTimer = null;
 						}
+						voiceFillerTimer = window.setTimeout(() => {
+							voiceFillerTimer = null;
+							try {
+								if (!voiceActive || !isBusy || voiceFillerSpoken || voiceLastNarrationAt > 0) return;
+								voiceFillerSpoken = true;
+								// Si el hint ya es una frase del pool, se usa directo.
+								const hint = voiceTurnToolHint;
+								const direct =
+									!!hint &&
+									Object.values(PROGRESS_PHRASES_BY_MODULE).some((ps) => ps.includes(hint));
+								const frase =
+									direct && hint ? hint : progressPhraseFor(moduleKeyFromHint(hint || ''));
+								voiceLayer?.speakNarration(frase, {
+									instructions:
+										'Comentario de progreso: dilo con naturalidad y en voz baja, como quien trabaja en segundo plano. Breve.',
+								});
+							} catch {
+								/* noop */
+							}
+						}, 2000);
 					}
 				}
 			}
@@ -2168,13 +2224,50 @@
 								type="button"
 								variant={voiceActive ? 'outline' : 'ghost'}
 								size="icon-sm"
-								class={voiceActive ? 'border-red-500/60 text-red-500' : 'ml-auto'}
+								class={[
+									'voice-dictate-btn',
+									// Sin ml-auto: el botón de voz (y el de adjuntar) quedan
+									// SIEMPRE a la izquierda, en la misma posición en reposo
+									// y escuchando (antes el `ml-auto` los empujaba a la
+									// derecha y al activarse saltaban a la izquierda).
+									voiceActive ? 'dictation-mic-active' : '',
+									// Estado "settling" (VS Code): la voz está activa pero el
+									// agente procesa la transcripción → el glow se atenúa (el
+									// mic sigue abierto para barge-in, la UI distingue
+									// "escuchando" de "trabajando").
+									voiceActive && isBusy ? 'dictation-mic-settling' : ''
+								]
+									.filter(Boolean)
+									.join(' ')}
+								style={`--dictation-mic-level: ${voiceMicLevel}`}
 								aria-label={voiceActive ? 'Desactivar voz' : 'Activar voz'}
 								aria-pressed={voiceActive}
 								disabled={isBusy && !voiceActive}
 								onclick={() => void toggleVoice()}
 							>
-								{#if voiceActive && voiceSpeaking}
+								{#if voiceActive}
+									<span class="voice-glow-slot-inline" aria-hidden="true">
+										<span class="voice-glow-rim">
+											<span class="voice-glow-rim-bloom"></span>
+										</span>
+									</span>
+								{/if}
+								{#if voiceConnecting}
+									<span class="voice-connecting-ring" aria-hidden="true">
+										<svg viewBox="0 0 16 16" width="16" height="16">
+											<circle class="voice-connecting-ring-track" cx="8" cy="8" r="6.5"></circle>
+											<circle class="voice-connecting-ring-progress" cx="8" cy="8" r="6.5"></circle>
+										</svg>
+									</span>
+								{:else if voiceActive && voiceListening}
+									<span class="voice-eq-bars" aria-hidden="true">
+										<span class="voice-eq-bar"></span>
+										<span class="voice-eq-bar"></span>
+										<span class="voice-eq-bar"></span>
+										<span class="voice-eq-bar"></span>
+										<span class="voice-eq-bar"></span>
+									</span>
+								{:else if voiceActive && voiceSpeaking}
 									<Volume2Icon />
 								{:else}
 									<MicIcon />
