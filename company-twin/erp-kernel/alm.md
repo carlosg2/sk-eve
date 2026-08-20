@@ -6,7 +6,7 @@ resource: dbo.Alm
 layer: erp-kernel
 tenant: null
 tags: [alm, almacenes, inventario, maestro]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-30T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records]
 ---
 
@@ -24,7 +24,7 @@ Catálogo de almacenes. Referenciado por Compra, Venta, Inv, ArtDisponible.
 | `Nombre` | varchar | Nombre descriptivo |
 | `Estatus` | varchar | `ALTA` \| `BAJA` |
 
-# Almacenes ICF (verificados — BD real)
+# Almacenes ICF 
 
 | Almacen | Nombre |
 |---|---|

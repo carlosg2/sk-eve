@@ -16,7 +16,7 @@ Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`,
 
 ## Recordatorios rápidos
 
-- **Contrato de tools** (verificado): `read_records` usa `select` (**string** coma-sep, ej. `"ID,Saldo"`) y `orderby` **array** (`["Saldo desc"]`); `aggregate_records` usa `orderby` **string** (`"desc"`) y soporta `having` nativo. Detalle: [Contrato de MCP tools](../../..`mcp-tools`).
+- **Contrato de tools** : `read_records` usa `select` (**string** coma-sep, ej. `"ID,Saldo"`) y `orderby` **array** (`["Saldo desc"]`); `aggregate_records` usa `orderby` **string** (`"desc"`) y soporta `having` nativo. Detalle: [Contrato de MCP tools](../../..`mcp-tools`).
 - **Fechas OData sin comillas**: `Vencimiento le 2026-12-31` (NO `'2026-12-31'`). Rango: `Vencimiento ge 2026-06-24 and Vencimiento le 2026-07-01`.
 - **Estatus pendiente de pago = `PENDIENTE`** (ciclo `SINAFECTAR → PENDIENTE → CONCLUIDO`/`CANCELADO`). Detalle en el Twin (`cxp`, `afectar`).
 - **Antes de create/update**: consulta el schema en el Twin, valida límites varchar e incluye campos requeridos. `create_record` usa `data` (object); `update`/`delete` usan `keys`.
@@ -127,7 +127,7 @@ PARALELO:
 Luego combina los tres resultados por `Institucion`.
 
 ### Filtrar por umbral después de aggregate (HAVING nativo)
-> `aggregate_records` soporta `having` nativo (verificado). Filtra grupos por el valor agregado sin traerlos todos:
+> `aggregate_records` soporta `having` nativo . Filtra grupos por el valor agregado sin traerlos todos:
 ```
 aggregate_records(CXP, sum, Saldo, filter: "Estatus eq 'PENDIENTE'", groupby: [Proveedor], having: { gt: 50000 })
 → solo grupos con sum(Saldo) > 50000, calculado en el motor

@@ -28,7 +28,7 @@ AProducir − Ocupacion), `Inventario` (vía `fnInvForecastDesglosado`), y `DOH`
 (= Venta / Inventario). La fila `Total` suma todas las columnas numéricas.
 
 ⚠️ `DOH` es una columna **calculada** del SP, NO un campo DAB de `WebInicio`
-(verificado 2026-08-06: pedirlo en `select` da `BadRequest`). No lo incluyas
+. No lo incluyas
 en `select`; calcúlalo client-side con **NULLIF**: `DOH = Venta / Inventario`
 (si `Inventario = 0` → **sin DOH**, no dividir entre 0), redondeado a
 2 decimales. `Inventario` SÍ es campo DAB de `WebInicio` (verificado en los
@@ -66,8 +66,7 @@ si el usuario pide "el resumen general", pero exclúyela
 
 ## Patrón 2 — Programa de la semana por centro
 
-⚠️ **Los campos de `ForecastPlanProduccion` son UPPERCASE en el DAB** (verificado
-2026-08-06: `Semana eq 31` → BadRequest; `SEMANA eq 31` → OK). Usa SIEMPRE
+⚠️ **Los campos de `ForecastPlanProduccion` son UPPERCASE en el DAB** (evidencia: `Semana eq 31` → BadRequest; `SEMANA eq 31` → OK). Usa SIEMPRE
 UPPERCASE en filter/select de ESTA vista. NO generalices el UPPERCASE a otras
 entidades FC (cada vista tiene su casing — ej. `CalendarioFC` usa `Ano`
 camelCase); si otra vista falla con BadRequest, verifica su schema con
@@ -98,7 +97,7 @@ read_records(ForecastPlanSemanal,
 ```
 
 ⚠️ `ForecastPlanSemanal` usa **camelCase** (`Ejercicio`/`Periodo`/`Semana`/
-`CentroTrabajo`/`Situacion` — verificado 2026-08-06: `EJERCICIO`/`SITUACION`
+`CentroTrabajo`/`Situacion` — `EJERCICIO`/`SITUACION`
 dan `BadRequest`). NO pruebes UPPERCASE en esta vista. El UPPERCASE aplica
 SOLO a `ForecastPlanProduccion`.
 

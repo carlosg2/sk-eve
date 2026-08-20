@@ -5,7 +5,7 @@ description: Plan de producción semanal por centro de trabajo, programas proces
 layer: company
 tenant: icf
 tags: [mrp, forecast, fc, produccion, plan-semanal]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-31T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records]
 ---
 
@@ -20,8 +20,7 @@ cubre `gap-abasto` (skill).
 
 ## `ForecastPlanProduccion`
 **Vista consolidada** (solo lectura, calculada) del plan de producción semanal.
-⚠️ **Los campos de ESTA vista están en UPPERCASE en el DAB** (verificado
-2026-08-06: `Semana eq 31` → BadRequest "Could not find a property named
+⚠️ **Los campos de ESTA vista están en UPPERCASE en el DAB** (evidencia: `Semana eq 31` → BadRequest "Could not find a property named
 'Semana'"; `SEMANA eq 31` → OK). No generalizar a otras entidades FC — cada
 vista tiene su propio casing (ej. `CalendarioFC` documenta `Ano`/`Semana`
 camelCase). Campos reales:
@@ -57,18 +56,18 @@ módulo/ID de módulo (`SituacionUsuario`, `SituacionFecha`,
 
 ## `MovSituacionFCL`
 ✅ Catálogo de **movimientos por módulo** para el workflow de situaciones
-(publicado 2026-08-19). Columnas: `Modulo, Mov, ID` (PK real de 3 columnas).
+. Columnas: `Modulo, Mov, ID` (PK real de 3 columnas).
 Solo 2 filas en producción: `FC/Articulo` y `FC/Plan Semanal`. Útil para saber
 qué movimientos del módulo FC participan en el workflow de situaciones
 (avanzar/regresar con permisos vía `MovSituacionFC`/`MovSituacionUsuarioFC`).
 
 ## `AuxiliarU`
-✅ **Ledger contable de movimientos de inventario** (publicado 2026-08-19).
+✅ **Ledger contable de movimientos de inventario** .
 Base del **saldo de inventario** del inventario semanal (skill-forecast F2 de
 Daniel): el saldo de un artículo en un almacén es
 `sum(CargoU) − sum(AbonoU)` sobre `Rama='INV'`, `Empresa='INCF'` y
 `Cuenta=<artículo>`. El almacén va en `Grupo` (equivale a `Alm.Almacen`).
-Validado 2026-08-19: A0716 → CargoU 157,545 − AbonoU 127,663 = 29,882.
+Ejemplo: A0716 → CargoU 157,545 − AbonoU 127,663 = 29,882.
 
 ⚠️ **Volumen enorme**: ~1.5M filas solo en `Rama='INV'`+`Empresa='INCF'` —
 **SIEMPRE acotar con `Cuenta`** (y si aplica, `Fecha`) en el filtro; nunca
@@ -92,10 +91,10 @@ artículo/cliente/centro de trabajo. Columnas `Sn` = venta/situación de la sema
 n y `Pn` = cantidad a producir de la semana n (`n=1..54`), más totales de
 inventario y stock. Llave lógica: `ID+Usuario`.
 
-⚠️ **Usuario fijo del módulo FC (2026-08-19)**: las consultas de los snapshots
+⚠️ **Usuario fijo del módulo FC **: las consultas de los snapshots
 usar SIEMPRE **`MASERP`** (mismo criterio que el motor de referencia).
 
-✅ **Corrida de MASERP ejecutada y en línea (2026-08-19, verificado en vivo)**:
+✅ **Corrida de MASERP ejecutada y en línea **:
 el backend corrió la carga inicial de `MASERP · 2026 · Periodo 8` y el MCP
 remoto YA tiene el plan poblado. `ResumenPlaneacionCF` con `Usuario eq 'MASERP'`
 = **90 filas** y totales exactos a la referencia del motor:
@@ -106,13 +105,13 @@ Si un periodo futuro no tiene plan (semanas en `null`), declarar la limitación
 ("pendiente de re-corrida del backend"), NO inventar. La fuente del agente
 siempre es el MCP.
 
-⚠️ **Cómo se genera la corrida (verificado 2026-08-19/20)**: el snapshot NO es
+⚠️ **Cómo se genera la corrida **: el snapshot NO es
 un dato permanente — lo regenera la **carga inicial** del proceso (SPs
 `spFCForcastCFNuk(@Usuario,@Ejercicio,@Periodo,@EnSilencio)`, precedidos por
 `spFCAsignarBasesDefaul`/`spArtCentroDefaul`/`spArtCentroBalanceo`, seguidos de
 `spWebForecast12`/`spWebForecastFam12S`/`spWebForecastBBC12`/
 `spWebForecastArribos12`/`spWebInicio`). Por eso cada usuario tiene SU corrida.
-✅ **Desde 2026-08-19 el SP `spFCForcastCFNuk` SÍ está publicado en el MCP ICF**
+✅ **Desde que se publicó, el SP `spFCForcastCFNuk` SÍ está publicado en el MCP ICF**
 como tool **`fcforcast_cfnuk`** (parámetros `Usuario, Ejercicio, Periodo,
 EnSilencio`; el booleano va como `true`/`false` — DAB rechaza `"1"`). El agente
 NO lo llama en el flujo normal (la regeneración es trabajo del backend; el tool

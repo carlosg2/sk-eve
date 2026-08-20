@@ -6,7 +6,7 @@ resource: dbo.Dinero
 layer: erp-kernel
 tenant: null
 tags: [dinero, tesoreria, pagos, bancos]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-01T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records, create_record, update_record]
 ---
 

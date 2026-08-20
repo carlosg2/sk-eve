@@ -43,22 +43,22 @@ con lo que ya está implementado ahí.
 `Familia · Inventario Requerido · Disponibilidad ICF · Faltante`.
 **Caso 3 (faltante de concentrado, agregado por familia)** — no existe un tool
 dedicado para esta agregación. Usar `aggregate_records` sobre `ExplocionMatCF`
-agrupando por `FamiliaCF` (verificado 2026-08-06 contra el MCP real):
+agrupando por `FamiliaCF` :
 
 ```
-# Patrón canónico (verificado OK): faltante de concentrado por familia
+# Patrón canónico : faltante de concentrado por familia
 aggregate_records(ExplocionMatCF,
   filter: "Usuario eq 'MASERP' and SeProduce eq false",
   groupby: ["FamiliaCF"], function: "sum", field: "InvRequerido")
 ```
 
-⚠️ Notas verificadas (2026-08-06):
+⚠️ Notas:
 - `SeProduce` es **booleano** (`false`/`true`), NO entero: `SeProduce eq 0` →
   `BadRequest` (incompatible types Edm.Boolean/Edm.Int32). Usar `eq false`.
 - `groupby` debe ser **array** `["FamiliaCF"]`: como string el DAB lo IGNORA
   y devuelve un solo total sin desglosar.
 - La familia del faltante es el **`FamiliaCF` de `ExplocionMatCF`**; NO intentar
-  el join a `Art.FamArtCF` (ese campo es `null` en `Art` — verificado).
+  el join a `Art.FamArtCF` (ese campo es `null` en `Art`).
 
 ## Formatos de pantalla (obligatorios)
 
@@ -76,7 +76,7 @@ de las solicitudes como vienen del ERP.
 ## Limitaciones
 
 - No hay tool dedicado para "faltante por familia" — usar el patrón de arriba
-  (verificado OK contra el MCP el 2026-08-06).
+  .
 - Si el usuario simplemente pregunta "¿qué falta comprar?" sin mencionar
   "familia"/"concentrado", **usa siempre `gap-abasto` primero** — este skill
   solo aplica cuando la pregunta pide explícitamente el nivel de agregación

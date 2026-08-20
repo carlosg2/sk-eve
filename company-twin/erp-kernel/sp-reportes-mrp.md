@@ -1,7 +1,7 @@
 ---
 type: ERP Kernel — Stored Procedures de reporte
 title: SPs de reporte del portal MRP (P1)
-description: Los 16 SPs de reporte del portal MRP/FC publicados en el MCP ICF (2026-08-19) como custom tools — reproducen el formato EXACTO de las pantallas (Desglose, Cobertura, Cumplimiento, Concentrado, Capacidad, Histórico, Plan semana).
+description: Los 16 SPs de reporte del portal MRP/FC publicados en el MCP ICF  como custom tools — reproducen el formato EXACTO de las pantallas (Desglose, Cobertura, Cumplimiento, Concentrado, Capacidad, Histórico, Plan semana).
 layer: kernel
 tags: [mcp, stored-procedure, reporte, forecast, fc, mrp, portal]
 mcp_tools: [web_desglose_forecast, web_cobertura_materia_prima, web_art_material_req_prorrateo, web_art_explosion_material, web_art_explosion_mat_faltante, web_fcfaltante_concentrado, cfarticulo_cumplimiento, cfcentra_trabajo_cumplimiento, programa_produccion_concentrado_centro, programa_produccion_concentrado_familia, web_inicio_concentrado, fccentro_capacidad_real, web_forecast_hist_lista, fcarribos_vaca, vaca_presupuesto_forecast_semanal, fcppplan_semana]
@@ -10,7 +10,7 @@ mcp_tools: [web_desglose_forecast, web_cobertura_materia_prima, web_art_material
 # SPs de reporte del portal MRP (P1)
 
 Los **16 SPs de reporte** del portal MRP/FC se publicaron en el MCP ICF el
-**2026-08-19** (config a 100 entidades, 37 tools MCP: 7 DML + 30 custom).
+(config a 100 entidades, 37 tools MCP: 7 DML + 30 custom).
 Verificado en vivo: todos responden `status: success` con el formato del portal.
 
 Son la **fuente canónica del formato EXACTO de pantalla** de Daniel. Los usa el
@@ -50,7 +50,7 @@ con el nombre de la entidad en minúsculas + guiones bajos).
 | `vaca_presupuesto_forecast_semanal` | `spVacaPresupuestoForecastSemanal` | `Usuario varchar(50)='MASERP', Ejercicio, Semana` | **Presupuesto Vaca semanal** |
 | `fcppplan_semana` | `spFC_PP_PlanSemana` | `Usuario, Ejercicio, Periodo, +ID?, +Semana?, +CentroTrabajo?` | **Plan semanal** (ForecastPlanSemanal/D) |
 
-## Verificación (2026-08-19)
+## Verificación 
 
 Los 16 SPs se probaron en vivo contra el MCP y responden `status: success` con
 el formato del portal. **Los valores específicos de esas pruebas NO son datos

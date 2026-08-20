@@ -44,16 +44,14 @@ aggregate_records(ResumenPlaneacionCF,
 
 ⚠️ `groupby` debe ser **array** (`["FamiliaCF"]`), no string: con string el DAB
 lo IGNORA silenciosamente y devuelve un solo total global sin desglosar
-(verificado 2026-08-06: string → 1 fila suma total; array → desglose real por
-familia).
+.
 
 Si `aggregate_records` no soporta múltiples `sum` en una sola llamada, ejecuta
 las dos por separado (Producir y Kg) y combina por `FamiliaCF`.
 
 ## Patrón 2 — Programa de producción de la semana por centro (variante concentrado)
 
-⚠️ **Los campos de `ForecastPlanProduccion` son UPPERCASE en el DAB** (verificado
-2026-08-06: `Semana eq 31` → BadRequest; `SEMANA eq 31` → OK). Usa SIEMPRE
+⚠️ **Los campos de `ForecastPlanProduccion` son UPPERCASE en el DAB** (evidencia: `Semana eq 31` → BadRequest; `SEMANA eq 31` → OK). Usa SIEMPRE
 UPPERCASE en filter/select.
 
 ```
@@ -84,7 +82,6 @@ criterio que el `HAVING` del origen).
   (o `CalendarioFC`) antes de reportar "no hay datos".
 - La columna calculada "Producido" (comparación plan vs. real por semana) no
   existe como campo DAB — hay que calcularla aparte con `Prod`/`ProdD`
-  filtrando por fecha de la semana (usar `DimTiempoSemana` — publicada
-  2026-08-19, campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN` — o
+  filtrando por fecha de la semana (usar `DimTiempoSemana` — campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN` — o
   `CalendarioFC` — camelCase `Ano`/`Semana`/`FechaD`/`FechaA` — para traducir
   semana → rango de fechas).

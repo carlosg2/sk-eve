@@ -6,7 +6,7 @@ resource: dbo.ResumenPlaneacionCF
 layer: erp-kernel
 tenant: null
 tags: [planeacion, forecast, mrp, campo-fresco, semanas, familias]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-05T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records]
 ---
 
@@ -17,7 +17,7 @@ artículo con su clasificación `FamiliaCF`/`VariedadCF` (la familia del sistema
 FC, ver [artfamfc.md](artfamfc.md)) y el plan por semana en los pares
 `S<n>` (semana) / `P<n>` (producir). También trae inventario, venta y stock.
 
-# Schema (verificado en vivo ICF, 2026-08-05 — read_records first:60 OK)
+# Schema 
 
 Campos de cabecera:
 - `ID`, `Usuario` (fijo del módulo FC: `MASERP`), `Prioridad`, `CtTrabajo`
@@ -49,5 +49,5 @@ read_records(ResumenPlaneacionCF,
 aggregate_records(ResumenPlaneacionCF, sum, Producir, groupby: ["FamiliaCF"])
 ```
 
-⚠️ `FamArtCF` NO existe en el MCP ICF (EntityNotFound, verificado 2026-08-05);
+⚠️ `FamArtCF` NO existe en el MCP ICF (EntityNotFound);
 el mapeo artículo→familia FC vive en esta vista.

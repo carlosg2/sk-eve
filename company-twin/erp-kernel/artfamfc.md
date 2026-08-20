@@ -6,7 +6,7 @@ resource: dbo.ArtFamFC
 layer: erp-kernel
 tenant: null
 tags: [familias, forecast, mrp, campo-fresco, clasificacion]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-05T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records]
 ---
 
@@ -17,7 +17,7 @@ Catálogo de **familias del sistema Forecast CF** (clasificación usada en
 ("Frijol Negro", "Frijol negro americano", "Frijol Pinto", "Mitades Negras"...),
 distinta de `Art.Familia` (genérica, ej. "FRIJOL").
 
-# Schema (verificado en vivo ICF, 2026-08-05)
+# Schema 
 
 - `Familia` — nombre de la familia FC (44 familias en ICF, ej. "Frijol Negro").
 - `StockMinimo` — stock de seguridad mínimo de la familia.
@@ -37,4 +37,4 @@ read_records(ArtFamFC, select: "Familia,StockMinimo,StockMaximo,TiempoEntrega", 
 Para saber qué artículos pertenecen a cada familia FC, cruzar con
 `ResumenPlaneacionCF` (`FamiliaCF`/`VariedadCF` por artículo) — ver
 [resumenplaneacioncf.md](resumenplaneacioncf.md). `FamArtCF` NO existe en el MCP
-ICF (EntityNotFound, verificado 2026-08-05).
+ICF (EntityNotFound).

@@ -25,7 +25,7 @@ executor:
   receipt: [tool, status, output]
 attester:
   resource: scripts/check-knowledge.ts
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-05T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 sources:
   - id: planeacion-mrp
     resource: /erp-kernel/planeacion-mrp.md

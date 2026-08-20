@@ -18,7 +18,7 @@ ya hacen la explosión de materiales/MRP internamente): **`faltante_insumos`**,
 
 ## MÉTODO PRINCIPAL (usar SIEMPRE primero) — tools `faltante_insumos` / `faltante_materia_prima`
 
-Agregados por el equipo backend (2026-07-31): `spWebFCFaltanteInsumos` y
+Agregados por el equipo backend: `spWebFCFaltanteInsumos` y
 `spWebFCFaltanteMateriaPrima`. Cada uno **ya calcula el gap completo internamente**
 (inventario requerido vs. disponibilidad, vía una explosión de materiales/MRP previa
 guardada en `ExplocionMatCF`) y regresa **solo las filas con faltante real** — no hay

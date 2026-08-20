@@ -6,7 +6,7 @@ resource: dbo.DineroD
 layer: erp-kernel
 tenant: null
 tags: [dinerod, tesoreria, detalle, aplicacion]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-01T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records]
 ---
 

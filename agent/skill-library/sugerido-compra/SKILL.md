@@ -126,7 +126,7 @@ demanda, si aplica config).
 - `DT` (Demanda Total) = `DA` en zona congelada; fuera de zona congelada, `MAX(DA, PRV)`.
 
 **`PV` (obligatorio, MANDATORIO calcularlo — no es opcional ni "si existe"):** publicado
-y verificado en vivo en el MCP de marmoles (2026-08-03). Fuente:
+y verificado en el MCP de marmoles. Fuente:
 [`VentaD`](`ventad`), usando siempre **`CantidadPendiente`**
 (nunca `Cantidad` — esa es lo solicitado originalmente, no lo pendiente por surtir).
 
@@ -185,8 +185,7 @@ OC = suma de Cantidad de TODOS los renglones devueltos (todos los almacenes junt
 
 Ver también "Dataset base recomendado".
 
-**`OP`:** fuente [`Prod`/`ProdD`](`prod`) (publicadas
-2026-08-03). Antes de consultar, verificar `Art.SeProduce`: si es `0`/falso, usar
+**`OP`:** fuente [`Prod`/`ProdD`](`prod`) (publicadas). Antes de consultar, verificar `Art.SeProduce`: si es `0`/falso, usar
 `OP = 0` directo sin llamar a `Prod`/`ProdD`. En el empresa `marmoles` no hay registros
 actuales en ninguna de las dos tablas (giro de negocio: compra/vende, no produce) —
 `OP = 0` es el resultado esperado casi siempre.
@@ -251,7 +250,7 @@ requerimiento neto consolidado de la empresa requiere **comprar**, salvo que
 - Universo de artículos: `Art` (filtros de sección "Universo de artículos").
 - Config de planeación: [`ArtAlm`](`artalm`).
 - Existencia: [`ArtDisponible`/`ArtDisponibleDesc`](`artdisponible`).
-- Demanda/suministro transaccional (todas publicadas y verificadas en vivo, 2026-08-03),
+- Demanda/suministro transaccional (todas publicadas y verificadas),
   **siempre consolidadas en todos los almacenes de la empresa (nunca filtradas por
   `Almacen` salvo pedido explícito)**:
   [`Venta`/`VentaD`](`venta`) (demanda `PV`, **obligatorio**,
@@ -397,7 +396,7 @@ artículos con RN negativo grande, o discrepancia evidente), ejecuta
   que marcar `PlanArtOP` como liberado a mano (ver arriba). El sub-procedimiento
   `xpPlanArtOPLiberar` puede existir como stub sin efecto real — no asumir que corrió lógica
   adicional por invocarlo.
-- No se ha validado en vivo end-to-end contra el MCP remoto de `marmoles` todavía — nombres
+- Nombres
   exactos de tools (`planeacion_mrp`) y campos deben confirmarse con `describe_entities`
   solo si un patrón documentado aquí falla, y luego promoverse a este skill/Twin.
 

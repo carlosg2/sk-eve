@@ -6,7 +6,7 @@ resource: dbo.Prod / dbo.ProdD
 layer: erp-kernel
 tenant: null
 tags: [prod, prodd, produccion, mrp]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-03T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records]
 ---
 
@@ -14,7 +14,7 @@ mcp_tools: [read_records, aggregate_records]
 
 `Prod` (encabezado) + `ProdD` (renglones) son la fuente de la señal de suministro
 `OP` (producción pendiente) en el cálculo manual de Sugerido de Compra. Publicadas
-(solo lectura) en el MCP de marmoles el 2026-08-03.
+(solo lectura) en el MCP de marmoles.
 
 - **PK `Prod`:** `ID` (int)
 - **PK `ProdD`:** `ID` + `Renglon` + `RenglonSub` (compuesta)

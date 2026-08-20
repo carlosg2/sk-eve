@@ -5,7 +5,7 @@ description: >
   compró, cuánto se gastó y con qué proveedor, en qué estatus están las órdenes
   de compra (sábana de estatus), o qué compras se salen del presupuesto
   (desviaciones de presupuesto por artículo vs UV_QV_PPTOCOMPRA). Temas de la
-  reunión de descubrimiento ICF 2026-08-05 (R-FIN-06/07, R-CS-01, R-COM-01).
+  reunión de descubrimiento ICF (R-FIN-06/07, R-CS-01, R-COM-01).
 ---
 
 # Skill: Control de compras del periodo — gasto, estatus y desviaciones de presupuesto
@@ -27,7 +27,7 @@ Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 | "¿En qué estatus están las OC del periodo?" / sábana | **ESTE skill** |
 | "¿Qué compras se salen del presupuesto?" / desviaciones | **ESTE skill** |
 
-## Reglas críticas (verificadas en vivo contra el MCP ICF, 2026-08-06)
+## Reglas críticas (verificadas contra el MCP ICF)
 
 1. **El periodo SIEMPRE es el periodo fiscal del cabecero**: filtrar `Compra` con
    `Ejercicio eq <año> and Periodo eq <mes>` (enteros). NUNCA filtres por fechas en

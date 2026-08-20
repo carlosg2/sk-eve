@@ -45,7 +45,7 @@ aggregate_records(ProdD, filter: "Articulo eq '<A>' and FechaEntrega ge <inicio>
 ```
 
 Cumplimiento % = `SUM(Cantidad producida real) / Producir programado * 100`.
-Usar `DimTiempoSemana` (publicada 2026-08-19, campos `Anio`/`MES`/`SEMANA`/
+Usar `DimTiempoSemana` (campos `Anio`/`MES`/`SEMANA`/
 `FECHAINICIO`/`FECHAFIN`) o `CalendarioFC` (camelCase `Ano`/`Semana`/
 `FechaD`/`FechaA`) para traducir semana → rango de fechas antes de filtrar
 `ProdD`. Nota: `ProdD` no tiene campo `Fecha` — usar
@@ -63,7 +63,7 @@ read_records(VentaTCalc, filter: "Articulo eq '<A>' and FechaEmision ge <inicio>
 
 DOH = Venta / Inventario (usar `ArtDisponibleDesc` para existencias con
 descripción, o `ArtDisponible` solo para agregados numéricos puros;
-`ArtDisponibleVaca` NO existe en el MCP ICF — verificado).
+`ArtDisponibleVaca` NO existe en el MCP ICF).
 
 ### Variante con `UV_QV_FILLRATE` (fuente oficial del módulo FC)
 
@@ -82,7 +82,7 @@ aggregate_records(UV_QV_FILLRATE, function: "sum", field: "RECHAZO",
 
 Neta = bruta − rechazo. ⚠️ `UV_QV_FILLRATE` es UPPERCASE y `FECHA_REMISION` es
 varchar dd/mm/yyyy → **nunca filtrar por fecha**, usar `MES_FISCAL`/
-`SEMANA_FACTURA` (verificado 2026-08-19).
+`SEMANA_FACTURA` .
 
 ## Fórmulas exactas de los indicadores (portadas de skill-analisis de Daniel)
 
@@ -129,7 +129,7 @@ aggregate_records(UV_QV_FILLRATE, function: "sum", field: "RECHAZO",
   (patrón del Patrón 1: `FechaEntrega ge <inicio>T00:00:00Z and le
   <fin>T23:59:59Z`; 0 filas → `null` → tratar como 0).
 - ⚠️ **El producido del PERIODO completo SÍ se aísla por rango de fechas**
-  (validado 2026-08-19): `FechaD..FechaA` = `MIN(FECHAINICIO)..MAX(FECHAFIN)`
+  : `FechaD..FechaA` = `MIN(FECHAINICIO)..MAX(FECHAFIN)`
   de las semanas del periodo según `DimTiempoSemana` (`Anio eq <Y> and MES eq
   <P>`) o `CalendarioFC` (`Ano`/`MES`). NO declarar "no se puede aislar el
   producido del periodo" sin intentar este rango; si `FechaEntrega` trae 0
@@ -172,11 +172,11 @@ vienen de la BD (Centro sin nombre → `null` en el portal, Familia vacía →
 
 - No hay un solo tool que ya calcule el % de cumplimiento — hay que combinar
   el plan (`ResumenPlaneacionCF`) con lo real (`Prod`/`ProdD` o `VentaTCalc`)
-  a mano (patrones verificados contra el MCP 2026-08-06; `Fecha` no existe en
+  a mano (patrones verificados contra el MCP; `Fecha` no existe en
   `ProdD`/`VentaTCalc`, usar `FechaEntrega`/`FechaEmision` con ISO `Z`).
 - ⚠️ El producido del periodo NO es "no aislable": se filtra `ProdD` por el
   rango de fechas del periodo completo (`DimTiempoSemana`/`CalendarioFC` →
-  `MIN FECHAINICIO..MAX FECHAFIN`). Un turno E2E (2026-08-19) declaró la
+  `MIN FECHAINICIO..MAX FECHAFIN`). Un turno declaró la
   limitación sin intentarlo — regla: intentar siempre el patrón antes de
   declarar "no disponible". Si `ProdD` viene vacío, confirmar que la fecha
   existe en `Prod` (cabecera) y filtrar por la del detalle si aplica.

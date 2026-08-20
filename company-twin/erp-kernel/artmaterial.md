@@ -6,7 +6,7 @@ resource: dbo.ArtMaterial
 layer: erp-kernel
 tenant: null
 tags: [bom, lista-materiales, materiales, produccion, insumos]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-05T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records]
 ---
 
@@ -16,7 +16,7 @@ Lista de materiales (BOM): por cada artículo producible, sus materiales/insumos
 y cantidades. Se usa para responder "¿qué insumos se necesitan para producir X?"
 y cruzar contra existencias (`ArtDisponibleDesc`) para detectar faltantes.
 
-# Uso (shape verificado en ICF, 2026-08-05)
+# Uso ()
 
 - La entidad se consulta SIEMPRE filtrando por el **producto**: 
   `read_records(ArtMaterial, filter: "Articulo eq '<ARTICULO>'", first: 50)`.

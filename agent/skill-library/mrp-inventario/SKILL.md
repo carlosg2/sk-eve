@@ -17,7 +17,7 @@ description: >
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`vaca_presupuesto_forecast_semanal`** (SP del portal: presupuesto VACA semanal; parámetros `Usuario='MASERP', Ejercicio, Semana`).
 `Usuario` fijo: **`"MASERP"`**.
 
-## Si el usuario NO especifica artículo (regla — validado E2E 2026-08-19)
+## Si el usuario NO especifica artículo 
 
 Si la petición es "inventario semanal" sin nombrar artículo, **NO dejar la
 respuesta vacía ni solo cargar el skill**. Dos opciones en orden:
@@ -46,7 +46,7 @@ read_records(VacaPresupuestoVtaConD, filter: "ID eq <ID del encabezado>",
 ⚠️ El presupuesto VACA **no es snapshot por usuario** (tiene su propio
 `Usuario`, p.ej. `MASERP`, y el encabezado más antiguo es `Ejercicio 2021`) —
 NO filtrar por `Usuario eq 'MASERP'`; filtrar por `Ejercicio` del año de
-trabajo (verificado 2026-08-06).
+trabajo .
 
 ## Patrón 2 — Validación de lotes (PEPS/FIFO) contra el plan autorizado
 
@@ -59,14 +59,14 @@ qué lote específico saldría cada material. El resultado queda materializado e
 la tabla `UtMrpPrevioMateriaPrima`.
 
 > ⚠️ **`UtMrpPrevioMateriaPrima` NO existe en el MCP de ICF** (EntityNotFound
-> verificado 2026-08-06). Este patrón es del proyecto sigma-icf (MSSQL
-> MRPCF5000), NO está publicado aquí. Si el usuario pregunta por la asignación
+> ; es un staging de la base MSSQL `MRPCF5000` del portal legacy, NO publicado
+> aquí). Si el usuario pregunta por la asignación
 > PEPS/FIFO de lotes contra el plan, responde la limitación (dato no
 > disponible) y ofrece en su lugar existencias por artículo/almacén vía
 > `ArtDisponibleDesc`.
 
-> 🔒 **NO EJECUTABLE — solo referencia del proyecto legacy sigma-icf** (la
-> entidad no está publicada en el MCP ICF; no intentar llamarla):
+> 🔒 **NO EJECUTABLE — la entidad no está publicada en el MCP ICF** (no
+> intentar llamarla):
 ```
 read_records(UtMrpPrevioMateriaPrima,
   filter: "SEMANA eq <N> and ARTICULO eq '<A>'",
@@ -91,8 +91,7 @@ aggregate_records(AuxiliarU, function: "sum", field: "AbonoU",
   filter: "Rama eq 'INV' and Empresa eq 'INCF' and Cuenta eq '<ART>'")
 ```
 
-Saldo = `sum(CargoU) − sum(AbonoU)` (validado 2026-08-19: A0716 → 157,545 −
-127,663). El almacén vive en `Grupo` (equivale a `Alm.Almacen`); para acotar a
+Saldo = `sum(CargoU) − sum(AbonoU)` . El almacén vive en `Grupo` (equivale a `Alm.Almacen`); para acotar a
 un almacén empacado añadir el join `Grupo in (select Almacen from Alm where
 EmpacadoCF = 1)` NO es posible en OData → filtrar por `Grupo eq '<ALMACEN>'`
 si se conoce, o consultar y agregar client-side.
@@ -108,8 +107,7 @@ actual se lee con `ArtDisponibleDesc`. No intentar otras tablas.
 ## Limitaciones
 
 - `UtMrpPrevioMateriaPrima` es una instantánea (staging) del proyecto
-  sigma-icf — **no publicada en el MCP de ICF** (EntityNotFound verificado
-  2026-08-06). El agente no puede leerla; ante preguntas de asignación de
+  sigma-icf — **no publicada en el MCP de ICF** (EntityNotFound). El agente no puede leerla; ante preguntas de asignación de
   lotes responde la limitación y ofrece `ArtDisponibleDesc` (existencias) o
   `ExplocionMatCF` (requerimientos).
 - No confundir el forecast **VACA** (esta ruta) con el forecast

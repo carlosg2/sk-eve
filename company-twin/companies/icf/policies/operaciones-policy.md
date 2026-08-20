@@ -5,7 +5,7 @@ description: Reglas de aprobación y autonomía del agente para Industrias Campo
 layer: company
 tenant: icf
 tags: [compras, ventas, aprobacion, gobierno]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-30T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 applies_to: [/erp-kernel/compra.md, /erp-kernel/venta.md]
 ---
 
@@ -54,7 +54,7 @@ requiere confirmación explícita del usuario. El HITL gate está activo para:
 
 # Reportes de faltante (MRP) — tools dedicados `faltante_insumos` / `faltante_materia_prima`
 
-Agregados por el equipo backend (2026-07-31) como stored procedures registrados en el DAB
+Agregados por el equipo backend como stored procedures registrados en el DAB
 de ICF: `spWebFCFaltanteInsumos` → tool `faltante_insumos`, `spWebFCFaltanteMateriaPrima` →
 tool `faltante_materia_prima`. Ambos son **read-only** (no pasan por `execute_entity`, no
 requieren HITL) y ya hacen la explosión de materiales (MRP) internamente — no re-calcules

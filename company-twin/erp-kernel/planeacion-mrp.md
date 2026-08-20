@@ -6,7 +6,7 @@ resource: dbo.spPlanArt
 layer: erp-kernel
 tenant: null
 tags: [mrp, planeacion, sugerido-compra, spplanart]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-03T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [planeacion_mrp]
 ---
 

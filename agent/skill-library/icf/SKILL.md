@@ -124,7 +124,7 @@ read_records(ArtDisponibleDesc,
 > ⚠️⚠️ **NO leas un almacén completo para responder "existencias de <familia/
 > producto>"**: `Almacen eq 'C. FRESCO' and Disponible gt 0` sin acotar por
 > artículo devuelve cientos de filas (~72k chars) y es el anti-patrón de costo
-> más alto visto en E2E (2026-08-06). Para una familia/marca: 1) `buscar_registro`
+> más alto visto. Para una familia/marca: 1) `buscar_registro`
 > por `Descripcion1` (ej. "Frijol") → claves de artículo; 2) `read_records(
 > ArtDisponibleDesc, filter: "Articulo eq '<X1>' or ...", select:
 > "Articulo,Descripcion1,Disponible,Almacen,Unidad")`. La lectura del almacén

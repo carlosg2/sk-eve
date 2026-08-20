@@ -6,7 +6,7 @@ resource: dbo.CXP
 layer: erp-kernel
 tenant: null
 tags: [cxp, tesoreria, proveedores, pagos]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-01T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records, create_record, update_record]
 ---
 

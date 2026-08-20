@@ -63,7 +63,7 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
 
 ## Patrones comunes a TODO el módulo FC (aplican en los 12 skills)
 
-- **Formato de pantalla obligatorio** (2026-08-19): varios skills definen una
+- **Formato de pantalla obligatorio** : varios skills definen una
   sección **"Formato de pantalla (obligatorio)"** con las columnas/encabezados
   EXACTOS del portal MRP (ruta Desglose de Forecast, Programa Mensual,
   Concentrado, Indicadores, Arribos, Faltantes, Modelado). La respuesta DEBE
@@ -77,12 +77,11 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
   ya calculado — nunca puede disparar el recálculo.
 - **Verificar que el proceso se corrió** antes de reportar "no hay datos".
   ⚠️ `UtLogEjcProMrp` (log de corridas) NO existe en el MCP de ICF
-  (EntityNotFound verificado 2026-08-06) — no intentes leerla. Usa como
+  (EntityNotFound) — no intentes leerla. Usa como
   proxy que el snapshot esté poblado: `read_records(ResumenPlaneacionCF,
   filter: "Usuario eq 'MASERP'", select: "Articulo,Producir", first: 1)`
   o `CalendarioFC` (si trae filas, el proceso se corrió).
-- **Traducir "semana N" a fechas**: usar `DimTiempoSemana` (publicada
-  2026-08-19, campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) o
+- **Traducir "semana N" a fechas**: usar `DimTiempoSemana` (campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) o
   `CalendarioFC` (campos camelCase
   `Ano`/`Semana`/`FechaD`/`FechaA`), no asumir que la semana 1 es la primera
 del año calendario (depende de cuándo se capturó el forecast).
@@ -116,16 +115,11 @@ del año calendario (depende de cuándo se capturó el forecast).
 ## Limitaciones generales
 
 - Dos skills (`mrp-articulos`, `mrp-traspasos`) cubren rutas cuyos stored
-  procedures fuente **no están presentes** en `sp-mrp.sql` (único archivo SQL
-  disponible del proyecto sigma-icf) y no tienen entidad documentada en el
-  Twin — su lógica de negocio exacta no está verificada; tratarlos como
+  procedures fuente **no están documentados** y no tienen entidad en el
+  Twin — su lógica de negocio exacta no está confirmada; tratarlos como
   "posible gap de cobertura DAB", no como patrones confiables.
 - `WebInicio`/`WebInicioHist` tienen filas duplicadas conocidas por calidad de
   datos histórica — deduplicar o advertirlo si se usan en un reporte.
-- Este índice y los 12 skills fueron escritos a partir de: (a) lectura directa
-  de `sp-mrp.sql` (≈65 stored procedures, proyecto sigma-icf) para extraer la
-  lógica de negocio real de cada ruta, y (b) inspección del código de UI
-  (`+page.js`/`+page.ts`) de cada ruta para confirmar parámetros y campos
-  expuestos. No se ha validado todavía en vivo contra `/chat` — si un patrón
-  falla, usar el descubrimiento de schema de la sección anterior en vez de
-  asumir que la entidad no sirve.
+- Si un patrón falla, usar el descubrimiento de schema (leer la entidad con
+  `read_records(..., first: 1)` sin `select`) en vez de asumir que la entidad
+  no sirve.

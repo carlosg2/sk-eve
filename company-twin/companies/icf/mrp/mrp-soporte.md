@@ -5,7 +5,7 @@ description: Entidades de soporte del módulo Forecast/Planeación (FC) — conf
 layer: company
 tenant: icf
 tags: [mrp, forecast, fc, portal, soporte]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-31T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records]
 ---
 
@@ -50,7 +50,7 @@ métricas de venta, ocupación y capacidad. Sin llave primaria física; usar
 agregar.
 
 ## `Usuario`
-✅ **Catálogo de usuarios del ERP** (publicado 2026-08-19). Usado para
+✅ **Catálogo de usuarios del ERP** . Usado para
 **validar la sesión** del módulo FC (contrato de sesión dinámica):
 `read_records(Usuario, filter: "Usuario eq '<X>'", select: "Usuario,Nombre,DefEmpresa,Estatus")`.
 Si no devuelve filas → el usuario no existe; si `Estatus` ≠ `ALTA` → bloqueado.

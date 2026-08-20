@@ -24,14 +24,13 @@ prototipo para que pase a producción real.
 
 Los stored procedures fuente identificados por nombre en el código de la UI
 (`spArtPrototipoCosto`, `spArtPrototipoLista`, `spArtPrototipoMaterial`,
-`spCambiarSituacionArtPrototipo`, `spRechazarSituacionArtPrototipo`) **NO
-están presentes en `sp-mrp.sql`** (el único archivo `.sql` fuente disponible
-del proyecto sigma-icf) — no se pudo verificar su lógica de negocio real, y no
+`spCambiarSituacionArtPrototipo`, `spRechazarSituacionArtPrototipo`) **no
+están documentados** — su lógica de negocio real no está confirmada, y no
 hay ninguna entidad `ArtPrototipo*` documentada actualmente en el Company Twin.
 
 ## Qué hacer si el usuario pregunta por esto
 
-0. **Estado verificado (2026-08-06, probe contra el MCP real)**:
+0. **Estado verificado (contra el MCP real)**:
    `ArtPrototipo`, `ArtPrototipoD` y `ArtPrototipoMaterial` → `EntityNotFound`
    confirmado con `read_records(..., first: 1)`. No las pruebes una por una.
 

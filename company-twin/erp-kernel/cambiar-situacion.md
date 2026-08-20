@@ -6,7 +6,7 @@ resource: dbo.spCambiarSituacion
 layer: erp-kernel
 tenant: null
 tags: [situacion, subestado, escritura]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-01T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [execute_entity]
 ---
 

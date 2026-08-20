@@ -5,7 +5,7 @@ description: Cómo ICF controla el gasto de compra: presupuesto por artículo (U
 layer: company
 tenant: icf
 tags: [icf, compras, presupuesto, finanzas, control, desviaciones]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-08-06T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records]
 sources:
   - id: reunion-2026-08-05
@@ -20,9 +20,9 @@ sources:
 
 # ICF — Presupuesto de compras y control del periodo
 
-Hechos declarativos de la empresa ICF (verificados en vivo contra el MCP, 2026-08-06) para
+Hechos declarativos de la empresa ICF  para
 el control de gasto de compras que pide finanzas (requerimientos R-FIN-06/07 de la
-reunión de descubrimiento 2026-08-05: "resumen de presupuesto contra compras del
+reunión de descubrimiento: "resumen de presupuesto contra compras del
 periodo, solo desviaciones" y "autorización del presupuesto de compras").
 
 ## Presupuesto de compra por artículo

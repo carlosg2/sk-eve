@@ -5,7 +5,7 @@ description: Tablas núcleo del proceso MRP de Forecast/Planeación (FC) — Exp
 layer: company
 tenant: icf
 tags: [mrp, forecast, fc, explosion-materiales]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-31T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records]
 ---
 
@@ -43,10 +43,10 @@ borrarse.
 ## `ProcesadosCF`
 Resumen de capacidad/eficiencia procesada por centro (`CapacidadReal`,
 `EficienciaTotal`, `CapacidadRealTotal`). Sin llave primaria física; usar `Centro`
-como llave lógica. Al 2026-07-31 la tabla no tenía datos en ICF.
+como llave lógica. La tabla no tenía datos en ICF.
 
 ## `UtLogEjcProMrp`
-⚠️ **NO existe en el MCP de ICF** (EntityNotFound verificado 2026-08-06). Era
+⚠️ **NO existe en el MCP de ICF** (EntityNotFound). Era
 la bitácora de ejecución del MRP (`LOG_ID`, `LOG_FYH`, `ORG`, `PRM`), pero no
 está publicada. **No intentar leerla** — causa un
 `EntityNotFound` en runtime. Para saber si el MRP se corrió, usar como proxy:
@@ -62,8 +62,8 @@ Corresponde a los campos `InvMin`/`InvMax` que ya regresan `faltante_insumos`/
 ## `UV_QV_PPTOCOMPRA`
 Vista de **presupuesto de compra** (stock de seguridad de materia prima): stock
 mínimo/máximo y máximo de compra por artículo/familia. **Añadida al MCP de ICF el
-2026-08-04** (antes solo existía en la base `MRPCF5000` vía el sistema MSSQL de
-Campo Fresco). Schema verificado en vivo con `read_records`:
+(antes solo existía en la base `MRPCF5000` vía el sistema MSSQL de
+Campo Fresco). Schema:
 `NIVELAGRUPAMIENTO` (ARTICULO/FAMILIA), `TIPO`, `FAMILIA`, `LINEA`, `ARTICULO`,
 `DESCRIPCION`, `TIPOCATALOGO`, `INVMINIMOKG`, `INVMAXIMOKG`, `MAXCOMPRAKG`.
 `INVMINIMOKG`/`INVMAXIMOKG` = stock de seguridad (Kg); `MAXCOMPRAKG` = máximo de
@@ -89,8 +89,7 @@ módulo FC. Llave lógica: `ID+Usuario`.
 
 - Ninguna de estas tablas tiene PK física declarada salvo `ExplocionMatCF`
   (`ID+Usuario`) — al hacer `read_records`, filtrar SIEMPRE por `Usuario`.
-  ⚠️ **`ExplocionMatCF` NO tiene campos `Ejercicio`/`Periodo`** (verificado
-  2026-08-06: filter/groupby con ellos da `FieldNotFound`); es snapshot por
+  ⚠️ **`ExplocionMatCF` NO tiene campos `Ejercicio`/`Periodo`** (verificado filter/groupby con ellos da `FieldNotFound`); es snapshot por
   usuario sin año/periodo en la fila. NO intentes filtrar/agrupar por
   ejercicio/periodo en esta vista.
 - `BalanceFC`/`ResumenPlaneacionCF` son **scratch, se sobrescriben** — no sirven

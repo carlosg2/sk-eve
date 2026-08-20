@@ -32,7 +32,7 @@ núm. estaciones activas, etc.); el detalle exacto de cada fórmula vive en
 `CapacidadHrs`) — no se transcribió aquí línea por línea, usar el valor ya
 calculado en `CentroFC`/`WebInicio` en vez de recalcularlo. ⚠️ El "tipo" de
 centro/estación **no está expuesto como campo DAB** en `EstacionTFC`/`CentroFC`
-(verificado 2026-08-06: `Tipo` y 9 variantes probadas → `Invalid field`); el
+; el
 tipo vive solo en la lógica de los SPs `spFCCentroCapacidadReal`/
 `spFCBasesjson`, no es consultable.
 
@@ -49,14 +49,14 @@ read_records(CentroFC, filter: "Centro eq '<C>'")   # sin select: descubrir colu
 read_records(EstacionTFC, filter: "Centro eq '<C>'", select: "Estacion,Descripcion,Centro")
 ```
 
-⚠️ `EstacionTFC` no expone el campo `Tipo` por DAB (verificado 2026-08-06) —
+⚠️ `EstacionTFC` no expone el campo `Tipo` por DAB  —
 no lo pidas en `select`; el tipo de estación no es consultable.
 
 ## Patrón 3 — Selección/temp de la sesión de modelado (por usuario)
 
 `CentroFCTemp`/`EstacionTFCTemp` son **temporales de la sesión de captura
 activa** — no confiar en su contenido para reportes históricos ni compararlas
-entre usuarios distintos. Schema verificado 2026-08-19:
+entre usuarios distintos. Schema:
 
 ```
 # CentroFCTemp: Usuario, Centro, Descripcion, Estatus, DiasHabilies,
@@ -71,13 +71,13 @@ read_records(CentroFCTemp, filter: "Usuario eq 'MASERP'")
 read_records(EstacionTFCTemp, filter: "Usuario eq 'MASERP'")
 ```
 
-⚠️ En `CentroFCTemp` el campo **`Tipo` SÍ existe** (verificado 2026-08-19) — la
+⚠️ En `CentroFCTemp` el campo **`Tipo` SÍ existe**  — la
 limitación de "tipo no expuesto" aplica SOLO al catálogo `EstacionTFC`/`CentroFC`,
 no a la tabla temporal de sesión.
 
 ## Patrón 4 — Balance de carga por centro (BalanceFC)
 
-`BalanceFC` SÍ está publicada en el MCP ICF (verificado 2026-08-19): una fila
+`BalanceFC` SÍ está publicada en el MCP ICF : una fila
 por artículo con su prioridad, centro y las cantidades balanceadas
 (`Venta`/`Producir`/`Inventario` y totales `VentaT`/`ProducirT`/`InventarioT`):
 
@@ -158,7 +158,7 @@ no muestre.
 ## Limitaciones
 
 - La fórmula interna del balanceo de carga (`spBalanceFC`) no se replica — se
-  lee el resultado ya calculado en `BalanceFC` (publicada 2026-08-19). Los
+  lee el resultado ya calculado en `BalanceFC` (publicada). Los
   patrones se basan en entidades verificadas contra el MCP.
 - Ninguna de estas tablas tiene PK física declarada (salvo `Centro`) — usar
   `read_records(<Entidad>, first: 1)` sin `select` para descubrir columnas

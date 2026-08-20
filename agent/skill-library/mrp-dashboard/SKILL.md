@@ -24,8 +24,7 @@ El `+page.ts` de esta ruta carga el mismo par de SPs que la ruta `inicio`
 prácticamente la misma fuente de datos que "Programa Mensual"** (ver skill
 `mrp-inicio`), solo que la presenta con más gráficas y probablemente agrega
 KPIs de venta/cobranza (`spWebInicioPay`, `spWebInicioVentaPay` — nombres
-identificados en el grep de rutas, pero sus cuerpos no se pudieron leer/
-verificar en `sp-mrp.sql` con el detalle de las otras rutas).
+referidos por el portal, sin lógica documentada).
 
 ## Qué usar primero
 

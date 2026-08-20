@@ -6,7 +6,7 @@ resource: http://localhost:5050/mcp
 layer: erp-kernel
 tenant: null
 tags: [mcp, dab, tools, contrato, ejecucion]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-01T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [describe_entities, read_records, aggregate_records, create_record, update_record, delete_record, execute_entity]
 sources:
   - id: verificacion-dab
@@ -20,7 +20,7 @@ sources:
 
 # Resumen
 
-Contrato **verificado empíricamente** (2026-07-01) contra nuestro DAB fork vía `tools/list`
+Contrato **verificado empíricamente**  contra nuestro DAB fork vía `tools/list`
 y llamadas read-only. Documenta qué parámetros acepta cada tool y qué forma tiene la
 respuesta. Las capacidades del filtro OData viven en
 [Capacidades OData](/erp-kernel/index.md#capacidades-odata-dab). No dupliques schema de
@@ -85,7 +85,7 @@ El DAB también expone `afectar` y `cambiar_situacion` como **tools MCP dedicado
 
 El fork sigma-dab expone stored procedures y table-valued functions de Intelisis como
 **tools MCP dedicados** (además de los 7 DML estándar). Verificados contra JoyaRock
-(2026-07-01).
+.
 
 ## Tools de consulta (solo lectura)
 

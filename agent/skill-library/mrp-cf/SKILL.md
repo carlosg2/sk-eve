@@ -36,7 +36,7 @@ Dada una pregunta de negocio sobre producción, inventario o materia prima:
 
 **Garantías:**
 - Nunca ejecutar DML (`create_record`/`update_record`/`execute_entity`) — solo lectura.
-- ⚠️ `UtLogEjcProMrp` NO existe en el MCP ICF (EntityNotFound) — no llamarla. Para semanas/fechas usar `DimTiempoSemana` (publicada 2026-08-19, campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) o `CalendarioFC`.
+- ⚠️ `UtLogEjcProMrp` NO existe en el MCP ICF (EntityNotFound) — no llamarla. Para semanas/fechas usar `DimTiempoSemana` (campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) o `CalendarioFC`.
 - Advertir cuando `CalendarioFC` no cubre el año actual.
 - Calificar los datos por ejercicio y `Usuario` de sesión.
 
@@ -44,14 +44,14 @@ Dada una pregunta de negocio sobre producción, inventario o materia prima:
 
 ```
 ForecastPlanProduccion — Plan de producción semanal consolidado (vista calculada).
-                         Campos (verificados en vivo 2026-08-04, UPPERCASE):
+                         Campos :
                          EJERCICIO, PERIODO, SEMANA, SITUACION, CENTROTRABAJO,
                          ARTICULO, DESCRIPCION, PORPRODUCIR, KILOS, FAMILIA.
                          Para "qué se va a producir esta semana" empezar AQUÍ.
 ResumenPlaneacionCF   — GRID MAESTRO de planeación: UNA fila por artículo con
                          Articulo, Descripcion, FamiliaCF, VariedadCF y los 54
                          pares S<n>/P<n> (semana/producir). Verificado en vivo
-                         2026-08-05 (read_records first:60 OK). Es la fuente
+                         Es la fuente
                          para "artículos de la familia X del sistema FC" y
                          agregados por FamiliaCF (ver mrp-concentrado).
 ExplocionMatCF        — Explosión de materiales vs. disponible (snapshot de sesión)
@@ -60,16 +60,16 @@ ArtDisponibleDesc     — Inventario actual por almacén y empresa (vista ENRIQU
 ArtMaterial           — Lista de materiales (BOM): artículo → materiales
 CalendarioFC          — Calendario de semanas por usuario/año (Ano, Semana,
                         FechaD, FechaA). Alternativa: `DimTiempoSemana`
-                        (publicada 2026-08-19, campos `Anio`/`MES`/`SEMANA`).
+                        (campos `Anio`/`MES`/`SEMANA`).
 UV_QV_PPTOCOMPRA      — Stock mínimo/máximo y máx. de compra por artículo/familia (materia prima)
 CentroFCTemp / EstacionTFCTemp — Centros/estaciones y capacidades (sesión de usuario)
 Prod / ProdD          — Producción real transaccional (del sistema)
 VentaTCalc            — Ventas reales para comparar vs. forecast
 ```
 
-### Schema verificado — `UV_QV_PPTOCOMPRA` (vista de presupuesto de compra)
+### Schema — `UV_QV_PPTOCOMPRA` (vista de presupuesto de compra)
 
-Columnas (2026-08-04, `read_records` en vivo):
+Columnas :
 `NIVELAGRUPAMIENTO` (ARTICULO/FAMILIA), `TIPO`, `FAMILIA`, `LINEA`, `ARTICULO`,
 `DESCRIPCION`, `TIPOCATALOGO`, `INVMINIMOKG`, `INVMAXIMOKG`, `MAXCOMPRAKG`.
 
@@ -94,7 +94,7 @@ parámetro configurado — no asumir 0.
 1. Parámetros sin `$`: `filter`, `select`, `first`, `orderby`.
 2. Fechas sin comillas: `Fecha ge 2026-01-01`; strings con comillas simples:
    `Estatus eq 'ALTA'`. `in` NO soportado → encadenar `or`.
-3. **El casing de los campos es POR VISTA** (verificado 2026-08-06):
+3. **El casing de los campos es POR VISTA** :
    `ForecastPlanProduccion` y `UV_QV_PPTOCOMPRA` son **UPPERCASE** (`SEMANA`,
    `EJERCICIO`, `PORPRODUCIR`); `CalendarioFC`, `ResumenPlaneacionCF` y
    `ExplocionMatCF` son **camelCase** (`Ano`, `Semana`, `FechaD`, `FamiliaCF`,
@@ -106,7 +106,7 @@ parámetro configurado — no asumir 0.
    `EstacionTFCTemp`, `BalanceFC`, `WebInicio`, `Arribos12`) y por
    `Ejercicio`/`Periodo` cuando aplique — no traer corridas de otros
    usuarios. ⚠️ `ForecastPlanProduccion` es una vista consolidada **SIN
-   `Usuario`** (verificado): filtrarla por Usuario da `BadRequest`; filtrar
+   `Usuario`** : filtrarla por Usuario da `BadRequest`; filtrar
    por `EJERCICIO`/`SEMANA`/`SITUACION`.
 5. Para inventario: `Almacen eq '<ALM>'` (política de la empresa) y `Disponible gt 0`.
 6. `UtLogEjcProMrp` NO existe en el MCP ICF — no intentar verificar la corrida
@@ -118,7 +118,7 @@ parámetro configurado — no asumir 0.
 9. **No leer vistas masivas**: nunca `read_records` con `first` alto sobre
    `ExplocionMatCF`/`ForecastPlanProduccion` (re-envía ~60k chars por step).
    Usar `aggregate_records` (groupby) o `buscar_registro` (LIKE en servidor).
-10. Si un `read_records` con `select` falla (schema no verificado), usar
+10. Si un `read_records` con `select` falla , usar
    `read_records(<Entidad>, first: 1)` sin `select` para descubrir columnas reales.
 
 ### Consultas base reutilizables

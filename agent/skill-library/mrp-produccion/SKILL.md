@@ -19,7 +19,7 @@ description: >
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_art_material_req_prorrateo`** (requerimiento de materiales prorrateado), **`web_art_explosion_material`** (explosión), **`web_art_explosion_mat_faltante`** (explosión de faltantes).
 `Usuario` fijo: **`"MASERP"`**.
 
-## Elegir UN solo SP (regla de eficiencia — validado E2E 2026-08-19)
+## Elegir UN solo SP 
 
 ⚠️ **NO llamar varios SPs de esta ruta en el mismo turno.** Cada pantalla
 corresponde a UN SP; llamar todos (ej. `web_art_material_req_prorrateo` +
@@ -171,7 +171,7 @@ stock   = round(cVenta × Factorstock / 100)
 doh     = cVenta > 0 ? round(Disponible / cVenta × DiasHabilies) : 0
 planear = totalPadre
 ```
-`DiasHabilies` del centro: campo verificado en `CentroFCTemp`
+`DiasHabilies` del centro: campo presente en `CentroFCTemp`
 (`Usuario eq 'MASERP'`); también en `CentroFC`.
 
 ## Patrón 1 — Cobertura de materiales para producir (nivel 2 = material directo)
@@ -192,7 +192,7 @@ read_records(ExplocionMatCF, filter: "Usuario eq 'MASERP' and ArticuloHijo eq '<
   select: "Articulo,ArticuloHijo,PorAlcance,AlcanceDias,Cubre")
 ```
 
-`Cubre` puede venir `null` (no solo `false`/`true` — verificado 2026-08-06):
+`Cubre` puede venir `null` (no solo `false`/`true` — ):
 considerar el material **no cubierto** si `Cubre` no es `true` O
 `PorAlcance < 100` → riesgo de producción, no solo "faltante de compra" (eso
 es el skill `gap-abasto`/`mrp-faltantes`).
@@ -201,7 +201,7 @@ es el skill `gap-abasto`/`mrp-faltantes`).
 
 La asignación PEPS/FIFO de lotes (`SerieLote`) contra el plan autorizado
 materializa en `UtMrpPrevioMateriaPrima`, que **NO existe en el MCP ICF** (es
-staging del proyecto sigma-icf; EntityNotFound verificado 2026-08-06). Si el
+staging de la base MSSQL `MRPCF5000` del portal legacy; EntityNotFound). Si el
 usuario pregunta por lote específico asignado, declara la limitación y ofrece
 `ArtDisponibleDesc` (existencias por artículo/almacén) — ver skill
 `mrp-inventario`.

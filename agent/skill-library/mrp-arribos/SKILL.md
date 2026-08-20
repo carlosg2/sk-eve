@@ -39,18 +39,16 @@ read_records(Arribos12,
 ```
 
 ⚠️ **No pagines en grande**: `read_records(Arribos12, first: 500)` sin filtro
-re-envía ~36k chars por step (anti-patrón visto en E2E 2026-08-06). Limita
+re-envía ~36k chars por step (anti-patrón). Limita
 `first` a ≤100, acota con `filter` (artículo/familia) o usa `aggregate_records`
 para totales. `Arribos12` tiene una fila por artículo/usuario.
 
 Usar `Arribos12S` si se necesita el desglose por familia o el ajuste (`An`)
-en vez del detalle por artículo (verificado 2026-08-06: `Arribos12S` tiene
-`S1..S12`/`A1..A12`; `ArribosSub12S` SOLO mapea artículo→familia
-(`ID,Usuario,Articulo,Familia`), sin semanas ni ajuste).
+en vez del detalle por artículo , sin semanas ni ajuste).
 
 ⚠️⚠️ **NUNCA hagas un aggregate por columna semanal** (12 llamadas
-`aggregate_records(Arribos12S, sum, S1, groupby ["Familia"])` + `S2` + ...).
-Anti-patrón visto en E2E 2026-08-06 (23 calls / ~316k tokens). Si necesitas el
+`aggregate_records(Arribos12S, sum, S1, groupby ["Familia"])` + `S2` + ...)
+— es un anti-patrón costoso. Si necesitas el
 desglose por familia, lee **UNA sola vez** `read_records(Arribos12S,
 select: "Familia,S1,S2,...,S12", filter: "Usuario eq 'MASERP'", first: 200)`
 y suma/agrega client-side. Máximo 1-2 llamadas para el total.
@@ -170,7 +168,7 @@ no muestre; las semanas fuera de la ventana van en blanco.
 
 - No hay tool dedicado para "cobertura" — hay que combinar `ForecastArtFam12`
   + `ArtFamFC` + `Arribos12`/`FCArribos` a mano (ver Patrón 2). Patrones 1-3
-  validados contra el MCP el 2026-08-06 (entidades y campos confirmados).
+  validados contra el MCP (entidades y campos confirmados).
 - **Arribos VACA** (`spFCArribosVacaPendientes`, integración BBC) usa
   las mismas tablas base pero con filtros de línea de negocio VACA/PDB — el
   detalle exacto de esos filtros no se verificó línea por línea; si el usuario

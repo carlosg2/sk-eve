@@ -5,7 +5,7 @@ description: Catálogos y configuración de centros de trabajo/producción y est
 layer: company
 tenant: icf
 tags: [mrp, forecast, fc, centros, estaciones]
-generated: { by: copilot/sigma-meta-fabrica, at: 2026-07-31T00:00:00Z }
+generated: { by: copilot/sigma-meta-fabrica, at:  }
 mcp_tools: [read_records, aggregate_records]
 ---
 
@@ -32,7 +32,7 @@ lectura/creación. Llave lógica: `ID+Usuario+Centro`.
 Tabla temporal de trabajo de centros seleccionados por usuario durante una
 corrida de planeación FC. Llave lógica: `Usuario+Centro`.
 
-Schema verificado 2026-08-19: `Usuario, Centro, Descripcion, Estatus,
+Schema: `Usuario, Centro, Descripcion, Estatus,
 DiasHabilies, DiasTiempoExtra, HorasDia, Eficiencia, Tipo`. ⚠️ **`Tipo` SÍ es
 consultable aquí** (a diferencia de `CentroFC`/`EstacionTFC`, donde no está
 expuesto por el DAB).
@@ -48,7 +48,7 @@ lectura/creación. Llave lógica: `ID+Usuario+Estacion+Centro`.
 Tabla temporal de trabajo de estaciones seleccionadas por usuario durante una
 corrida de planeación FC. Llave lógica: `Usuario+Estacion`.
 
-Schema verificado 2026-08-19: `Usuario, Estacion, Centro, Descripcion, Estatus,
+Schema: `Usuario, Estacion, Centro, Descripcion, Estatus,
 BolsasxMinutos, TiempoLimpieza, TiempoComida, TiempoCambiosBobina,
 TiempoCambioEnfardadora, CapacidadtnHora, CambioMallas, Turnos, HorasTurnos,
 CambiosBolsaPresentacion, CambiosVariedad, CapDiaCr`.

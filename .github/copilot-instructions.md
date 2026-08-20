@@ -407,12 +407,13 @@ Un `throw` en un hook / instruction dinámica / middleware (ej. `ReferenceError:
 
 ## Skills de la fábrica (2026-08-10 — leer antes de tocar el sistema)
 
-La fábrica (Copilot) tiene DOS skills de operación avanzada:
+La fábrica (Copilot) tiene TRES skills de operación avanzada:
 
 | Skill | Dónde | Para qué |
 |---|---|---|
 | **`stack-mastery`** | `.github/skills/stack-mastery/` | Mejora continua E2E del stack con patrón autoresearch (Karpathy): program.md (agenda), 6 manuales de dominio (Eve, DAB, SQL Server, Company Twin, multi-tenant, SvelteKit, AI Gateway), ratchet loop con evals/radiografía como juez. **Leer `program.md` antes de proponer cualquier mejora.** |
 | **`promote-learnings`** | `.github/skills/promote-learnings/` | Compilar el buffer `state/learnings.md` → hogar canónico (OKF/skills/instructions). |
+| **`knowledge-hygiene`** | `.github/skills/knowledge-hygiene/` | ⚠️ **Regla de oro transversal**: escribir/promover TODO conocimiento del runtime (skills, twin, kernel, learnings) **sanitizado** — sin jerga de proceso de la fábrica (fechas de validación, E2E, linter, probe, sp-mrp.sql, métricas de corridas, sesiones wrun_, rutas absolutas a skills). **Correr el checklist (grep + `sanitize-knowledge.py` + linter) antes de crear/editar/promover cualquier archivo de conocimiento.** |
 
 **Manuales de dominio** (en `stack-mastery/references/`): antes de tocar una capa,
 lee su manual — contiene el contrato verificado, los gotchas y las oportunidades

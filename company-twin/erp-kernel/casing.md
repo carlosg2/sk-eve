@@ -9,8 +9,8 @@ generated:
   at: 2026-08-17
 tags: [odata, casing, schema, dab, campos]
 sources:
-  - resource: selects validados en agent/skill-library/* (linter check-knowledge, 0 críticos, 2026-08)
-  - resource: buffer state/learnings.md (25+ errores Invalid field, 2026-08-05..17)
+  - resource: selects del catálogo (validados)
+  - resource: buffer state/learnings.md (25+ errores Invalid field)
 ---
 
 # Casing de campos por vista (DAB)
@@ -33,7 +33,7 @@ NO existe una regla universal "campos en UPPERCASE". El casing depende de la **v
 - **Ante cualquier duda → `read_records(<Ent>, first: 1)`** sin select para ver los campos y
   su casing REALES antes de construir el select/filter. Es la verdad de runtime; nunca adivines.
 
-## Mapa por entidad (camelCase — verificados)
+## Mapa por entidad 
 
 | Entidad | Campos correctos (ejemplos) | Notas |
 |---|---|---|

@@ -1,7 +1,7 @@
 # MRP / Forecast-Planeación (FC) — ICF
 
 Conocimiento del módulo **Forecast/Planeación (FC)** de Intelisis, verificado contra
-el MCP de ICF (`https://api2.maserp.mx/icf/mcp`, 2026-07-31). No confirmado para
+el MCP de ICF (`https://api2.maserp.mx/icf/mcp`). No confirmado para
 otras empresas, por eso vive aquí y no en `erp-kernel/`.
 
 Este módulo calcula el **MRP** (Material Requirements Planning): explota demanda de

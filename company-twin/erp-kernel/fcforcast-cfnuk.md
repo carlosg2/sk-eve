@@ -1,7 +1,7 @@
 ---
 type: ERP Kernel — Stored Procedure
 title: FCForcastCFNuk — Carga inicial del plan FC/MRP
-description: SP spFCForcastCFNuk que regenera el plan de planeación a 54 semanas (ResumenPlaneacionCF) por usuario. Publicado en el MCP ICF como tool fcforcast_cfnuk (2026-08-19).
+description: SP spFCForcastCFNuk que regenera el plan de planeación a 54 semanas (ResumenPlaneacionCF) por usuario. Publicado en el MCP ICF como tool fcforcast_cfnuk .
 layer: kernel
 tags: [mcp, stored-procedure, carga, forecast, fc, mrp]
 mcp_tools: [fcforcast_cfnuk, execute_entity]
@@ -19,7 +19,7 @@ usuario. Es el SP principal de la **carga inicial** del módulo Forecast/FC
   REST/GraphQL off, descripción pública).
 - **Tool MCP**: `fcforcast_cfnuk` (DAB nombra el custom tool con la entidad en
   minúsculas; también existe el genérico `execute_entity`).
-- Publicado: **2026-08-19** (respuesta del DBA; verificado en vivo — 11 tools
+- Publicado: tool del MCP (11 tools
   en el MCP de ICF).
 
 ## Parámetros
@@ -34,11 +34,11 @@ usuario. Es el SP principal de la **carga inicial** del módulo Forecast/FC
 ## Respuesta
 
 - Éxito: `"Stored procedure executed successfully"` (idempotente — re-ejecutar
-  no duplica; el plan queda idéntico, verificado: 90 filas, S32=3,978,128).
+  no duplica; el plan queda idéntico, (90 filas, S32=3,978,128).
 - El resultado se lee después con `read_records`/`aggregate_records` sobre
   `ResumenPlaneacionCF` con `Usuario eq '<U>'`.
 
-## Cadena de la carga inicial (publicada completa 2026-08-19)
+## Cadena de la carga inicial (completa)
 
 ✅ **Toda la cadena P0 quedó publicada en el MCP ICF** (config 100 entidades,
 37 tools) con el patrón estándar (execute, REST/GraphQL off):
@@ -66,7 +66,7 @@ Notas:
 
 ## Uso
 
-Solo el backend/DBA regenera la corrida (el agente lee el resultado con
+Solo el backend regenera la corrida (el agente lee el resultado con
 `read_records`/`aggregate_records`). Si el agente detecta un usuario sin plan,
 pedir al backend la re-corrida.
 `spWebFCCargaCorrida` (corrida completa en un solo tool) aún no existe en la BD.

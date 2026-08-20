@@ -49,8 +49,8 @@ Las transiciones se ejecutan con el SP [Afectar](afectar.md), no con `update_rec
 
 * [Afectar](afectar.md) - Transiciones de estatus (AFECTAR/CANCELAR/AUTORIZAR).
 * [CambiarSituacion](cambiar-situacion.md) - Cambio de sub-estado dentro del Estatus.
-* [FCForcastCFNuk](fcforcast-cfnuk.md) - Carga inicial del plan FC/MRP: regenera `ResumenPlaneacionCF` a 54 semanas por usuario. Publicado en MCP ICF como tool `fcforcast_cfnuk` (2026-08-19); booleano `EnSilencio` como `true`/`false` (DAB rechaza `"1"`).
-* [SPs de reporte del portal MRP](sp-reportes-mrp.md) - Los 16 SPs de reporte P1 publicados (2026-08-19): Desglose, Cobertura, Cumplimiento, Concentrado, Capacidad real (OUTPUT), Histórico, Plan semana — formato EXACTO del portal.
+* [FCForcastCFNuk](fcforcast-cfnuk.md) - Carga inicial del plan FC/MRP: regenera `ResumenPlaneacionCF` a 54 semanas por usuario. Publicado en MCP ICF como tool `fcforcast_cfnuk` ; booleano `EnSilencio` como `true`/`false` (DAB rechaza `"1"`).
+* [SPs de reporte del portal MRP](sp-reportes-mrp.md) - Los 16 SPs de reporte P1 publicados : Desglose, Cobertura, Cumplimiento, Concentrado, Capacidad real (OUTPUT), Histórico, Plan semana — formato EXACTO del portal.
 
 # Cómputos sancionados (Attested Computation — OKF v0.2)
 
@@ -58,7 +58,7 @@ Las transiciones se ejecutan con el SP [Afectar](afectar.md), no con `update_rec
 
 # Contrato de ejecución (MCP)
 
-* [Contrato de MCP tools](mcp-tools.md) - Parámetros y formas de respuesta reales de los 7 DML tools + tools custom (verificado contra el DAB fork).
+* [Contrato de MCP tools](mcp-tools.md) - Parámetros y formas de respuesta reales de los 7 DML tools + tools custom .
 
 # Capacidades OData (DAB)
 
@@ -72,7 +72,7 @@ por entidad (camelCase vs UPPERCASE) vive en [Casing por vista](/erp-kernel/casi
   de este binario sigma-dab no implementa funciones de texto. Para texto parcial (ej. proveedor
   por nombre) trae candidatos con `read_records` sin filtro y filtra client-side, o resuelve
   la clave exacta primero con `aggregate groupby:[Campo]`.
-* **`HAVING` SÍ soportado** (verificado): `aggregate_records` acepta `having` (object) con
+* **`HAVING` SÍ soportado** : `aggregate_records` acepta `having` (object) con
   operadores `eq, neq, gt, gte, lt, lte, in`. Ej.: `having: { gt: 40 }`. Requiere `groupby`.
   **No** simules HAVING en cliente.
 * **`orderby`:** en `read_records` es un **array** (`["Saldo desc"]`) — pasar string falla;
@@ -85,13 +85,13 @@ por entidad (camelCase vs UPPERCASE) vive en [Casing por vista](/erp-kernel/casi
   entidad dependiente en paso 2 con `campo eq 'v1' or campo eq 'v2'`).
 * **Fechas sin comillas:** `Vencimiento le 2026-12-31`.
 * **Strings con comillas simples:** `Estatus eq 'PENDIENTE'`.
-* **Casing por vista (regla corregida 2026-08-17):** NO existe "campos en UPPERCASE"
+* **Casing por vista (regla ):** NO existe "campos en UPPERCASE"
   universal. La mayoría de entidades (catálogos y movimientos) se exponen en **camelCase**
   (`FechaEmision`, `Articulo`, `Cantidad`, `MovID`, `Descripcion1`); SOLO vistas de módulos
   específicos (p.ej. `ForecastPlanProduccion`/`UV_QV_PPTOCOMPRA` en ICF) son UPPERCASE
   (`SEMANA`, `PORPRODUCIR`). Ante cualquier duda verificar con `read_records(<Ent>, first:1)`.
   Mapa completo por entidad: [casing.md](/erp-kernel/casing.md). (La regla genérica
-  "UPPERCASE" promovida el 2026-08-05 era una sobre-generalización que causó 25+ errores
+  "UPPERCASE" (regla antigua) era una sobre-generalización que causó 25+ errores
   `Invalid field` en entidades camelCase — ver erp-kernel/log.md 2026-08-17.)
 
 ## Módulos de negocio — cómo decirlos (canal de voz y etiquetas)
