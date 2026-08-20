@@ -10,7 +10,7 @@ import { cleanTwinText } from "../agent/lib/twin-clean.js";
 // ── 1) Saneamiento directo de patrones típicos de memoria ────────────────────
 const samples = [
   "Para el resto de esta conversación, ten en cuenta este hecho: en este tenant el módulo de cuentas por pagar (CXP) y tesorería no está disponible.",
-  "El valor estático fijo \"CGARZA\" para este tenant (ICF) — es el usuario ERP que corre la explosión.",
+  "El valor estático fijo \"MASERP\" para este tenant (ICF) — es el usuario ERP que corre la explosión.",
   "consultar el twin para la política (ejercicio/periodo actual del tenant ICF).",
   "Nota: el módulo CXP no está publicado en este tenant, responder Dato no disponible.",
   "El tenant activo es Industrias Campo Fresco.",
@@ -25,7 +25,7 @@ for (const s of samples) {
 }
 
 // ── 2) Búsqueda real contra el espejo (debe matchear y salir limpio) ─────────
-const queries = ["tenant", "cuentas por pagar", "CGARZA", "política aprobación"];
+const queries = ["tenant", "cuentas por pagar", "MASERP", "política aprobación"];
 for (const q of queries) {
   const hits = getEpisodicContext(q, { limit: 3, maxChars: 600 });
   let dirty = 0;

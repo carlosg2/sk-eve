@@ -121,9 +121,9 @@ Se verificó contra **dos fuentes**: la BD `Intelisis5000` (copia local vía Mss
    (ineficiente), o (c) que la regeneración sea idempotente sin borrar (update/upsert).
 
 2. **Sesión de usuario: fijo vs dinámico.**
-   El stack sk-eve hoy usa `Usuario` fijo del módulo FC: **`"CGARZA"`**. El agente de Daniel
+   El stack sk-eve hoy usa `Usuario` fijo del módulo FC: **`"MASERP"`**. El agente de Daniel
    pide Usuario/Ejercicio/Periodo en la conversación y valida contra la tabla `Usuario`.
-   Decisión: ¿validar sesión dinámica (necesita `Usuario` expuesto) o mantener `CGARZA` fijo
+   Decisión: ¿validar sesión dinámica (necesita `Usuario` expuesto) o mantener `MASERP` fijo
    (no necesitaría la tabla)? Recomendación: exponer `Usuario` igual — habilita la sesión
    dinámica y el histórico F3 sin bloqueo.
 

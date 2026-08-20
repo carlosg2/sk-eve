@@ -2,7 +2,7 @@
 // PROBE — Faltantes reales ICF para el demo HITL del Questionnaire.
 //
 // QUÉ VALIDÓ (2026-08-10, MCP real https://api2.maserp.mx/icf/mcp):
-//   - faltante_insumos(Usuario: "CGARZA", Ejercicio: 2026, Periodo: 7):
+//   - faltante_insumos(Usuario: "MASERP", Ejercicio: 2026, Periodo: 7):
 //     artículos INSUMOS DE PRODUCCION con Faltante > 0 (empaques, tarimas,
 //     consumibles de planta) + si ya hay requisición en trámite.
 //   - faltante_materia_prima(...): granos/materia prima (Art.SeProduce = 0)
@@ -41,14 +41,14 @@ async function probe(label: string, tool: string, args: Record<string, unknown>)
 
 // 1. Faltante de insumos de producción (julio 2026)
 await probe("faltante_insumos (2026/7)", "faltante_insumos", {
-  Usuario: "CGARZA",
+  Usuario: "MASERP",
   Ejercicio: 2026,
   Periodo: 7,
 });
 
 // 2. Faltante de materia prima (julio 2026)
 await probe("faltante_materia_prima (2026/7)", "faltante_materia_prima", {
-  Usuario: "CGARZA",
+  Usuario: "MASERP",
   Ejercicio: 2026,
   Periodo: 7,
 });

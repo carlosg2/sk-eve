@@ -325,7 +325,7 @@ cantidad según explosionado + inventario + máximos/mínimos.
 | Concepto de negocio | Entidad/fuente probable en ICF |
 |---|---|
 | Órdenes de compra y su estatus | `Compra` / `CompraD` (estatus: cotización, OC, presupuesto) |
-| Requerimientos / sugerencia de compra | `ExplocionMatCF` (InvRequerido, Usuario CGARZA), `gap-abasto` |
+| Requerimientos / sugerencia de compra | `ExplocionMatCF` (InvRequerido, Usuario MASERP), `gap-abasto` |
 | Plan de producción por familia | `ResumenPlaneacionCF`, `ForecastPlanProduccion` |
 | **Plan de producción por centro de trabajo** | `ForecastPlanProduccion` (CENTROTRABAJO), `WebInicio` (ocupación) |
 | **Órdenes de surtido / producción** | `Prod` / `ProdD`, órdenes de surtido (por validar) |

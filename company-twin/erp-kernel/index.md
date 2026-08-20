@@ -49,6 +49,8 @@ Las transiciones se ejecutan con el SP [Afectar](afectar.md), no con `update_rec
 
 * [Afectar](afectar.md) - Transiciones de estatus (AFECTAR/CANCELAR/AUTORIZAR).
 * [CambiarSituacion](cambiar-situacion.md) - Cambio de sub-estado dentro del Estatus.
+* [FCForcastCFNuk](fcforcast-cfnuk.md) - Carga inicial del plan FC/MRP: regenera `ResumenPlaneacionCF` a 54 semanas por usuario. Publicado en MCP ICF como tool `fcforcast_cfnuk` (2026-08-19); booleano `EnSilencio` como `true`/`false` (DAB rechaza `"1"`).
+* [SPs de reporte del portal MRP](sp-reportes-mrp.md) - Los 16 SPs de reporte P1 publicados (2026-08-19): Desglose, Cobertura, Cumplimiento, Concentrado, Capacidad real (OUTPUT), Histórico, Plan semana — formato EXACTO del portal.
 
 # Cómputos sancionados (Attested Computation — OKF v0.2)
 

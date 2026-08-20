@@ -32,6 +32,11 @@ lectura/creación. Llave lógica: `ID+Usuario+Centro`.
 Tabla temporal de trabajo de centros seleccionados por usuario durante una
 corrida de planeación FC. Llave lógica: `Usuario+Centro`.
 
+Schema verificado 2026-08-19: `Usuario, Centro, Descripcion, Estatus,
+DiasHabilies, DiasTiempoExtra, HorasDia, Eficiencia, Tipo`. ⚠️ **`Tipo` SÍ es
+consultable aquí** (a diferencia de `CentroFC`/`EstacionTFC`, donde no está
+expuesto por el DAB).
+
 ## `EstacionTFC`
 Catálogo de estaciones de trabajo del módulo FC. Llave: `Estacion`.
 
@@ -42,6 +47,11 @@ lectura/creación. Llave lógica: `ID+Usuario+Estacion+Centro`.
 ## `EstacionTFCTemp`
 Tabla temporal de trabajo de estaciones seleccionadas por usuario durante una
 corrida de planeación FC. Llave lógica: `Usuario+Estacion`.
+
+Schema verificado 2026-08-19: `Usuario, Estacion, Centro, Descripcion, Estatus,
+BolsasxMinutos, TiempoLimpieza, TiempoComida, TiempoCambiosBobina,
+TiempoCambioEnfardadora, CapacidadtnHora, CambioMallas, Turnos, HorasTurnos,
+CambiosBolsaPresentacion, CambiosVariedad, CapDiaCr`.
 
 ## `ArtCentroTemp`
 Tabla temporal de trabajo que asocia artículo-centro-programa por usuario

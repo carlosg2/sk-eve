@@ -7,7 +7,7 @@ otras empresas, por eso vive aquí y no en `erp-kernel/`.
 Este módulo calcula el **MRP** (Material Requirements Planning): explota demanda de
 ventas/forecast en requerimientos de materia prima/insumos por semana, y organiza el
 plan de producción por centro de trabajo. Los tools `faltante_insumos`/
-`faltante_materia_prima` (ver [skill gap-abasto](/agent/skill-library/gap-abasto/SKILL.md))
+`faltante_materia_prima` (ver skill `gap-abasto`)
 son la salida ya calculada de este proceso — la mayoría de las entidades de aquí son
 **tablas de trabajo internas del proceso**, no destinadas a lectura directa salvo que
 se necesite diagnosticar o construir un reporte nuevo.
@@ -21,10 +21,10 @@ con `read_records(<Entidad>, first: 1)` sin `select` para ver todos los campos.
 # Contenido
 
 * [Núcleo MRP](mrp-explosion.md) — `ExplocionMatCF`, `BalanceFC`, `BalanceFCHist`, `ProcesadosCF`, `UtLogEjcProMrp`, `UtMaxMinCompra`, `UV_QV_PPTOCOMPRA`, `UtMrpPrevioMateriaPrima`, `MovSituacionFC`, `MovSituacionUsuarioFC`.
-* [Forecast y arribos a 12 semanas](mrp-forecast-arribos.md) — `Arribos12`, `Arribos12S`, `ArribosSub12S`, `FCArribos`, `ForecastArtFam12`, `ForecastBBC12`, `ForecastHist`, `ForecastAyuda`, `CalendarioFC`, `DimTiempoSemana`, `DimTiempoSemanaIso`, `ArtFamFC`.
-* [Plan y programa de producción](mrp-plan-produccion.md) — `ForecastPlanProduccion`, `ForecastPlanSemanal`, `ForecastPlanSemanalD`, `ProgramaProdProcesadosA`, `ProgramaProdSemillasA`, `ProgramaProdSituacionLog`, `Prod`, `ProdD`, `ResumenPlaneacionCF`, `ResumenPlaneacionCFHist`.
+* [Forecast y arribos a 12 semanas](mrp-forecast-arribos.md) — `Arribos12`, `Arribos12S`, `ArribosSub12S`, `FCArribos`, `ForecastArtFam12`, `ForecastBBC12`, `ForecastHist`, `ForecastAyuda`, `CalendarioFC`, `DimTiempoSemana` (SÍ publicada), `DimTiempoSemanaIso`, `ArtFamFC`, `UV_QV_FILLRATE` (venta real — filtrar por MES_FISCAL).
+* [Plan y programa de producción](mrp-plan-produccion.md) — `ForecastPlanProduccion`, `ForecastPlanSemanal`, `ForecastPlanSemanalD`, `ProgramaProdProcesadosA`, `ProgramaProdSemillasA`, `ProgramaProdSituacionLog`, `Prod`, `ProdD`, `ResumenPlaneacionCF`, `ResumenPlaneacionCFHist`, `MovSituacionFCL` (workflow), `AuxiliarU` (saldo inventario).
 * [Centros y estaciones de trabajo](mrp-centros-estaciones.md) — `Centro`, `CentroFC`, `CentroFCHist`, `CentroFCTemp`, `EstacionTFC`, `EstacionTFCHist`, `EstacionTFCTemp`, `ArtCentroTemp`.
 * [Presupuesto VACA](mrp-vaca.md) — `ArtDisponibleVaca`, `VacaPresupuestoVtaCon`, `VacaPresupuestoVtaConD`, `VentaTCalc`.
-* [Soporte y portal](mrp-soporte.md) — `Empresa`, `SerieLote`, `MensajeLista`, `PortalForecastLog`, `PushDispositivos`, `WebInicio`, `WebInicioHist`.
+* [Soporte y portal](mrp-soporte.md) — `Empresa`, `SerieLote`, `MensajeLista`, `PortalForecastLog`, `PushDispositivos`, `WebInicio`, `WebInicioHist`, `Usuario` (validación de sesión).
 
-Ver el patrón de uso procedural en [agent/skill-library/mrp/SKILL.md](/agent/skill-library/mrp/SKILL.md).
+Ver el patrón de uso procedural en la skill `mrp` (índice del portal MRP).

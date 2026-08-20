@@ -37,14 +37,14 @@ una sola respuesta (son complementarios, no se traslapan).
 
 - **`Ejercicio`/`Periodo`**: año y mes fiscal, enteros (ej. `2026`, `7`). Usa el periodo
   actual salvo que el usuario pida otro mes explícito.
-- **`Usuario`**: valor **estático fijo `"CGARZA"`** para esta empresa — es el usuario
+- **`Usuario`**: valor **estático fijo `"MASERP"`** para esta empresa — es el usuario
   ERP que corre la **explosión de materiales (MRP)** (`ExplocionMatCF.Usuario`), NO el
   usuario que está chateando. Úsalo siempre por default, no lo preguntes al usuario ni lo
   inventes con otro valor.
 
 ```
-faltante_insumos(Usuario: "CGARZA", Ejercicio: 2026, Periodo: 7)
-faltante_materia_prima(Usuario: "CGARZA", Ejercicio: 2026, Periodo: 7)
+faltante_insumos(Usuario: "MASERP", Ejercicio: 2026, Periodo: 7)
+faltante_materia_prima(Usuario: "MASERP", Ejercicio: 2026, Periodo: 7)
 ```
 
 ### Campos de respuesta y cómo interpretarlos
@@ -183,7 +183,7 @@ Usa el mismo formato de respuesta (tabla de decisión primero) que el método pr
 ## Limitaciones a declarar siempre que apliquen (regla de integridad del prompt base)
 
 - `faltante_insumos`/`faltante_materia_prima` dependen de que exista una explosión de
-  materiales (`ExplocionMatCF`) ya corrida para `Usuario: "CGARZA"` en el `Ejercicio`/
+  materiales (`ExplocionMatCF`) ya corrida para `Usuario: "MASERP"` en el `Ejercicio`/
   `Periodo` solicitado — si el usuario pide un periodo sin explosión corrida, el SP puede
   regresar vacío; no lo interpretes como "todo cubierto" sin confirmar que la explosión existe.
 - El **método de respaldo** (manual) NO explosiona BOM (`ArtJuego`/`ArtJuegoD` no existen

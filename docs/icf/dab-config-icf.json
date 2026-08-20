@@ -619,7 +619,7 @@
       "permissions": [{ "role": "anonymous", "actions": [{ "action": "*" }] }]
     },
     "UV_QV_PPTOCOMPRA": {
-      "description": "Vista de stock mínimo/máximo (en Kg) y máximo de compra por artículo, agrupado por Nivel de agrupamiento/Tipo/Familia/Linea. Fuente de stock de seguridad para materia prima (usada por el skill mrp-cf-analyst en preguntas de 'stock de seguridad' e 'inventario disponible'). Solo lectura (vista calculada). Llave ARTICULO (casi única: 600/601 filas distintas, 1 artículo duplicado).",
+      "description": "Vista de stock mínimo/máximo (en Kg) y máximo de compra por artículo, agrupado por Nivel de agrupamiento/Tipo/Familia/Linea. Fuente de stock de seguridad para materia prima. Solo lectura (vista calculada). Llave ARTICULO.",
       "source": { "object": "dbo.UV_QV_PPTOCOMPRA", "type": "view", "key-fields": ["ARTICULO"] },
       "mcp": { "dml-tools": true },
       "graphql": { "enabled": true, "type": { "singular": "UvQvPptoCompra", "plural": "UvQvPptoCompras" } },
@@ -978,6 +978,239 @@
       "graphql": { "enabled": true, "type": { "singular": "WebInicioHist", "plural": "WebInicioHists" } },
       "rest": { "enabled": true, "path": "/web-inicio-hist" },
       "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }, { "action": "create" }] }]
+    },
+    "AuxiliarU": {
+      "description": "Ledger contable de movimientos de inventario (Rama/Grupo/Cuenta/Fecha, CargoU/AbonoU). Fuente del saldo de inventario (Rama='INV'). Solo lectura. Llave ID.",
+      "source": { "object": "dbo.AuxiliarU", "type": "table", "key-fields": ["ID"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "AuxiliarU", "plural": "AuxiliarUs" } },
+      "rest": { "enabled": true, "path": "/auxiliar-u" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "MovSituacionFCL": {
+      "description": "Catálogo de movimientos por módulo para el workflow de situaciones FC. Solo lectura. Llave Modulo+Mov+ID.",
+      "source": { "object": "dbo.MovSituacionFCL", "type": "table", "key-fields": ["Modulo", "Mov", "ID"] },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "MovSituacionFCL", "plural": "MovSituacionFCLs" } },
+      "rest": { "enabled": true, "path": "/mov-situacion-fcl" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "Usuario": {
+      "description": "Catálogo de usuarios del ERP (identificación y empresa por defecto). Solo lectura. Llave Usuario. La columna Contrasena es un hash sensible; no seleccionarla.",
+      "source": { "object": "dbo.Usuario", "type": "table" },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "Usuario", "plural": "Usuarios" } },
+      "rest": { "enabled": true, "path": "/usuario" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "UV_QV_FILLRATE": {
+      "description": "Venta real embarcada por artículo/fecha (CANTIDAD_EMBARCADA - RECHAZO). Fuente de venta real. Solo lectura. Llave NO_ARTICULO+FECHA_REMISION (no única; consultar siempre con filtros).",
+      "source": { "object": "dbo.UV_QV_FILLRATE", "type": "view", "key-fields": ["NO_ARTICULO", "FECHA_REMISION"] },
+      "health": { "enabled": false },
+      "mcp": { "dml-tools": true },
+      "graphql": { "enabled": true, "type": { "singular": "UvQvFillRate", "plural": "UvQvFillRates" } },
+      "rest": { "enabled": true, "path": "/uv-qv-fillrate" },
+      "permissions": [{ "role": "anonymous", "actions": [{ "action": "read" }] }]
+    },
+    "FCForcastCFNuk": {
+      "description": "Regenera el plan de planeación a 54 semanas (ResumenPlaneacionCF) para un usuario, ejercicio y periodo. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": {
+        "object": "dbo.spFCForcastCFNuk",
+        "type": "stored-procedure",
+        "object-description": "Genera el snapshot de planeación FC por usuario/ejercicio/periodo.",
+        "parameters": [
+          { "name": "Usuario", "required": true, "description": "Usuario ERP (ej. MASERP)" },
+          { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal (ej. 2026)" },
+          { "name": "Periodo", "required": true, "description": "Periodo/mes (ej. 8)" },
+          { "name": "EnSilencio", "required": false, "default": "1", "description": "1 = sin mensajes (default)" }
+        ]
+      },
+      "mcp": { "custom-tool": true },
+      "rest": { "enabled": false },
+      "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "FCAsignarBasesDefaul": {
+      "description": "Asigna las bases por defecto (centros y estaciones) de la sesión de planeación FC para un usuario. PARÁMETROS OBLIGATORIOS: Usuario.",
+      "source": { "object": "dbo.spFCAsignarBasesDefaul", "type": "stored-procedure", "object-description": "Asigna bases por defecto de la sesión FC.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP (ej. MASERP)" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "ArtCentroDefaul": {
+      "description": "Asigna el centro por defecto de cada artículo desde el presupuesto del ejercicio. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio.",
+      "source": { "object": "dbo.spArtCentroDefaul", "type": "stored-procedure", "object-description": "Asigna artículo → centro default.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal (ej. 2026)" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "ArtCentroBalanceo": {
+      "description": "Re-balancea la carga de producción entre centros a partir de una asignación JSON artículo→centro. PARÁMETROS OBLIGATORIOS: Usuario, json.",
+      "source": { "object": "dbo.spArtCentroBalanceo", "type": "stored-procedure", "object-description": "Balanceo de carga entre centros.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "json", "required": true, "description": "Asignación artículo→centro en JSON" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebForecast12": {
+      "description": "Genera el forecast a 12 semanas por familia para un usuario y fecha de emisión. PARÁMETROS OBLIGATORIOS: Usuario, FechaEmision.",
+      "source": { "object": "dbo.spWebForecast12", "type": "stored-procedure", "object-description": "Forecast 12 semanas por familia.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "FechaEmision", "required": true, "description": "Fecha de emisión del presupuesto" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebForecastFam12S": {
+      "description": "Genera el forecast a 12 semanas agrupado por familia para un usuario y fecha de emisión. PARÁMETROS OBLIGATORIOS: Usuario, FechaEmision.",
+      "source": { "object": "dbo.spWebForecastFam12S", "type": "stored-procedure", "object-description": "Forecast 12 semanas agrupado por familia.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "FechaEmision", "required": true, "description": "Fecha de emisión del presupuesto" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebForecastBBC12": {
+      "description": "Genera el forecast a 12 semanas de la línea BBC para un usuario y fecha de emisión. PARÁMETROS OBLIGATORIOS: Usuario, FechaEmision.",
+      "source": { "object": "dbo.spWebForecastBBC12", "type": "stored-procedure", "object-description": "Forecast 12 semanas línea BBC.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "FechaEmision", "required": true, "description": "Fecha de emisión del presupuesto" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebForecastArribos12": {
+      "description": "Genera los arribos proyectados a 12 semanas para un usuario. PARÁMETROS OBLIGATORIOS: Usuario.",
+      "source": { "object": "dbo.spWebForecastArribos12", "type": "stored-procedure", "object-description": "Arribos proyectados a 12 semanas.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebForecastArribosMateriaPrima12": {
+      "description": "Genera los arribos de materia prima a 12 semanas para un usuario. PARÁMETROS OBLIGATORIOS: Usuario.",
+      "source": { "object": "dbo.spWebForecastArribosMateriaPrima12", "type": "stored-procedure", "object-description": "Arribos de materia prima a 12 semanas.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebForecastArribosInsumo12": {
+      "description": "Genera los arribos de insumos a 12 semanas para un usuario. PARÁMETROS OBLIGATORIOS: Usuario.",
+      "source": { "object": "dbo.spWebForecastArribosInsumo12", "type": "stored-procedure", "object-description": "Arribos de insumos a 12 semanas.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "GenerarWebInicio": {
+      "description": "Genera el programa mensual por centro (WebInicio) para un usuario, ejercicio y periodo. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spWebInicio", "type": "stored-procedure", "object-description": "Genera el tablero de inicio por centro.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" }, { "name": "Familia", "required": false, "description": "Familia (opcional)" }, { "name": "Historico", "required": false, "description": "true/false" }, { "name": "EnSilencio", "required": false, "default": "true", "description": "true/false (booleano)" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebDesgloseForecast": {
+      "description": "Desglose del forecast de un usuario. PARÁMETROS OBLIGATORIOS: Usuario.",
+      "source": { "object": "dbo.spWebDesgloseForecast", "type": "stored-procedure", "object-description": "Desglose de forecast.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebCoberturaMateriaPrima": {
+      "description": "Cobertura de materia prima (arribos vs requerimiento) por usuario. PARÁMETROS OBLIGATORIOS: Usuario.",
+      "source": { "object": "dbo.spWebCoberturaMateriaPrima", "type": "stored-procedure", "object-description": "Cobertura de materia prima.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebArtMaterialReqProrrateo": {
+      "description": "Requerimiento de materiales prorrateado por empresa/usuario/ejercicio/periodo. PARÁMETROS OBLIGATORIOS: Empresa, Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spWebArtMaterialReqProrrateo", "type": "stored-procedure", "object-description": "Requerimiento de materiales prorrateado.",
+        "parameters": [ { "name": "Empresa", "required": true, "description": "Empresa (ej. INCF)" }, { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebArtExplosionMaterial": {
+      "description": "Explosión de materiales por usuario/ejercicio/periodo. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spWebArtExplosionMaterial", "type": "stored-procedure", "object-description": "Explosión de materiales.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebArtExplosionMatFaltante": {
+      "description": "Explosión de faltantes de materiales por empresa/usuario/nivel. PARÁMETROS OBLIGATORIOS: Empresa, Usuario, Nivel.",
+      "source": { "object": "dbo.spWebArtExplosionMatFaltante", "type": "stored-procedure", "object-description": "Explosión de faltantes de materiales.",
+        "parameters": [ { "name": "Empresa", "required": true, "description": "Empresa (ej. INCF)" }, { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Nivel", "required": true, "description": "Nivel de explosión" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebFCFaltanteConcentrado": {
+      "description": "Faltantes concentrados por usuario/ejercicio/periodo. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spWebFCFaltanteConcentrado", "type": "stored-procedure", "object-description": "Faltantes concentrado.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "CFArticuloCumplimiento": {
+      "description": "Indicador de cumplimiento por artículo (opcional: Centro, Familia). PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spCFArticuloCumplimiento", "type": "stored-procedure", "object-description": "Cumplimiento por artículo.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" }, { "name": "Centro", "required": false, "description": "Centro (opcional)" }, { "name": "Familia", "required": false, "description": "Familia (opcional)" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "CFCentraTrabajoCumplimiento": {
+      "description": "Indicador de cumplimiento por centro de trabajo. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spCFCentraTrabajoCumplimiento", "type": "stored-procedure", "object-description": "Cumplimiento por centro de trabajo.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "ProgramaProduccionConcentradoCentro": {
+      "description": "Programa de producción concentrado por centro (opcional: Semana). PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spProgramaProduccionConcentradoCentro", "type": "stored-procedure", "object-description": "Concentrado de producción por centro.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" }, { "name": "Semana", "required": false, "description": "Semana (opcional)" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "ProgramaProduccionConcentradoFamilia": {
+      "description": "Programa de producción concentrado por familia (opcional: Semana). PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spProgramaProduccionConcentradoFamilia", "type": "stored-procedure", "object-description": "Concentrado de producción por familia.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" }, { "name": "Semana", "required": false, "description": "Semana (opcional)" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebInicioConcentrado": {
+      "description": "Programa mensual concentrado por usuario/ejercicio/periodo. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spWebInicioConcentrado", "type": "stored-procedure", "object-description": "Programa mensual concentrado.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "FCCentroCapacidadReal": {
+      "description": "Capacidad real por centro; devuelve CapacidadHras y CapacidadPzas. PARÁMETROS OBLIGATORIOS: Usuario, Centro.",
+      "source": { "object": "dbo.spFCCentroCapacidadReal", "type": "stored-procedure", "object-description": "Capacidad real por centro (OUTPUT: CapacidadHras, CapacidadPzas).",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Centro", "required": true, "description": "Centro de trabajo" }, { "name": "CapacidadHras", "required": false, "description": "OUTPUT: capacidad en horas" }, { "name": "CapacidadPzas", "required": false, "description": "OUTPUT: capacidad en piezas" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "WebForecastHistLista": {
+      "description": "Histórico/versiones del forecast por usuario/ejercicio/periodo. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spWebForecastHistLista", "type": "stored-procedure", "object-description": "Histórico de versiones de forecast.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "FCArribosVaca": {
+      "description": "Arribos de la línea Vaca por usuario y rango de fechas. PARÁMETROS OBLIGATORIOS: Usuario, FechaD, FechaA.",
+      "source": { "object": "dbo.spFCArribosVaca", "type": "stored-procedure", "object-description": "Arribos Vaca por rango de fechas.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "FechaD", "required": true, "description": "Fecha inicial" }, { "name": "FechaA", "required": true, "description": "Fecha final" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "VacaPresupuestoForecastSemanal": {
+      "description": "Presupuesto de la línea Vaca semanal por usuario/ejercicio/semana. PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Semana.",
+      "source": { "object": "dbo.spVacaPresupuestoForecastSemanal", "type": "stored-procedure", "object-description": "Presupuesto Vaca semanal.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP (ej. MASERP)" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Semana", "required": true, "description": "Semana MRP" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
+    },
+    "FCPPPlanSemana": {
+      "description": "Plan semanal de producción por usuario/ejercicio/periodo (opcional: ID, Semana, CentroTrabajo). PARÁMETROS OBLIGATORIOS: Usuario, Ejercicio, Periodo.",
+      "source": { "object": "dbo.spFC_PP_PlanSemana", "type": "stored-procedure", "object-description": "Plan semanal de producción.",
+        "parameters": [ { "name": "Usuario", "required": true, "description": "Usuario ERP" }, { "name": "Ejercicio", "required": true, "description": "Ejercicio fiscal" }, { "name": "Periodo", "required": true, "description": "Periodo/mes" }, { "name": "ID", "required": false, "description": "ID (opcional)" }, { "name": "Semana", "required": false, "description": "Semana (opcional)" }, { "name": "CentroTrabajo", "required": false, "description": "Centro de trabajo (opcional)" } ] },
+      "mcp": { "custom-tool": true }, "rest": { "enabled": false }, "graphql": { "enabled": false },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }]
     },
     "buscar_registro": {
       "description": "Busca registros en cualquier entidad del ERP por texto parcial. Úsalo cuando el usuario mencione un nombre parcial de proveedor, cliente o artículo. Ejemplo: 'Mexicana de Arroz', 'Walmart', 'Frijol Negro'. PARÁMETROS OBLIGATORIOS (siempre deben incluirse): entidad, campo, termino.",

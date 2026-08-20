@@ -11,8 +11,8 @@ description: >
 
 > **Este skill es SOLO procedural.** Schema: [mrp-plan-produccion.md](`mrp-plan-produccion`).
 
-Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
-`Usuario` fijo: **`"CGARZA"`**.
+Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_inicio_concentrado`** (SP del portal: concentrado por familia; parámetros `Usuario, Ejercicio, Periodo`).
+`Usuario` fijo: **`"MASERP"`**.
 
 ## Origen (portal legacy sigma-icf, ruta `/concentrado`)
 
@@ -32,12 +32,12 @@ contra el plan) — ver skill `mrp-indicadores` para el patrón de cumplimiento.
 
 ```
 aggregate_records(ResumenPlaneacionCF,
-  filter: "Usuario eq 'CGARZA' and Producir gt 0",
+  filter: "Usuario eq 'MASERP' and Producir gt 0",
   groupby: ["FamiliaCF"],
   function: "sum", field: "Producir")
 
 aggregate_records(ResumenPlaneacionCF,
-  filter: "Usuario eq 'CGARZA' and Producir gt 0",
+  filter: "Usuario eq 'MASERP' and Producir gt 0",
   groupby: ["FamiliaCF"],
   function: "sum", field: "Kg")
 ```
@@ -65,6 +65,17 @@ read_records(ForecastPlanProduccion,
 Para comparar contra lo YA producido, ver `mrp-indicadores` (usa
 `Prod`/`ProdD` como fuente de producción real).
 
+## Formato de pantalla (obligatorio)
+
+| Pantalla | Columnas |
+|---|---|
+| **Concentrado de Familias** | `Familia · PZ A Producirse · Kilogramos de Uso` (enteros) + fila `Total` |
+
+Regla: reproducir EXACTAMENTE estas columnas/encabezados (los del portal MRP,
+ruta Concentrado de Familias). **Prohibido inventar columnas o consolidaciones**
+que el portal no muestre. Solo familias con `PZ A Producirse > 0` (mismo
+criterio que el `HAVING` del origen).
+
 ## Limitaciones
 
 - `ResumenPlaneacionCF` es scratch por usuario (se sobrescribe en cada corrida)
@@ -73,6 +84,7 @@ Para comparar contra lo YA producido, ver `mrp-indicadores` (usa
   (o `CalendarioFC`) antes de reportar "no hay datos".
 - La columna calculada "Producido" (comparación plan vs. real por semana) no
   existe como campo DAB — hay que calcularla aparte con `Prod`/`ProdD`
-  filtrando por fecha de la semana (usar `CalendarioFC` — campos camelCase
-  `Ano`/`Semana`/`FechaD`/`FechaA` — para traducir semana → rango de fechas;
-  `DimTiempoSemana` NO existe en el MCP ICF).
+  filtrando por fecha de la semana (usar `DimTiempoSemana` — publicada
+  2026-08-19, campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN` — o
+  `CalendarioFC` — camelCase `Ano`/`Semana`/`FechaD`/`FechaA` — para traducir
+  semana → rango de fechas).

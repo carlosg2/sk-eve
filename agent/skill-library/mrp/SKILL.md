@@ -19,10 +19,13 @@ description: >
 
 
 Conexión MCP: **`intelisis-dab`** (remoto). Tools: `read_records`,
-`aggregate_records`. `Usuario` fijo para todo el módulo FC: **`"CGARZA"`** (no
-preguntarlo al usuario del chat ni inventar otro valor — todas las tablas de
-trabajo del módulo son scratch **por usuario ERP que corre el proceso**, no por
-usuario que chatea).
+`aggregate_records`. **Sesión**: validar Usuario/Ejercicio/Periodo con la skill
+`mrp-sesion` (contrato de sesión dinámica contra la tabla `Usuario`; cárgala
+con `load_skill('mrp-sesion')`). Los snapshots del módulo FC
+(`ResumenPlaneacionCF`, `WebInicio`, ...) son scratch **por el usuario que
+corrió el proceso** — usar el Usuario de sesión validado y, si no hay datos,
+reintentar con `MASERP` (usuario por default que corre el proceso en ICF)
+advirtiendo que el dato es de esa corrida.
 
 ## Primero: ¿esto es "MRP/producción" o "compras" (gap de abasto)?
 
@@ -33,30 +36,40 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
 
 ## Mapa de rutas del portal → skill específico
 
-| Ruta del portal (sigma-icf) | Qué responde | Skill |
+> Cada skill se carga con `load_skill('<slug>')` — las skills no se "exploran"
+> como archivos; el catálogo se expone por slug y se carga on-demand.
+
+| Ruta del portal (sigma-icf) | Qué responde | Skill (`load_skill`) |
 |---|---|---|
-| Programa de Arribos | Arribos/recepciones proyectados 12 semanas, cobertura, reorden | [`mrp-arribos`](/agent/skill-library/mrp-arribos/SKILL.md) |
-| Artículos (Art Prototipo) | Prototipos de artículo/receta, costeo, autorización — ⚠️ no confirmado en DAB | [`mrp-articulos`](/agent/skill-library/mrp-articulos/SKILL.md) |
-| Concentrado de Familias | Consolidado de piezas/kg a producir por familia | [`mrp-concentrado`](/agent/skill-library/mrp-concentrado/SKILL.md) |
-| Dashboard | Vista general/KPIs (solapa con Programa Mensual) | [`mrp-dashboard`](/agent/skill-library/mrp-dashboard/SKILL.md) |
-| Faltantes de Materia | Faltante insumos/materia prima/concentrado por familia | [`mrp-faltantes`](/agent/skill-library/mrp-faltantes/SKILL.md) (→ ver primero `gap-abasto`) |
-| Desglose de Forecast | Grid maestro S1-S54/P1-P54 por artículo/cliente/centro | [`mrp-forecast`](/agent/skill-library/mrp-forecast/SKILL.md) |
-| Indicadores | Cumplimiento programado vs. producido real, forecast vs. venta | [`mrp-indicadores`](/agent/skill-library/mrp-indicadores/SKILL.md) |
-| Programa Mensual (`/inicio`) | Ocupación/capacidad por centro, situación del plan semanal | [`mrp-inicio`](/agent/skill-library/mrp-inicio/SKILL.md) |
-| Inventario Semanal | Presupuesto VACA por semana, lotes PEPS/FIFO | [`mrp-inventario`](/agent/skill-library/mrp-inventario/SKILL.md) |
-| Modelado de Centros | Configuración/capacidad de centros y estaciones, balanceo | [`mrp-modelado-centros`](/agent/skill-library/mrp-modelado-centros/SKILL.md) |
-| Validación de Insumos (`/produccion`) | Cobertura de materiales para producir, alcance, capacidad | [`mrp-produccion`](/agent/skill-library/mrp-produccion/SKILL.md) |
-| Programa de Traspasos | Traspasos entre almacenes por semana — ⚠️ no confirmado en DAB | [`mrp-traspasos`](/agent/skill-library/mrp-traspasos/SKILL.md) |
+| Programa de Arribos | Arribos/recepciones proyectados 12 semanas, cobertura, reorden | `mrp-arribos` |
+| Artículos (Art Prototipo) | Prototipos de artículo/receta, costeo, autorización — ⚠️ no confirmado en DAB | `mrp-articulos` |
+| Concentrado de Familias | Consolidado de piezas/kg a producir por familia | `mrp-concentrado` |
+| Dashboard | Vista general/KPIs (solapa con Programa Mensual) | `mrp-dashboard` |
+| Faltantes de Materia | Faltante insumos/materia prima/concentrado por familia | `mrp-faltantes` (→ ver primero `gap-abasto`) |
+| Desglose de Forecast | Grid maestro S1-S54/P1-P54 por artículo/cliente/centro | `mrp-forecast` |
+| Indicadores | Cumplimiento programado vs. producido real, forecast vs. venta | `mrp-indicadores` |
+| Programa Mensual (`/inicio`) | Ocupación/capacidad por centro, situación del plan semanal | `mrp-inicio` |
+| Inventario Semanal | Presupuesto VACA por semana, lotes PEPS/FIFO | `mrp-inventario` |
+| Modelado de Centros | Configuración/capacidad de centros y estaciones, balanceo | `mrp-modelado-centros` |
+| Validación de Insumos (`/produccion`) | Cobertura de materiales para producir, alcance, capacidad | `mrp-produccion` |
+| Programa de Traspasos | Traspasos entre almacenes por semana — ⚠️ no confirmado en DAB | `mrp-traspasos` |
+| Sesión / configuración | Validar usuario, ejercicio, periodo, calendario y presupuesto CONCLUIDO | `mrp-sesion` |
 
 > **¿Pregunta de análisis consolidado (no de una ruta específica)?** Stock de
 > seguridad/min-máx (`UV_QV_PPTOCOMPRA`), inventario disponible, cobertura de
 > materia prima a 30 días, cumplimiento plan vs. real, capacidad de centros o
 > forecast vs. ventas en una sola respuesta → usar
-> [`mrp-cf`](/agent/skill-library/mrp-cf/SKILL.md) (analista MRP CF) en vez de
-> este índice.
+> `mrp-cf` (analista MRP CF) en vez de este índice.
 
 ## Patrones comunes a TODO el módulo FC (aplican en los 12 skills)
 
+- **Formato de pantalla obligatorio** (2026-08-19): varios skills definen una
+  sección **"Formato de pantalla (obligatorio)"** con las columnas/encabezados
+  EXACTOS del portal MRP (ruta Desglose de Forecast, Programa Mensual,
+  Concentrado, Indicadores, Arribos, Faltantes, Modelado). La respuesta DEBE
+  reproducir esas columnas y en ese orden; **prohibido inventar columnas** ni
+  consolidaciones que el portal no muestre. Si el skill consultado define esa
+  sección, es un requisito de salida, no una sugerencia.
 - **Snapshot por usuario**: casi todas las tablas de trabajo
   (`ResumenPlaneacionCF`, `ExplocionMatCF`, `BalanceFC`, `WebInicio`, `Arribos12`,
   `CentroFCTemp`, `EstacionTFCTemp`) se sobrescriben (DELETE+INSERT) cada vez que
@@ -66,9 +79,11 @@ este índice. Solo si la pregunta pide explícitamente el nivel de agregación
   ⚠️ `UtLogEjcProMrp` (log de corridas) NO existe en el MCP de ICF
   (EntityNotFound verificado 2026-08-06) — no intentes leerla. Usa como
   proxy que el snapshot esté poblado: `read_records(ResumenPlaneacionCF,
-  filter: "Usuario eq 'CGARZA'", select: "Articulo,Producir", first: 1)`
+  filter: "Usuario eq 'MASERP'", select: "Articulo,Producir", first: 1)`
   o `CalendarioFC` (si trae filas, el proceso se corrió).
-- **Traducir "semana N" a fechas**: usar `CalendarioFC` (campos camelCase
+- **Traducir "semana N" a fechas**: usar `DimTiempoSemana` (publicada
+  2026-08-19, campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) o
+  `CalendarioFC` (campos camelCase
   `Ano`/`Semana`/`FechaD`/`FechaA`), no asumir que la semana 1 es la primera
 del año calendario (depende de cuándo se capturó el forecast).
 - **Escrituras/transiciones de estatus**: el agente es de **solo lectura** sobre
@@ -81,6 +96,22 @@ del año calendario (depende de cuándo se capturó el forecast).
   remoto contra ICF, que no expone tipos/PK reales. Si un `read_records` con
   `select` falla, usar `read_records(<Entidad>, first: 1)` sin `select` para
   descubrir el schema real antes de reintentar.
+- **Regla >20 filas**: un resultado con más de 20 filas NO se vuelca completo
+  de golpe — entregar TOTALES (o el agregado que aplique) y OFRECER un filtro
+  antes de listar (ej. filtrar por centro/familia/artículo).
+- **Contrato de sesión con cache**: la sesión se valida UNA vez
+  (usuario/ejercicio/periodo + calendario + presupuesto CONCLUIDO, ver
+  `mrp-sesion`) y queda en el estado del turno; las peticiones siguientes NO
+  re-validan salvo que cambie ejercicio/periodo. Resolver `primerSemana` y
+  `nombreMes` desde el calendario (`DimTiempoSemana`/`CalendarioFC`) para
+  construir la cabecera de sesión (ej. "Periodo 8 (Agosto) · Ventana
+  S32–S36").
+- **Formato GFM de tablas**: toda tabla de respuesta usa cabecero + separador
+  `|---|---|` con la MISMA cantidad de columnas que el cabecero (y que cada
+  fila de datos).
+- **PIN nunca por la conversación**: el PIN se maneja por terminal, nunca por
+  la conversación ni por el agente (en su lugar, usuario por default
+  confirmado, ej. `MASERP`).
 
 ## Limitaciones generales
 

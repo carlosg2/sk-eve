@@ -63,12 +63,13 @@ ver mrp-plan-produccion.md). Si un filter/select falla con BadRequest, verifica
 el casing real con `read_records(CalendarioFC, first:1)` antes de reportar.
 
 ## `DimTiempoSemana`
-⚠️ **NO existe en el MCP de ICF** (EntityNotFound verificado en runtime
-2026-08-06 y 2026-08-14). Estaba documentada como dimensión de tiempo por
-semana natural (`Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`), pero no está
-publicada. **No intentar leerla** — causa `EntityNotFound` en runtime. Para
-traducir "semana N" a fechas usar `CalendarioFC` (camelCase
-`Ano`/`Semana`/`FechaD`/`FechaA`), nunca `DimTiempoSemana`.
+✅ **SÍ existe en el MCP de ICF** (verificado en vivo 2026-08-19; antes se documentaba como
+EntityNotFound — era info stale). Es la dimensión de tiempo por semana natural:
+`Anio` (mapeo del DAB de `AÑO`), `MES`, `SEMANA`, `FECHAINICIO`, `FECHAFIN`, más `NMES`/
+`NSEMANA`/`PERIODOCERRADO`. Cobertura **2008–2026** (el ejercicio actual está al día).
+Solo lectura. Llave lógica: `Anio+SEMANA`. **Usar esta tabla para traducir semana ↔ fechas**
+(alternativa a `CalendarioFC`, que es por usuario). Casing: `Anio`/`MES`/`SEMANA`
+(`Anio` con mayúsculas solo en la inicial — verificado con `select` real).
 
 ## `DimTiempoSemanaIso`
 Dimensión de tiempo por semana **ISO**: `EJERCICIO+SEMANA_ISO` con fechas de
@@ -77,6 +78,31 @@ inicio/fin (`FI`/`FF`). Tabla de referencia, solo lectura. Llave lógica:
 
 ## `ArtFamFC`
 Catálogo de familias de artículos usado por el módulo FC, llave `Familia`.
+Columnas confirmadas (2026-08-19, con datos reales): `Familia, TiempoEntrega,
+StockMinimo, StockMaximo` — **las 4 existen en Intelisis5000** (a diferencia de
+MRPCF5000 donde solo estaba `Familia`). Usar `TiempoEntrega`/`StockMinimo`/
+`StockMaximo` para cobertura de embarques y reorden (patrón skill-arribos A3/A4).
+`Familia` viene con espacios al final (char) — aplicar trim al presentar.
+
+## `UV_QV_FILLRATE`
+✅ **Venta real embarcada** (el dato "real" del módulo FC) — vista calculada
+sobre `Venta`/`VentaD`, publicada el 2026-08-19 (antes EntityNotFound; el
+developer comentó una rama legacy que referenciaba una BD `CAMPOFRESCO`
+inexistente). Alimenta: inventario semanal, cadena neta de materiales y
+forecast vs ventas (skills de Daniel F2/M1/I1).
+
+⚠️⚠️ **Campos UPPERCASE y `FECHA_REMISION` es varchar dd/mm/yyyy**: el filtro
+OData `FECHA_REMISION ge ...` es **LEXICOGRÁFICO y NO cronológico** (verificado
+2026-08-19: `ge '01/01/2026'` devolvió filas de 2022/2020). **NUNCA filtrar por
+`FECHA_REMISION`.** Filtrar por `MES_FISCAL` (int 1-12) y/o `SEMANA_FACTURA`
+(int) — validado OK. Para venta real neta: `sum(CANTIDAD_EMBARCADA) −
+sum(RECHAZO)` (2 aggregates).
+
+Columnas clave: `ID, MOV, ESTATUS, FACTURA, NO_ARTICULO, DESCRIPCION_ART,
+CANTIDAD_EMBARCADA, RECHAZO, CANT_ENTREGADA, PENDIENTE, FECHA_REMISION
+(varchar), MES_FISCAL, SEMANA_FACTURA, ALMACEN, CLIENTE, NOMBRE_CLIENTE`.
+Solo lectura. Llave aproximada (no única): `NO_ARTICULO+FECHA_REMISION` —
+siempre consultar con filtros.
 
 # Notas de uso
 

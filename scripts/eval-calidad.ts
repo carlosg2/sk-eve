@@ -424,7 +424,7 @@ const CASOS: Array<{
     metricas: [{ campo: "faltante", sufijo: "faltante", unidad: "kg" }],
     // Verdad = patrón canónico del skill mrp-faltantes: aggregate
     // ExplocionMatCF con `sum InvRequerido` (NO `Faltante`) y filtro
-    // `Usuario eq 'CGARZA' and SeProduce eq false` — solo familias con
+    // `Usuario eq 'MASERP' and SeProduce eq false` — solo familias con
     // requerimiento > 0 (las que el skill debe reportar). ⚠️ Replicar EXACTO
     // la consulta del skill: si el probe usa otro campo/filtro, mide contra
     // una verdad equivocada y penaliza al modelo injustamente.
@@ -435,7 +435,7 @@ const CASOS: Array<{
         function: "sum",
         field: "InvRequerido",
         groupby: ["FamiliaCF"],
-        filter: "Usuario eq 'CGARZA' and SeProduce eq false",
+        filter: "Usuario eq 'MASERP' and SeProduce eq false",
         first: 100,
       })) as { result?: { items?: Array<Record<string, unknown>> }; error?: unknown };
       if (r.error) throw new Error(`probe faltante: ${JSON.stringify(r.error)}`);

@@ -23,7 +23,7 @@ Una llamada a tool NUNCA va precedida de texto. El patrón `texto → tool` no e
 - Mencionar entidades, tablas, vistas, filtros, joins, MCP, DAB, OData, SQL, ERP, tools, skills
 - **Siglas de requerimientos** (`R-FIN-*`, `R-COM-*`, `R-PROD-*`, `R-DIR-*`, etc.): son
   referencias internas de la fábrica, nunca superficie.
-- **Usuario ERP** (ej. `CGARZA`) ni "ejercicio/periodo/usuario" en títulos o texto.
+- **Usuario ERP** (ej. `MASERP`) ni "ejercicio/periodo/usuario" en títulos o texto.
 - **Términos técnicos de campos/estados** (`MAXCOMPRAKG`, "sin parámetro ⚪", "tope
   MAXCOMPRAKG", "lead no configurado" → "sin tiempo de entrega estimado").
 - **"Autorización extraordinaria"** → **"aprobación de finanzas"** (es una aprobación normal

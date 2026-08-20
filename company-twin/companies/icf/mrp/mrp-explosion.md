@@ -14,14 +14,14 @@ mcp_tools: [read_records, aggregate_records]
 Tablas centrales del proceso de **explosión de materiales (MRP)** del módulo
 Forecast/Planeación (FC). El proceso corre **por `Usuario`** (no hay un MRP único
 global — cada usuario ERP que corre el proceso tiene su propia corrida/snapshot).
-Para la empresa ICF, el valor estático usado es `Usuario: "CGARZA"` (ver
+Para la empresa ICF, el valor estático usado es `Usuario: "MASERP"` (ver
 [operaciones-policy.md](../policies/operaciones-policy.md)).
 
 Flujo: `ExplocionMatCF` (resultado crudo de la explosión) → se resume en
 `BalanceFC`/`ResumenPlaneacionCF` (ver [plan de producción](mrp-plan-produccion.md))
 → se traduce a reportes accionables `FaltanteInsumos`/`FaltanteMateriaPrima` (tools
 dedicados `faltante_insumos`/`faltante_materia_prima`, ver
-[skill gap-abasto](/agent/skill-library/gap-abasto/SKILL.md)).
+(skill `gap-abasto`).
 
 # Entidades
 
@@ -69,7 +69,7 @@ Campo Fresco). Schema verificado en vivo con `read_records`:
 `INVMINIMOKG`/`INVMAXIMOKG` = stock de seguridad (Kg); `MAXCOMPRAKG` = máximo de
 compra (Kg). Los campos de Kg pueden venir `null` para artículos sin parámetro.
 Usar como fuente de stock de seguridad junto con `Art` (para el catálogo) — ver
-skill [`mrp-cf`](/agent/skill-library/mrp-cf/SKILL.md).
+skill `mrp-cf`.
 
 ## `UtMrpPrevioMateriaPrima`
 Instantánea (staging) del MRP previo de materia prima por semana/almacén/

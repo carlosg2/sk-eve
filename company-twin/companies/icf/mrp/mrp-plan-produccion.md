@@ -14,7 +14,7 @@ mcp_tools: [read_records, aggregate_records]
 Entidades que traducen la explosión de materiales (ver [núcleo MRP](mrp-explosion.md))
 en un **plan de producción concreto por semana y centro de trabajo**. Es la capa
 más cercana a "qué se va a producir" (a diferencia de "qué falta comprar", que
-cubre [gap-abasto](/agent/skill-library/gap-abasto/SKILL.md)).
+cubre `gap-abasto` (skill).
 
 # Entidades
 
@@ -55,6 +55,26 @@ Bitácora de cambios de situación de un programa de producción por
 módulo/ID de módulo (`SituacionUsuario`, `SituacionFecha`,
 `SituacionComentarios`). Solo lectura/creación. Llave lógica: `ID+Modulo+ModuloID`.
 
+## `MovSituacionFCL`
+✅ Catálogo de **movimientos por módulo** para el workflow de situaciones
+(publicado 2026-08-19). Columnas: `Modulo, Mov, ID` (PK real de 3 columnas).
+Solo 2 filas en producción: `FC/Articulo` y `FC/Plan Semanal`. Útil para saber
+qué movimientos del módulo FC participan en el workflow de situaciones
+(avanzar/regresar con permisos vía `MovSituacionFC`/`MovSituacionUsuarioFC`).
+
+## `AuxiliarU`
+✅ **Ledger contable de movimientos de inventario** (publicado 2026-08-19).
+Base del **saldo de inventario** del inventario semanal (skill-forecast F2 de
+Daniel): el saldo de un artículo en un almacén es
+`sum(CargoU) − sum(AbonoU)` sobre `Rama='INV'`, `Empresa='INCF'` y
+`Cuenta=<artículo>`. El almacén va en `Grupo` (equivale a `Alm.Almacen`).
+Validado 2026-08-19: A0716 → CargoU 157,545 − AbonoU 127,663 = 29,882.
+
+⚠️ **Volumen enorme**: ~1.5M filas solo en `Rama='INV'`+`Empresa='INCF'` —
+**SIEMPRE acotar con `Cuenta`** (y si aplica, `Fecha`) en el filtro; nunca
+agregar la tabla completa. Key-fields: `ID` (PK identity verificada en
+producción). Solo lectura.
+
 ## `Prod`
 Encabezado de órdenes/movimientos de **producción** (equivalente productivo a
 `Compra`/`Venta`): fechas, situación, almacén, prioridad, referencias de
@@ -71,6 +91,33 @@ Tabla de trabajo (scratch) por usuario con el resumen de planeación semanal por
 artículo/cliente/centro de trabajo. Columnas `Sn` = venta/situación de la semana
 n y `Pn` = cantidad a producir de la semana n (`n=1..54`), más totales de
 inventario y stock. Llave lógica: `ID+Usuario`.
+
+⚠️ **Usuario fijo del módulo FC (2026-08-19)**: las consultas de los snapshots
+usar SIEMPRE **`MASERP`** (mismo criterio que el motor de referencia).
+
+✅ **Corrida de MASERP ejecutada y en línea (2026-08-19, verificado en vivo)**:
+el backend corrió la carga inicial de `MASERP · 2026 · Periodo 8` y el MCP
+remoto YA tiene el plan poblado. `ResumenPlaneacionCF` con `Usuario eq 'MASERP'`
+= **90 filas** y totales exactos a la referencia del motor:
+S32=3,978,128 · P32=2,867,048 · S33=2,440,112 · P33=2,120,442 · S34=1,973,193 ·
+P34=1,872,112 · S35=2,142,893 · P35=2,104,518. Ventana visible del periodo 8:
+**S32–S35** (S36 sin datos en el snapshot → reportar "sin datos", no cero).
+Si un periodo futuro no tiene plan (semanas en `null`), declarar la limitación
+("pendiente de re-corrida del backend"), NO inventar. La fuente del agente
+siempre es el MCP.
+
+⚠️ **Cómo se genera la corrida (verificado 2026-08-19/20)**: el snapshot NO es
+un dato permanente — lo regenera la **carga inicial** del proceso (SPs
+`spFCForcastCFNuk(@Usuario,@Ejercicio,@Periodo,@EnSilencio)`, precedidos por
+`spFCAsignarBasesDefaul`/`spArtCentroDefaul`/`spArtCentroBalanceo`, seguidos de
+`spWebForecast12`/`spWebForecastFam12S`/`spWebForecastBBC12`/
+`spWebForecastArribos12`/`spWebInicio`). Por eso cada usuario tiene SU corrida.
+✅ **Desde 2026-08-19 el SP `spFCForcastCFNuk` SÍ está publicado en el MCP ICF**
+como tool **`fcforcast_cfnuk`** (parámetros `Usuario, Ejercicio, Periodo,
+EnSilencio`; el booleano va como `true`/`false` — DAB rechaza `"1"`). El agente
+NO lo llama en el flujo normal (la regeneración es trabajo del backend; el tool
+quedó validado idempotente por el equipo); si un usuario no tiene plan, pedir
+al backend la re-corrida.
 
 ## `ResumenPlaneacionCFHist`
 Histórico/bitácora de `ResumenPlaneacionCF` (mismas columnas `Sn`/`Pn`

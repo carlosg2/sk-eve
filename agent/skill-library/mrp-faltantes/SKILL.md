@@ -12,9 +12,9 @@ description: >
 # Skill: MRP — Faltantes de Materia (ruta completa: insumos + materia prima + concentrado)
 
 > **Este skill es SOLO procedural.** Para el detalle de schema y el método
-> principal de insumos/materia prima, ver primero
-> [gap-abasto/SKILL.md](/agent/skill-library/gap-abasto/SKILL.md) — **no lo dupliques
-> aquí**. Este documento solo agrega lo que gap-abasto no cubre: la vista
+> principal de insumos/materia prima, ver primero la skill `gap-abasto`
+> (cargar con `load_skill('gap-abasto')`) — **no lo dupliques aquí**. Este
+> documento solo agrega lo que gap-abasto no cubre: la vista
 > "Faltante de Concentrado" (agregada por familia).
 
 ## Origen (portal legacy sigma-icf, ruta `/faltantes`)
@@ -36,9 +36,11 @@ un stored procedure distinto pero con la MISMA base de datos
 
 **Casos 1 y 2 (insumos / materia prima por artículo)** → usa **directamente**
 los tools dedicados `faltante_insumos`/`faltante_materia_prima` documentados en
-[gap-abasto](/agent/skill-library/gap-abasto/SKILL.md). No hay diferencia con lo que
-ya está implementado ahí.
-
+la skill `gap-abasto` (cargar con `load_skill('gap-abasto')`). No hay diferencia
+con lo que ya está implementado ahí.
+**Caso 3 (concentrado por familia)** → SP del portal **`web_fcfaltante_concentrado`**
+(parámetros `Usuario, Ejercicio, Periodo`): devuelve el grid EXACTO de
+`Familia · Inventario Requerido · Disponibilidad ICF · Faltante`.
 **Caso 3 (faltante de concentrado, agregado por familia)** — no existe un tool
 dedicado para esta agregación. Usar `aggregate_records` sobre `ExplocionMatCF`
 agrupando por `FamiliaCF` (verificado 2026-08-06 contra el MCP real):
@@ -46,7 +48,7 @@ agrupando por `FamiliaCF` (verificado 2026-08-06 contra el MCP real):
 ```
 # Patrón canónico (verificado OK): faltante de concentrado por familia
 aggregate_records(ExplocionMatCF,
-  filter: "Usuario eq 'CGARZA' and SeProduce eq false",
+  filter: "Usuario eq 'MASERP' and SeProduce eq false",
   groupby: ["FamiliaCF"], function: "sum", field: "InvRequerido")
 ```
 
@@ -57,6 +59,19 @@ aggregate_records(ExplocionMatCF,
   y devuelve un solo total sin desglosar.
 - La familia del faltante es el **`FamiliaCF` de `ExplocionMatCF`**; NO intentar
   el join a `Art.FamArtCF` (ese campo es `null` en `Art` — verificado).
+
+## Formatos de pantalla (obligatorios)
+
+| Tabla | Columnas |
+|---|---|
+| **Faltantes de Materia Prima** | `Artículo · Descripción · Inventario Requerido · Disponibilidad ICF · Inventario Almacenado AVC · Solicitud Traspaso AVC (Estatus) · Inventario Almacenado PBC · Solicitud Traspaso PBC (Estatus) · Existencias AVC · Solicitud Préstamo Compra AVC (Estatus) · Existencias PBC · Solicitud Préstamo Compra PBC (Estatus) · Arribos AVC · Redirección Arribo AVC (Estatus) · Faltante · Inv Min · Inv Max` |
+| **Faltantes de Insumos** | las columnas que devuelve el tool `faltante_insumos` (misma estructura del portal) |
+| **Faltante de Concentrado** | `Familia · Inventario Requerido · Disponibilidad ICF · Faltante` |
+
+Regla: reproducir EXACTAMENTE estas columnas/encabezados (del portal MRP, ruta
+`/faltantes`). **Prohibido inventar columnas** ni consolidaciones que el portal
+no muestre; cuando el cruce involucre almacenes (AVC/PBC), mostrar los estatus
+de las solicitudes como vienen del ERP.
 
 ## Limitaciones
 

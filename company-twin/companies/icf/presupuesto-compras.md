@@ -55,5 +55,5 @@ periodo, solo desviaciones" y "autorización del presupuesto de compras").
   presupuesto 3,002,400 → +45% 🔴; A5944 (BOLSA PUEBLO RICO) 340,000 vs 76,125 →
   +347% 🔴.
 - El procedimiento (cómo ejecutar el cruce) vive en el skill:
-  [`control-compras`](/agent/skill-library/control-compras/SKILL.md) — aquí solo el
+  `control-compras` (skill) — aquí solo el
   conocimiento declarativo.

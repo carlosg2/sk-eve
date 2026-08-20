@@ -50,7 +50,7 @@ for (const [query, expect] of titles) {
 const sample = `# ICF — Política de operaciones
 
 Política del tenant ICF (verificada contra el MCP). Para el tenant activo, el valor
-estático es "CGARZA". En el kernel universal esto NO aplica. Consulta /company-twin/companies/icf/modulos.md
+estático es "MASERP". En el kernel universal esto NO aplica. Consulta /company-twin/companies/icf/modulos.md
 para cobertura y (erp-kernel) para schema.`;
 
 const clean = cleanTwinBody(sample);

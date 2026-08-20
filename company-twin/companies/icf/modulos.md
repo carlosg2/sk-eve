@@ -34,8 +34,32 @@ varias corridas, 2026-08-05):
 
 Tampoco están publicadas algunas entidades que el kernel/skills documentan como
 universales (EntityNotFound verificado en runtime, 2026-08-06/14):
-- `DimTiempoSemana` (usar `CalendarioFC` para traducir semanas), `ArtAlm`,
-  `UtLogEjcProMrp` (bitácora del MRP; ver `mrp/mrp-explosion.md` para proxies)
+- `ArtAlm`, `UtLogEjcProMrp` (bitácora del MRP; ver `mrp/mrp-explosion.md` para
+  proxies).
+
+> ⚠️ **`DimTiempoSemana` SÍ se publicó el 2026-08-19** (junto con `Usuario`,
+> `UV_QV_FILLRATE` y `AuxiliarU`). Ya NO está en esta lista: se puede usar
+> para traducir semanas (campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/
+> `FECHAFIN`) además de `CalendarioFC`. La publicación amplía el total de
+> entidades del MCP de ICF a 73.
+
+> ✅ **Tool `fcforcast_cfnuk` publicado (2026-08-19)**: el SP de carga inicial
+> `spFCForcastCFNuk` se expone como tool ejecutable (11 tools en el MCP). Con
+> la corrida de `MASERP · 2026 · Periodo 8` ya ejecutada, el plan de
+> `ResumenPlaneacionCF` está poblado en línea (90 filas, S32=3,978,128).
+> Detalle del tool en el [kernel](/erp-kernel/fcforcast-cfnuk.md).
+
+> ✅ **SPs del portal MRP publicados (2026-08-19)**: el config pasó a **100
+> entidades** y el MCP expone **37 tools** (7 DML + 30 custom de SPs): la
+> cadena de carga P0 (`fcasignar_bases_defaul`, `art_centro_defaul`,
+> `art_centro_balanceo`, `web_forecast12`, `web_forecast_fam12_s`,
+> `web_forecast_bbc12`, `web_forecast_arribos12`,
+> `web_forecast_arribos_materia_prima12`, `web_forecast_arribos_insumo12`,
+> `generar_web_inicio`) y los **16 SPs de reporte P1** (`web_desglose_forecast`,
+> `web_cobertura_materia_prima`, `cfarticulo_cumplimiento`,
+> `cfcentra_trabajo_cumplimiento`, `fccentro_capacidad_real`, etc. — detalle en
+> [kernel](/erp-kernel/sp-reportes-mrp.md)). Los SPs de reporte están en la
+> allow-list del agente; los de carga NO (regeneración = backend).
 
 Los nombres pueden variar en mayúsculas/minúsculas (`CXP`/`Cxp`/`cxp`); en todos los casos
 la entidad no existe en la configuración del DAB de ICF.

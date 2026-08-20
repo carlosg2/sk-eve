@@ -20,7 +20,7 @@ FC, ver [artfamfc.md](artfamfc.md)) y el plan por semana en los pares
 # Schema (verificado en vivo ICF, 2026-08-05 — read_records first:60 OK)
 
 Campos de cabecera:
-- `ID`, `Usuario` (fijo del módulo FC: `CGARZA`), `Prioridad`, `CtTrabajo`
+- `ID`, `Usuario` (fijo del módulo FC: `MASERP`), `Prioridad`, `CtTrabajo`
 - `Ejercicio`, `Concepto`
 - `Articulo`, `Descripcion`, `Cliente`, `NombreCte`, `Programa`
 - **`FamiliaCF`** — familia del sistema FC ("Frijol Negro", "Mitades Negras"...)

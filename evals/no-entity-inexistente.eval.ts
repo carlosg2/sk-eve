@@ -7,9 +7,12 @@ import { defineEval } from "eve/evals";
 // del tenant (ForecastPlanProduccion) y no llame describe_entities.
 // ⚠️ NOTA (2026-08-06): ResumenPlaneacionCF SÍ existe en ICF (validado con
 // read_records first:60); quedó fuera de la lista de inexistentes.
+// ⚠️ NOTA (2026-08-19): DimTiempoSemana YA ESTÁ PUBLICADA (la dio de alta el
+// DBA junto con Usuario/UV_QV_FILLRATE/AuxiliarU/MovSituacionFCL y se verificó
+// con read_records real) → salió de la lista de inexistentes.
 export default defineEval({
   description:
-    "Plan de producción: usa entidades reales del MCP ICF (ForecastPlanProduccion), nunca las inexistentes (DimTiempoSemana/UtLogEjcProMrp) ni describe_entities.",
+    "Plan de producción: usa entidades reales del MCP ICF (ForecastPlanProduccion), nunca las inexistentes (UtLogEjcProMrp) ni describe_entities.",
   // DeepSeek es lento (13-22 tok/s en este tenant): margen amplio para el turno.
   timeoutMs: 360_000,
   async test(t) {
@@ -30,7 +33,7 @@ export default defineEval({
         .flatMap((e) => (e.data?.actions ?? []) as Array<{ input?: unknown; arguments?: unknown }>)
         .map((a) => JSON.stringify(a.input ?? a.arguments ?? {}))
         .join(" ");
-      return !/DimTiempoSemana|UtLogEjcProMrp/.test(text);
+      return !/UtLogEjcProMrp/.test(text);
     });
   },
 });

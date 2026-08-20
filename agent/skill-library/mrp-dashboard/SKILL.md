@@ -12,7 +12,7 @@ description: >
 > y [mrp-plan-produccion.md](`mrp-plan-produccion`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
-`Usuario` fijo: **`"CGARZA"`**.
+`Usuario` fijo: **`"MASERP"`**.
 
 ## Origen (portal legacy sigma-icf, ruta `/dashboard`)
 
@@ -34,7 +34,7 @@ el mismo patrón que `mrp-inicio` (tabla `WebInicio` + `ForecastPlanProduccion`
 por semana/centro) — no dupliques lógica, es la misma fuente.
 
 ```
-read_records(WebInicio, filter: "Usuario eq 'CGARZA'",
+read_records(WebInicio, filter: "Usuario eq 'MASERP'",
   select: "CentroTrabajo,Venta,AProducir,Ocupacion,CapacidadHrs,HorasProgram,PorOcupacion,Inventario")
 ```
 

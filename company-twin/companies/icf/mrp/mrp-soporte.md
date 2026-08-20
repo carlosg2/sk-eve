@@ -49,6 +49,21 @@ métricas de venta, ocupación y capacidad. Sin llave primaria física; usar
 ~5 filas duplicadas por historial de datos — no asumir unicidad estricta al
 agregar.
 
+## `Usuario`
+✅ **Catálogo de usuarios del ERP** (publicado 2026-08-19). Usado para
+**validar la sesión** del módulo FC (contrato de sesión dinámica):
+`read_records(Usuario, filter: "Usuario eq '<X>'", select: "Usuario,Nombre,DefEmpresa,Estatus")`.
+Si no devuelve filas → el usuario no existe; si `Estatus` ≠ `ALTA` → bloqueado.
+Columnas relevantes: `Usuario` (PK), `Nombre`, `DefEmpresa` (ej. `INCF`),
+`Sucursal`, `Estatus` (ALTA/BLOQUEADO), más banderas de permisos de app
+(`AppInicio`, `AppForecast`, `AppArribos`, ...). Usuarios verificados:
+`MASERP` (CARLOS GARZA, INCF, ALTA — quien corre el proceso FC) y `MASERP`
+(CONSULTOR MASERP, INCF, ALTA).
+
+⚠️ La tabla contiene `Contrasena` (hash) y `PIN` — **solo lectura; NUNCA
+seleccionar `Contrasena`/`PIN`** en un `select`, no incluirlas en descriptions.
+Solo lectura por diseño de seguridad.
+
 ## `WebInicioHist`
 Histórico/bitácora de `WebInicio` por centro de trabajo. Solo lectura/creación.
 Sin llave primaria física; usar `ID+CentroTrabajo` como llave lógica (misma nota

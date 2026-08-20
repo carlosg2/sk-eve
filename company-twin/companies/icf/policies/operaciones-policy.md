@@ -62,7 +62,7 @@ el gap manualmente con `Venta`/`Compra`/`ArtDisponibleDesc` si estos tools respo
 
 Parámetros obligatorios: `Usuario`, `Ejercicio`, `Periodo`.
 
-- **`Usuario`** es un valor **estático fijo: `"CGARZA"`** para esta empresa (ICF). Es el
+- **`Usuario`** es un valor **estático fijo: `"MASERP"`** para esta empresa (ICF). Es el
   usuario ERP que corre la **explosión de materiales** (tabla interna
   `ExplocionMatCF.Usuario`), **NO** el usuario que hace la pregunta en el chat. Usar
   siempre por default, sin preguntarlo ni pedir confirmación.

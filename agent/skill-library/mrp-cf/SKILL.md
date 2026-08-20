@@ -21,7 +21,7 @@ description: >
 > y del sistema (`ArtDisponible`, `Art`, `Alm`, `Prod`, `ProdD`).
 
 Conexión MCP: **`intelisis-dab`** (remoto). Tools: `read_records`,
-`aggregate_records`. `Usuario` fijo del módulo FC: **`"CGARZA"`** (los snapshots
+`aggregate_records`. `Usuario` fijo del módulo FC: **`"MASERP"`** (los snapshots
 de este módulo son por usuario ERP que corrió el proceso, no por quien chatea).
 
 ## Contract
@@ -36,7 +36,7 @@ Dada una pregunta de negocio sobre producción, inventario o materia prima:
 
 **Garantías:**
 - Nunca ejecutar DML (`create_record`/`update_record`/`execute_entity`) — solo lectura.
-- ⚠️ `UtLogEjcProMrp` y `DimTiempoSemana` NO existen en el MCP ICF (EntityNotFound) — NO llamarlas. Para semanas/fechas usar `CalendarioFC`.
+- ⚠️ `UtLogEjcProMrp` NO existe en el MCP ICF (EntityNotFound) — no llamarla. Para semanas/fechas usar `DimTiempoSemana` (publicada 2026-08-19, campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) o `CalendarioFC`.
 - Advertir cuando `CalendarioFC` no cubre el año actual.
 - Calificar los datos por ejercicio y `Usuario` de sesión.
 
@@ -59,8 +59,8 @@ ArtDisponibleDesc     — Inventario actual por almacén y empresa (vista ENRIQU
                         con Descripcion1/Unidad; usar SIEMPRE esta, no ArtDisponible)
 ArtMaterial           — Lista de materiales (BOM): artículo → materiales
 CalendarioFC          — Calendario de semanas por usuario/año (Ano, Semana,
-                        FechaD, FechaA). ⚠️ DimTiempoSemana NO existe en el
-                        MCP ICF (EntityNotFound) — usar SIEMPRE CalendarioFC.
+                        FechaD, FechaA). Alternativa: `DimTiempoSemana`
+                        (publicada 2026-08-19, campos `Anio`/`MES`/`SEMANA`).
 UV_QV_PPTOCOMPRA      — Stock mínimo/máximo y máx. de compra por artículo/familia (materia prima)
 CentroFCTemp / EstacionTFCTemp — Centros/estaciones y capacidades (sesión de usuario)
 Prod / ProdD          — Producción real transaccional (del sistema)
@@ -101,7 +101,7 @@ parámetro configurado — no asumir 0.
    `Producir`, `Kg`). Ante duda, `read_records(<Entidad>, first: 1)` sin
    `select` o el mensaje del error del filter ("Could not find a property
    named X") revela el casing correcto.
-4. Filtrar por `Usuario eq 'CGARZA'` en las tablas de trabajo que lo tienen
+4. Filtrar por `Usuario eq 'MASERP'` en las tablas de trabajo que lo tienen
    (`ResumenPlaneacionCF`, `ExplocionMatCF`, `CalendarioFC`, `CentroFCTemp`,
    `EstacionTFCTemp`, `BalanceFC`, `WebInicio`, `Arribos12`) y por
    `Ejercicio`/`Periodo` cuando aplique — no traer corridas de otros
@@ -161,7 +161,7 @@ Para totales numéricos puros (agregaciones) sí se puede usar `ArtDisponible`.
 
 - **Q3 — Cobertura de materia prima (explosión)**
 ```
-read_records(ExplocionMatCF, filter: "Usuario eq 'CGARZA'",
+read_records(ExplocionMatCF, filter: "Usuario eq 'MASERP'",
   select: "Articulo,ArticuloPadre,ArticuloHijo,Total,Faltante,Stock,Producir,AlcanceDias")
 ```
 Si `ExplocionMatCF` viene vacío o desactualizado, armar manualmente cruzando
@@ -184,7 +184,7 @@ separado y combinar por `FAMILIA`. Para el total sin desglose, un `sum` sin
 reportar la semana anterior con plan (verificar `SITUACION eq 'Autorizado'`).
 ⚠️ `groupby` SIEMPRE en array (`["FAMILIA"]`): con string el DAB lo ignora y
 devuelve un solo total. Para la variedad por artículo, `ResumenPlaneacionCF`
-SÍ existe (grid maestro por usuario, `Usuario eq 'CGARZA'`) — ver Q6.
+SÍ existe (grid maestro por usuario, `Usuario eq 'MASERP'`) — ver Q6.
 
 - **Q5 — Cumplimiento (producido real vs. programado)**
 ```
@@ -192,12 +192,12 @@ aggregate_records(ProdD, filter: "Articulo eq '<A>' and FechaRequerida ge <inici
   function: "sum", field: "Cantidad")
 ```
 Cumplimiento % = `SUM(Cantidad real) / Producir programado * 100`; traducir
-semana → rango de fechas con `CalendarioFC` (DimTiempoSemana no existe) antes
-de filtrar.
+semana → rango de fechas con `DimTiempoSemana` o `CalendarioFC` antes de
+filtrar.
 
 - **Q6 — Vigencia del calendario (¿cubre hoy?)**
 ```
-read_records(CalendarioFC, filter: "Ano ge 2026 and Usuario eq 'CGARZA'",
+read_records(CalendarioFC, filter: "Ano ge 2026 and Usuario eq 'MASERP'",
   select: "Ano,Semana,FechaD,FechaA", orderby: ["Ano desc"], first: 5)
 ```
 
@@ -206,7 +206,7 @@ read_records(CalendarioFC, filter: "Ano ge 2026 and Usuario eq 'CGARZA'",
 Estructura de respuesta estándar:
 
 ```
-⚠️  [Advertencia de datos si el ejercicio es < al actual o DimTiempoSemana no cubre hoy]
+⚠️  [Advertencia de datos si el ejercicio es < al actual o el calendario (DimTiempoSemana/CalendarioFC) no cubre hoy]
 
 ## [Pregunta respondida]
 
@@ -235,7 +235,7 @@ Estructura de respuesta estándar:
   fuera del rango usan aproximaciones proporcionales y se advierte.
 - `ExplocionMatCF`/`ForecastPlanProduccion` son snapshots de la última corrida
   del usuario — pueden estar desactualizados si no se reejecutó el proceso.
-  (`UtLogEjcProMrp`/`DimTiempoSemana` no existen en el MCP ICF; no usarlas.)
+  (`UtLogEjcProMrp` NO existe en el MCP ICF; no usarla.)
 - `UV_QV_PPTOCOMPRA` es una vista calculada: `INVMINIMOKG`/`INVMAXIMOKG`/
   `MAXCOMPRAKG` pueden ser `null` para artículos sin parámetro.
 - El schema de las entidades MRP vive en el Company Twin (mrp-explosion.md,

@@ -58,7 +58,7 @@ Por debajo es procedural (investigas, cruzas, calculas), pero NUNCA muestras la 
 
 **PROHIBIDO mostrar al usuario:**
 - Siglas de requerimientos (`R-FIN-*`, `R-COM-*`, `R-PROD-*`, `R-DIR-*`).
-- Usuario ERP (`CGARZA`), ni "ejercicio/periodo/usuario" en títulos o texto.
+- Usuario ERP (`MASERP`), ni "ejercicio/periodo/usuario" en títulos o texto.
 - Nombres de entidades, campos o tools (`MAXCOMPRAKG`, `UV_QV_PPTOCOMPRA`, `ArtFamFC`,
   `CompraD`, `faltante_insumos`, `read_records`, etc.).
 - Términos técnicos: "sin parámetro ⚪" → "sin tope de compra definido"; "lead no
@@ -78,7 +78,7 @@ paralelo cuando se pueda.** NO añadas ninguna consulta más (ni verificación d
 reintento con variantes, ni `ResumenPlaneacionCF`, ni reads por artículo): si una falla,
 declara el dato "no disponible" y continúa con lo que tienes.
 
-1. `faltante_insumos(Usuario: "CGARZA", Ejercicio, Periodo)` + `faltante_materia_prima(...)`
+1. `faltante_insumos(Usuario: "MASERP", Ejercicio, Periodo)` + `faltante_materia_prima(...)`
    (2 llamadas).
 2. Inventario: `read_records(ArtDisponibleDesc, filter: "Articulo eq '<X1>' or ...",
    select: "Articulo,Descripcion1,Disponible,Almacen")` (1, or-chain de los artículos con

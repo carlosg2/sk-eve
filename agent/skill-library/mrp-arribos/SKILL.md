@@ -13,8 +13,8 @@ description: >
 > [mrp-forecast-arribos.md](`mrp-forecast-arribos`)
 > y [mrp-vaca.md](`mrp-vaca`).
 
-Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
-`Usuario` fijo: **`"CGARZA"`** (mismo criterio que `gap-abasto`/`mrp`).
+Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_cobertura_materia_prima`** (cobertura MP 12S), **`fcarribos_vaca`** (arribos Vaca pendientes, 3 bases).
+`Usuario` fijo: **`"MASERP"`** (mismo criterio que `gap-abasto`/`mrp`).
 
 ## Origen (portal legacy sigma-icf, ruta `/arribos`)
 
@@ -34,7 +34,7 @@ agente **no puede recalcular esto** — solo lee el resultado ya corrido
 
 ```
 read_records(Arribos12,
-  filter: "Usuario eq 'CGARZA'",
+  filter: "Usuario eq 'MASERP'",
   select: "Articulo,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12")
 ```
 
@@ -52,7 +52,7 @@ en vez del detalle por artículo (verificado 2026-08-06: `Arribos12S` tiene
 `aggregate_records(Arribos12S, sum, S1, groupby ["Familia"])` + `S2` + ...).
 Anti-patrón visto en E2E 2026-08-06 (23 calls / ~316k tokens). Si necesitas el
 desglose por familia, lee **UNA sola vez** `read_records(Arribos12S,
-select: "Familia,S1,S2,...,S12", filter: "Usuario eq 'CGARZA'", first: 200)`
+select: "Familia,S1,S2,...,S12", filter: "Usuario eq 'MASERP'", first: 200)`
 y suma/agrega client-side. Máximo 1-2 llamadas para el total.
 
 ## Patrón 2 — Cobertura por familia (regla de reorden real)
@@ -75,10 +75,10 @@ conceptuales — **replícalo agregando, no lo inventes distinto**:
 `ArtFamFC.StockMaximo - InventarioFinal` para la semana `N + TiempoEntrega`.
 
 ```
-read_records(ForecastArtFam12, filter: "Usuario eq 'CGARZA'",
+read_records(ForecastArtFam12, filter: "Usuario eq 'MASERP'",
   select: "Familia,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12")
 read_records(ArtFamFC, select: "Familia,TiempoEntrega,StockMinimo,StockMaximo")
-read_records(Arribos12, filter: "Usuario eq 'CGARZA'", select: "Articulo,S1,...,S12")
+read_records(Arribos12, filter: "Usuario eq 'MASERP'", select: "Articulo,S1,...,S12")
 ```
 
 Combina los tres en el análisis; no hay un tool dedicado que ya calcule la
@@ -88,9 +88,83 @@ en el skill `gap-abasto`).
 ## Patrón 3 — Traducir semana N a fecha real
 
 ```
-read_records(CalendarioFC, filter: "Usuario eq 'CGARZA'",
+read_records(CalendarioFC, filter: "Usuario eq 'MASERP'",
   select: "Ano,Semana,NoSemana,FechaD,FechaA")
 ```
+
+## Reglas de presentación (skill-arribos §4)
+
+- **Siempre 12 semanas completas** (Arribos → Consumo → Inventario Final por
+  semana), nunca omitir semanas con 0.
+- Orden por semana: **Arribos → Consumo → Inventario Final** (A → S → IF).
+- **Prohibido combinar celdas** (cada semana es su propia columna).
+- Cabeceros con acentos tal cual del portal: `Mercancia enTransitos`,
+  `Solicitud de generacion de embarque sugerido por sistema`, etc.
+- **Redondeo a ENTERO en la presentación** (las fórmulas internas usan
+  decimales; la tabla muestra enteros).
+
+## Regla de reorden (A3/A4 — Embarques MP/BBC): fórmulas exactas
+
+Refuerzo del Patrón 2 (cobertura) con las fórmulas exactas del SP fuente, por
+semana `n` (1..12) y por entidad (familia MP / artículo BBC):
+
+- `IF[n] = II[n] − S[n] + A[n] + AP[n]`
+  - `II[n]` = inventario inicial (disponible, ver §Disponible)
+  - `S[n]` = forecast/consumo de la semana (`ForecastArtFam12.Sn` MP /
+    `ForecastBBC12.Sn` BBC)
+  - `A[n]` = arribos confirmados (`Arribos12`/`FCArribos` o `Compra`/`CompraD`
+    con `FechaEntrega` en la semana)
+  - `AP[n]` = arribos proyectados **no confirmados** (embarques sugeridos, abajo)
+- `CO[n] = S[n] != 0 ? round(IF[n]/S[n]*100)/100 : 0` (semanas de cobertura)
+- **Regla de reorden**: si `IF[n] <= StockMinimo` →
+  `SG[n] = StockMaximo − IF[n]` (embarque sugerido de la semana n), aplicado a
+  `AP[n+TiempoEntrega] += SG[n]` si `n + TiempoEntrega < 13`.
+- `TiempoEntrega`/`StockMinimo`/`StockMaximo` de `ArtFamFC` (MP) o `Art` (BBC).
+
+⚠️ `AP` es un cálculo **APROXIMADO** del agente — no presentarlo como valor
+exacto del sistema (el SP real lo recorre de forma distinta).
+
+## A5 — Arribos Pendientes (Compra/CompraD/Prov)
+
+`Compra`/`CompraD`/`Prov` ya documentadas (Patrón 2 y twin): portar la lógica
+de `spFCArribosVacaPendientes` al MCP:
+
+- **Filtros (Compra)**: `Empresa eq 'INCF' and Estatus eq 'PENDIENTE' and
+  (Mov eq 'ORDEN COMPRA' or Mov eq 'ORDEN CON GASTOS')` + ventana de fechas
+  (`FechaEmision` de los últimos ~3 meses). Las líneas `VACA`/`PDB` viven en la
+  BD linked (fuera del MCP) — cruzar con [mrp-vaca.md](`mrp-vaca`) y declarar
+  la limitación si se piden.
+- **Detalle (CompraD)**: join client-side por `ID`; `CantidadPendiente gt 0` y
+  `Articulo` `startswith 'A'`; `Art.Estatus eq 'ALTA'` (join client-side con
+  `Art`).
+- **JS de presentación**:
+  - `Cantidad` (neta) = `Cantidad − CantidadCancelada`
+  - `CantidadPendiente` = si `Estatus eq 'BORRADOR'` → `Cantidad`, si no →
+    `CantidadPendiente` del registro
+  - Fechas ISO (`FechaEmision`/`FechaEntrega`, `yyyy-MM-dd`) → presentar
+    `dd/mm/aaaa`
+  - Orden: `Empresa, FechaEmision ASC, MovID ASC`
+- ⚠️ `CantidadCancelada`/`CantidadPendiente` provienen de la fuente de Daniel
+  (CompraD): si el `select` falla, confirmar el campo real con
+  `read_records(CompraD, first:1)`.
+
+### Regla de volumen (>20 filas)
+
+Si el resultado supera ~20 filas: mostrar los **totales** y **ofrecer filtro**
+(por artículo/familia/proveedor) antes de volcar la tabla completa.
+
+## Formatos de pantalla (obligatorios)
+
+| Tab | Columnas |
+|---|---|
+| **MP 12S por familia** | `Familia · Inventario Inicial · DOH` + por cada semana N: `Arribos {N} · Consumo {N} · Inventario Final {N}` (12 semanas) |
+| **Insumos 12S por artículo** | `Articulo · Descripción · Inventario Inicial · DOH` + por cada semana N: `Arribos {N} · Consumo {N} · Inventario Final {N}` (12 semanas) |
+| **Embarques MP/BBC** | 9 renglones × `S1..S12`: `Inventario Inicial · Forecast · Mercancia en Tránsito · Solicitud de generación de embarque sugerido · Arribos proyectados no confirmados · Inventario final · Semanas de cobertura · Lead time (semanas)` |
+| **Arribos Pendientes** | `Articulo · Familia · Descripción · Empresa · Orden de Compra · Rama · Fecha de Emisión · Fecha de Entrega · Proveedor · ProvNombre · Cantidad · Cantidad Pendiente · Contenedor · Aduana Entrada · Tipo de Envío · Tipo de Contenedor · BL` (+ columnas `S1..S12` de lo que arriba por semana) |
+
+Regla: reproducir EXACTAMENTE estas columnas/encabezados (del portal MRP, ruta
+`/arribos`). **Prohibido inventar columnas** ni consolidaciones que el portal
+no muestre; las semanas fuera de la ventana van en blanco.
 
 ## Limitaciones
 

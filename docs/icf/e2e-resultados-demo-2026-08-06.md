@@ -505,7 +505,7 @@ En el almacén **C. FRESCO** hay **22 presentaciones de frijol negro** con exist
 
 ### Respuesta del agente
 
-**Arribos proyectados 12 semanas (27-jul al 18-oct 2026) y cobertura — programa CGARZA**
+**Arribos proyectados 12 semanas (27-jul al 18-oct 2026) y cobertura — programa MASERP**
 
 Los arribos ya confirmados se concentran en **Frijol Negro y Frijol Pinto** (semanas 2 a 5 y 7 a 12), con un **hueco en la semana 6** (31-ago a 06-sep), donde bajan a ~1/6 del ritmo normal. Los insumos/empaques representan el mayor volumen semanal y también caen en S6.
 
@@ -965,7 +965,7 @@ Nota: el plan corresponde al ejercicio 2025, periodo 7. La fila "Sin familia" re
 
 ### Respuesta del agente
 
-**Validación de insumos — Plan de producción actual (corrida CGARZA)**
+**Validación de insumos — Plan de producción actual (corrida MASERP)**
 
 Se detectaron **16 materiales con cobertura insuficiente** (porcentaje de alcance < 100%). Cuatro de ellos **sin inventario disponible** (0%), lo que frena la producción:
 
@@ -1184,7 +1184,7 @@ Las familias **Mitades claras**, **Frijol Media Oreja** y **Mitades peruanas** c
 |---|---|---|---|---|---|---|---|---|---|---|
 | A2502 | AUTOSERVICIO | CP-0014 | AURRERA | CRIBACF2 | Frijol Media Oreja | Origen | 0.9 kg | 25,000 | 6,430 | 6,430 |
 
-**Forecast semanal S1–S12:** Sin dato disponible. Todas las semanas (S1 a S12) registran valor **nulo** en el snapshot actual del usuario `CGARZA`, lo que indica que no hay pronóstico de venta cargado para esas semanas para este artículo en la corrida vigente.
+**Forecast semanal S1–S12:** Sin dato disponible. Todas las semanas (S1 a S12) registran valor **nulo** en el snapshot actual del usuario `MASERP`, lo que indica que no hay pronóstico de venta cargado para esas semanas para este artículo en la corrida vigente.
 
 Si deseas, puedo consultar el plan de producción (`P1..P12`) para este mismo artículo, o verificar si hay forecast para otras semanas.
 

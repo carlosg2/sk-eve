@@ -13,8 +13,8 @@ description: >
 > (`WebInicio`) y [mrp-plan-produccion.md](`mrp-plan-produccion`)
 > (`ForecastPlanSemanal`/`ForecastPlanProduccion`).
 
-Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
-`Usuario` fijo: **`"CGARZA"`**.
+Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_inicio_concentrado`** (SP del portal: Programa Mensual concentrado; parámetros `Usuario, Ejercicio, Periodo`).
+`Usuario` fijo: **`"MASERP"`**.
 
 ## Origen (portal legacy sigma-icf, ruta `/inicio`, SP `spWebInicio`)
 
@@ -27,10 +27,12 @@ Ocupacion), `PorOcupacion` (= HorasProgram / CapacidadHrs × 100), `Maq1` (=
 AProducir − Ocupacion), `Inventario` (vía `fnInvForecastDesglosado`), y `DOH`
 (= Venta / Inventario). La fila `Total` suma todas las columnas numéricas.
 
-⚠️ `DOH` es una columna **calculada** del SP (`DOH = Venta / Inventario`), NO
-es un campo DAB de `WebInicio` (verificado 2026-08-06: pedirlo en `select` da
-`BadRequest`). No lo incluyas en `select`; calcúlalo client-side si se
-necesita.
+⚠️ `DOH` es una columna **calculada** del SP, NO un campo DAB de `WebInicio`
+(verificado 2026-08-06: pedirlo en `select` da `BadRequest`). No lo incluyas
+en `select`; calcúlalo client-side con **NULLIF**: `DOH = Venta / Inventario`
+(si `Inventario = 0` → **sin DOH**, no dividir entre 0), redondeado a
+2 decimales. `Inventario` SÍ es campo DAB de `WebInicio` (verificado en los
+skills actuales) — solo `DOH` no.
 
 La misma ruta también carga, semana por semana (`spFCPPSemanaLista` da la
 lista de semanas del periodo), el programa de producción consolidado por
@@ -39,13 +41,28 @@ centro (`spProgramaProdConcentadoCentro`) — usa `ForecastPlanProduccion`.
 ## Patrón 1 — Ocupación/capacidad por centro de trabajo
 
 ```
-read_records(WebInicio, filter: "Usuario eq 'CGARZA'",
+read_records(WebInicio, filter: "Usuario eq 'MASERP'",
   select: "CentroTrabajo,Venta,AProducir,TiempoExtra,Ocupacion,PzasLibres,CapacidadHrs,HorasProgram,PorOcupacion,Inventario")
 ```
 
 La fila con `CentroTrabajo eq 'Total'` es el agregado global — no la excluyas
 si el usuario pide "el resumen general", pero exclúyela
 (`CentroTrabajo ne 'Total'`) si pide "desglose por centro".
+
+**Reglas del Patrón 1:**
+
+- **DOH calculado** (client-side, no es campo DAB): `DOH = Venta / Inventario`
+  con NULLIF — si `Inventario = 0` → **sin DOH** (no dividir entre 0, no
+  reportarlo como error). Redondear a 2 decimales. `Inventario` ya viene en el
+  `select` de arriba.
+- **Centros sobrecargados**: si `Ocupacion > 100` (o `PorOcupacion > 100`),
+  destacarlos — ej. 🔴 junto al centro o una nota "centro sobrecargado" — en
+  vez de dejarlos pasar como fila normal.
+- **Días en 0 no es error**: centros sin programa pueden traer
+  `DiasHAbiles`/`DiasTextra` en 0 — no reportarlo como fallo ni pedir datos
+  inexistentes.
+- **Regla >20 filas**: si el desglose supera 20 filas, entregar TOTALES (fila
+  `Total`) y OFRECER filtro por centro antes de volcar el listado.
 
 ## Patrón 2 — Programa de la semana por centro
 
@@ -87,6 +104,17 @@ SOLO a `ForecastPlanProduccion`.
 
 Si el usuario pide "autorizar"/"cambiar situación" del plan, indícale que debe
 hacerlo desde el portal MRP directamente.
+
+## Formato de pantalla (obligatorio)
+
+| Pantalla | Columnas |
+|---|---|
+| **Programa Mensual** | `Centro de Trabajo · Forecast de ventas · Piezas programadas · Capacidad Mensual · Horas Programadas · Ocupación · Piezas Libres · Días Hábiles · Días Extra` (del portal MRP, ruta `/inicio`; fila `Total` incluida si el usuario pide el resumen general) |
+| **Plan por semana** | `Semana · Centro de Trabajo · Articulo · Descripción · Por Producir · Kg · Situación` |
+
+Mapeo a `WebInicio`: `CentroTrabajo` → Centro de Trabajo · `Venta` → Forecast de ventas · `AProducir` → Piezas programadas · `CapacidadHrs` → Capacidad Mensual · `HorasProgram` → Horas Programadas · `Ocupacion` → Ocupación · `PzasLibres` → Piezas Libres · `DiasHAbiles` → Días Hábiles · `DiasTextra` → Días Extra.
+
+Regla: reproducir EXACTAMENTE estas columnas/encabezados. **Prohibido inventar columnas** ni consolidaciones que el portal no muestre.
 
 ## Limitaciones
 

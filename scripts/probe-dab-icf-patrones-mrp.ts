@@ -45,10 +45,10 @@ async function probe(label: string, tool: string, args: Record<string, unknown>)
 }
 
 console.log("======== P1. SESIÓN ========");
-// El stack sk-eve usa CGARZA como Usuario fijo del módulo FC. ¿Existe en la tabla?
-await probe("Usuario eq 'CGARZA' (select)", "read_records", {
+// El stack sk-eve usa MASERP como Usuario fijo del módulo FC. ¿Existe en la tabla?
+await probe("Usuario eq 'MASERP' (select)", "read_records", {
   entity: "Usuario",
-  filter: "Usuario eq 'CGARZA'",
+  filter: "Usuario eq 'MASERP'",
   select: "Usuario,Nombre,DefEmpresa,Estatus",
 });
 await probe("Usuario eq 'MASERP' (select)", "read_records", {
