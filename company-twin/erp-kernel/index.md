@@ -42,6 +42,8 @@ Las transiciones se ejecutan con el SP [Afectar](afectar.md), no con `update_rec
 * [ArtMaterial](artmaterial.md) - Lista de materiales (BOM): insumos por artículo producible.
 * [ArtFamFC](artfamfc.md) - Familias del sistema Forecast CF (clasificación fina por producto).
 * [ResumenPlaneacionCF](resumenplaneacioncf.md) - Grid maestro FC: fila por artículo con FamiliaCF y semanas S1..S54/P1..P54.
+* [ExplocionMatCF](explocionmatcf.md) - Snapshot de explosión de materiales (BOM) del módulo FC: fila por (ArticuloPadre, ArticuloHijo) con cobertura (InvH, InvRequerido, Cubre, PorAlcance). Columnas de cobertura pueden venir NULL si no se corrió la explosión.
+* [CalendarioFC](calendariofc.md) - Calendario de semanas del módulo FC: (Usuario, Ano, Semana) con rango de fechas. Fuente para el periodo/semana vigente.
 * [PlanArtOP](planartop.md) - Órdenes planeadas resultado de la explosión MRP (sugerido de compra oficial).
 * [PlaneacionMRP](planeacion-mrp.md) - SP `spPlanArt`, fuente de verdad que prevalece sobre cálculo manual.
 

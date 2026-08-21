@@ -6,6 +6,7 @@ description: >
   de compra (sábana de estatus), o qué compras se salen del presupuesto
   (desviaciones de presupuesto por artículo vs UV_QV_PPTOCOMPRA). Temas de la
   reunión de descubrimiento ICF (R-FIN-06/07, R-CS-01, R-COM-01).
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: Control de compras del periodo — gasto, estatus y desviaciones de presupuesto
@@ -16,6 +17,14 @@ description: >
 > (`presupuesto-compras`, `mrp/mrp-explosion`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Cuándo usar este skill (NO confundir con otros)
 
@@ -167,8 +176,44 @@ Ordenar por desviación descendente. Los 🔴 primero.
   (`first` alto + `after`) para el cruce.
 - `select` siempre acotado. `first` bajo en lecturas (IDs: 500 como máximo técnico;
   proveedores: 15; artículos: 30).
-- Encadena pasos independientes en paralelo dentro del mismo step cuando se pueda.
+- Agrupa los agregados/lecturas independientes del periodo en **UNA** tool call
+  `read_parallel` (el modelo no emite varias tool calls por step) — ver la
+  sección "Agregados en paralelo (read_parallel)" abajo.
 - Si el usuario pide un periodo sin mes/año, usar el periodo fiscal actual (`2026`/`7`).
+
+## Agregados en paralelo (read_parallel)
+
+Los agregados del periodo que NO dependen entre sí van agrupados en **UNA** tool
+call `read_parallel` (el modelo no emite varias tool calls por step).
+Operaciones de solo lectura con los mismos args que la llamada directa; nombres
+SIN prefijo `intelisis-dab__`; `groupby` SIEMPRE como array.
+
+**Lote 1 (independientes — total + top proveedores + sábana de estatus):**
+
+```json
+read_parallel({ operations: [
+  { "tool": "aggregate_records", "args": { "entity": "Compra", "function": "sum",
+      "field": "Importe", "filter": "Ejercicio eq 2026 and Periodo eq 7" } },
+  { "tool": "aggregate_records", "args": { "entity": "Compra", "function": "sum",
+      "field": "Importe", "groupby": ["Proveedor"],
+      "filter": "Ejercicio eq 2026 and Periodo eq 7", "orderby": "desc", "first": 15 } },
+  { "tool": "aggregate_records", "args": { "entity": "Compra", "function": "count",
+      "field": "*", "groupby": ["Mov", "Estatus"],
+      "filter": "Ejercicio eq 2026 and Periodo eq 7", "first": 50 } }
+]})
+```
+
+**Lote 2 (depende de los resultados del Lote 1):** los nombres de proveedores
+(`Prov`), el comprado por artículo (`CompraD` con los IDs del periodo) y el
+presupuesto de esos artículos (`UV_QV_PPTOCOMPRA`) se ejecutan DESPUÉS, en un
+segundo `read_parallel`, usando los proveedores/IDs/artículos que devolvió el
+primero. Los pasos encadenados del Patrón 3 (IDs → `CompraD` → presupuesto) son
+intrínsecamente secuenciales: cada lote depende del anterior — NO los agrupes en
+el mismo `read_parallel`.
+
+Si una operación falla, `read_parallel` reporta `{ ok: false }` para esa
+operación con `hasErrors: true` sin tumbar las demás — declara "Dato no
+disponible" solo para la fuente que falló.
 
 ## Decisiones del usuario (HITL) — gates de este use case
 

@@ -7,6 +7,9 @@ description: >
   general de faltante de insumos/materia prima, usa primero el skill
   `gap-abasto` — este skill solo agrega la variante "por familia" que
   gap-abasto no cubre.
+entities: [ExplocionMatCF, ArtMaterial, ArtDisponible, ResumenPlaneacionCF]
+twin_concepts: [mrp/mrp-sesion-periodo]
+related_skills: [gap-abasto, mrp-sesion, mrp-produccion, mrp-concentrado]
 ---
 
 # Skill: MRP — Faltantes de Materia (ruta completa: insumos + materia prima + concentrado)
@@ -16,6 +19,14 @@ description: >
 > (cargar con `load_skill('gap-abasto')`) — **no lo dupliques aquí**. Este
 > documento solo agrega lo que gap-abasto no cubre: la vista
 > "Faltante de Concentrado" (agregada por familia).
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Origen (portal legacy sigma-icf, ruta `/faltantes`)
 
@@ -45,6 +56,10 @@ con lo que ya está implementado ahí.
 > Nota: `web_fcfaltante_concentrado` es el tool dedicado para esta agregación
 > (publicado en el MCP). El patrón manual con `aggregate_records` sobre
 > `ExplocionMatCF` NO es necesario; usarlo solo como respaldo si el tool falla.
+> Si caes a ese respaldo, el `aggregate_records` sobre `ExplocionMatCF` (con
+> `groupby: ["FamiliaCF"]`) es una lectura independiente de
+> `faltante_insumos`/`faltante_materia_prima` — si las necesitas juntas, agrúpalas
+> todas en una misma llamada `read_parallel`.
 
 ⚠️ Notas:
 - `SeProduce` es **booleano** (`false`/`true`), NO entero: `SeProduce eq 0` →
@@ -53,6 +68,25 @@ con lo que ya está implementado ahí.
   y devuelve un solo total sin desglosar.
 - La familia del faltante es el **`FamiliaCF` de `ExplocionMatCF`**; NO intentar
   el join a `Art.FamArtCF` (ese campo es `null` en `Art`).
+
+### Las 3 tablas en paralelo — UNA llamada `read_parallel`
+
+El portal muestra las 3 tablas **simultáneamente** y las 3 consultas son **independientes**
+entre sí (cada una es su propio stored procedure sobre la misma `ExplocionMatCF`). Cuando
+el usuario pida la ruta completa, NO invoques los tools como 3 llamadas en pasos
+separados: ejecuta las 3 lecturas en UNA sola llamada `read_parallel` (nombres de tool
+SIN prefijo, mismos `args` que en la llamada directa):
+
+```
+read_parallel({ operations: [
+  { tool: "faltante_insumos", args: { Usuario: "MASERP", Ejercicio: 2026, Periodo: 7 } },
+  { tool: "faltante_materia_prima", args: { Usuario: "MASERP", Ejercicio: 2026, Periodo: 7 } },
+  { tool: "web_fcfaltante_concentrado", args: { Usuario: "MASERP", Ejercicio: 2026, Periodo: 7 } }
+] })
+```
+
+Si el usuario pide una sola tabla (p. ej. solo el concentrado por familia), es una sola
+operación y no requiere `read_parallel`.
 
 ## Formatos de pantalla (obligatorios)
 

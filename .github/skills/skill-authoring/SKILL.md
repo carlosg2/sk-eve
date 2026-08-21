@@ -49,17 +49,28 @@ no tiene ese contexto y lo repite como ruido (regla de oro de
    por tenant del catálogo (`tenant:` del frontmatter del SKILL.md). Lee el
    `SKILL.md` Y las **subcarpetas** del skill (`references/`, `scripts/`,
    `templates/`, `assets/`) como `files` package-relative.
-3. `defineSkill({ description, markdown, files })` — Eve **materializa** los
-   `files` al sandbox (`$HOME/.agents/skills/<slug>/...`) y anuncia al modelo:
-   *"Skill files live under …/<slug>/"*.
-4. El modelo ve el catálogo en `agent/instructions/agent-active.ts`
+3. **`agent/lib/skill-compiler.ts::compileSkillMarkdown`** — COMPILA el
+   markdown final del skill en `session.started` (ANTES de `defineSkill`):
+   `SKILL.md` procedural + sección `## Vista operativa (compilada del kernel)`
+   (body de `erp-kernel/<ent>.md` por cada entidad del frontmatter
+   `entities: [...])` + sección `## Contexto del Company Twin (compilado)`
+   (body de `company-twin/companies/<tenant>/<path>.md` por cada concepto del
+   frontmatter `twin_concepts: [...]`). Blindado: si algo falla devuelve el
+   markdown original. **Esto elimina el rediscovery** (6+ `query_company_twin`
+   por turno → el schema llega ya en el prompt del skill).
+4. `defineSkill({ description, markdown, files })` — el `markdown` es el
+   COMPILADO del paso 3; Eve **materializa** los `files` al sandbox
+   (`$HOME/.agents/skills/<slug>/...`) y anuncia al modelo: *"Skill files live
+   under …/<slug>/"*.
+5. El modelo ve el catálogo en `agent/instructions/agent-active.ts`
    (`- <slug> — <description>`, lista EXHAUSTIVA) y el **description** es el
    hint de ruteo que `context-planner` puntúa contra el mensaje del usuario
    (**español**).
-5. `load_skill('<slug>')` devuelve SOLO el `SKILL.md` (sin frontmatter). Los
-   archivos hermanos se leen on-demand con `read_skill_file('<slug>', '<path>')`
-   (tool custom, vía `ctx.getSkill`) o `read_file` del sandbox. **Solo el
-   SKILL.md entra al prompt** → las subcarpetas no cuestan tokens por turno.
+6. `load_skill('<slug>')` devuelve el `SKILL.md` **compilado** (procedural +
+   vista operativa + contexto twin, sin frontmatter). Los archivos hermanos se
+   leen on-demand con `read_skill_file('<slug>', '<path>')` (tool custom, vía
+   `ctx.getSkill`) o `read_file` del sandbox. **Solo el markdown compilado
+   entra al prompt** → las subcarpetas no cuestan tokens por turno.
 
 **Consecuencias para el autor:**
 - El **description** es un pointer de contexto permanente: su redacción decide
@@ -69,19 +80,34 @@ no tiene ese contexto y lo repite como ruido (regla de oro de
   lista** con paths relativos explícitos. Un archivo no listado es invisible.
 - El slug (nombre de la carpeta) es la identidad del skill; no hay campo
   `name:` en los skills del runtime.
+- **El skill compilado ES la fuente del schema para su flujo** (regla
+  anti-rediscovery): si el skill cargado trae su Vista operativa, el cuerpo NO
+  instruye volver a `query_company_twin` por esas entidades.
+- **Cada entidad de `entities:` cuesta ~4k chars al prompt** (tope
+  `BODY_CHARS_PER_ENTITY`). Declara SOLO las entidades que el flujo usa; un
+  skill compilado de 20k+ chars dispara varianza (más steps/tokens por turno).
+- **`entities:` y `twin_concepts:` son los hooks del compilador**: declarar
+  entidades del kernel / conceptos del twin que el flujo usa hace que su
+  schema llegue COMPILADO al prompt del skill (cero rediscovery). NO declarar
+  `entities:` obliga al modelo a `query_company_twin` por turno (costo).
+- El `related_skills:` declara la red de la familia (estilo Hermes) — el
+  planificador la consume para precargar skills hermanos.
 
 ### 1.3 Capas de conocimiento asociadas (constitución §2)
 
 | Tipo de conocimiento | Hogar | Prohibido en |
 |---|---|---|
 | Capacidades del motor (OData, casing, fechas) | `erp-kernel/index.md` | skills, instructions |
-| Schema de entidad (campos, tipos, estatus) | `erp-kernel/<entidad>.md` | skills, instructions |
-| Hecho/política del tenant (módulos, límites) | `companies/<tenant>/` (OKF) | kernel, skills |
-| Cómo ejecutar un flujo | `agent/skill-library/<x>/SKILL.md` (cero schema) | instructions, twin |
+| Schema de entidad (campos, tipos, estatus) | `erp-kernel/<entidad>.md` | skills (texto), instructions |
+| Hecho/política del tenant (módulos, límites) | `companies/<tenant>/` (OKF) | kernel, skills (texto) |
+| Cómo ejecutar un flujo | `agent/skill-library/<x>/SKILL.md` (cero schema en texto) | instructions, twin |
 | Ruteo "para X usa fuente Y" | `agent/instructions.md` | skills, twin |
 
-Un skill del runtime es **100% procedural**: apunta al schema en el twin
-(`query_company_twin`), nunca lo duplica.
+⚠️ **Matiz (compilador, 2026-08-21)**: el schema NO va en el TEXTO del skill,
+pero SÍ llega al prompt **compilado** desde `erp-kernel/` (vía `entities:`) y
+desde `companies/<tenant>/` (vía `twin_concepts:`). El skill sigue siendo
+procedural en su redacción; el schema se anexa en `session.started` sin que el
+autor lo duplique en el cuerpo.
 
 ---
 
@@ -96,18 +122,35 @@ El caso dominante del catálogo. Frontmatter mínimo:
 tenant: icf            # null = universal; [a, b] = multi-tenant
 description: >
   Use when el usuario pregunta por <ramas de activación>… 
+entities: [Ent1, Ent2]            # opcional: entidades del kernel a compilar
+                                  # (schema anexado como "Vista operativa")
+twin_concepts: [mrp/mrp-concepto]  # opcional: conceptos del twin del tenant a
+                                   # compilar (path relativo a companies/<tenant>/)
+related_skills: [slug-a, slug-b]   # opcional: red de la familia
 ---
 ```
 
 Reglas duras:
-- **Cero schema**: tablas de campos, tipos y estatus NO van en el skill; se
-  referencian como concepto del twin: `[mrp-explosion.md](`mrp-explosion`)`.
+- **Cero schema en el TEXTO**: tablas de campos, tipos y estatus NO se
+  escriben en el cuerpo. Si el flujo usa entidades cuyo schema ya está en
+  `erp-kernel/`, decláralas en `entities:` y el compilador las anexa
+  (si el archivo del kernel NO existe, la entidad se omite sin fallar —
+  el modelo entonces la descubre vía twin). Si el flujo depende de un hecho
+  del twin del tenant (ej. periodo vigente), decláralo en `twin_concepts:`.
 - **Cero jerga de fábrica** (knowledge-hygiene §2): sin fechas de validación,
   E2E, linter, probe, métricas de corridas, `wrun_`, "la fábrica", rutas
   absolutas `/agent/...`.
 - **Cuerpo accionable**: conexión MCP + tools, patrón por rama con tool calls
   EXACTOS (entidad, filtro, select, primero), reglas de eficiencia sin métricas,
   formato de respuesta si aplica, limitaciones honestas.
+- **Periodo/ejercicio determinista**: si el usuario no da ejercicio/periodo,
+  prescribir el VIGENTE (año/mes actuales de la fecha del sistema) y prohibir
+  EXPLÍCITAMENTE probar variantes de periodo — la exploración de periodos
+  (7, 12, ejercicios anteriores) es la causa de turnos de 1.4M tokens.
+- **`read_parallel` prescrito con JSON**: cuando el flujo tiene 2+ lecturas
+  independientes, escribir "UNA llamada `read_parallel({ operations: [...] })`"
+  con ejemplo JSON de las operaciones reales. NUNCA "en paralelo cuando se
+  pueda" (regla vaga → el modelo no emite multi-acciones).
 - **Criterios de finalización** comprobables por rama ("el grid del portal",
   "la tabla de decisión con X columnas").
 - **Subcarpetas permitidas** (§3.3) para material voluminoso.
@@ -156,6 +199,18 @@ comportamiento.
   trigger por rama, sin sinónimos duplicados, concisa (el description se paga
   en cada turno como hint de ruteo y entra al catálogo de `agent-active.ts`).
   Empieza con la palabra de activación que usaría el usuario.
+- `entities:` — **opcional**. Lista de entidades del kernel que el flujo usa;
+  el compilador anexa su schema como `## Vista operativa` (acota ~4k
+  chars/entidad; omite sin fallar las que no tienen archivo en
+  `erp-kernel/`). Regla: declara TODAS las entidades que consultas (reduce
+  `query_company_twin` a 0 para ese flujo).
+- `twin_concepts:` — **opcional**. Lista de paths de conceptos del twin del
+  tenant, relativa a `company-twin/companies/<tenant>/` sin extensión (ej.
+  `mrp/mrp-sesion-periodo`). El compilador anexa su body como
+  `## Contexto del Company Twin` — ideal para hechos transversales que el
+  modelo consultaba una y otra vez (periodo vigente, sesión, calendario).
+- `related_skills:` — **opcional**. Slugs de la familia (red estilo Hermes);
+  el planificador la consume para precargar skills hermanos.
 - SIN `name:` (el slug del directorio es el nombre), SIN `version`/`author`/
   `license`/`platforms` (no aplican en el runtime).
 
@@ -166,6 +221,27 @@ del twin en backticks>`. Luego: Conexión MCP + tools (con `Usuario` fijo si
 aplica), patrones numerados, reglas de eficiencia, formato de respuesta,
 limitaciones. Cero narrativa de proceso, cero comparaciones con otros skills
 ("al igual que X").
+
+- **Prescribe el MECANISMO, no la intención** (lección `read_parallel`): si un
+  paso necesita 2+ lecturas independientes, escribe explícitamente
+  `read_parallel({ operations: [...] })` con las operaciones y un ejemplo JSON
+  — NUNCA "encadena pasos en paralelo cuando se pueda": el modelo casi nunca
+  emite varias tool calls por step y no traduce la intención. Cada paso extra
+  cuesta ~15-20s. Si hay dependencia entre lotes, declárala (lote 1 → lote 2).
+
+**Periodo vigente (regla determinista):** si el usuario no menciona
+periodo/ejercicio, prescribir el vigente (año/mes actuales — ej. 2026/8) y
+prohibir probar variantes. Incluye las semanas del periodo desde el calendario
+(`DIM_TIEMPO_SEMANA`/`CalendarioFC`). Esta sección elimina el peor patrón
+lento del runtime (exploración de periodos = 18 steps / 1.4M tokens).
+
+**`read_parallel`:** para 2+ lecturas independientes del MISMO flujo (plan +
+SP + snapshot + agregados), prescribir UNA llamada:
+```
+read_parallel({ operations: [ { tool: '<tool>', args: {...} }, ... ] })
+```
+Con las operaciones EXACTAS del flujo. Regla: máximo 10 ops por lote; si el
+flujo exige más, 2 lotes (nunca más de 2-3 por turno). No incluir escrituras.
 
 ### 3.3 Subcarpetas (references/, scripts/, templates/, assets/)
 
@@ -197,6 +273,27 @@ el proceso de la fábrica**.
 | Skill runtime | archivo de la fábrica | ❌ NO (el agente no tiene filesystem) |
 | Skill de fábrica | scripts/docs/tesis | rutas relativas normales (es Copilot quien lo lee) |
 
+### 3.6 El compilador y la Vista operativa (schema embebido)
+
+El compilador corre en `session.started` y resuelve el schema SIN rediscovery:
+el modelo ya trae en el skill cargado los bodies del kernel de las entidades
+que declaraste. Reglas del autor:
+
+- **Declara en `entities:` SOLO lo que el flujo consulta.** Cada entidad suma
+  ~4k chars al prompt; 8+ entidades = skill de 25k+ chars → varianza alta
+  (más steps/tokens por turno). El schema de una rama que solo algunos flujos
+  alcanzan va a `references/` o se consulta on-demand, no a la lista.
+- **Anti-rediscovery (regla dura):** si el skill trae su Vista operativa, el
+  cuerpo NO instruye volver a `query_company_twin` por esas entidades.
+- **Entidad sin archivo kernel** se salta en silencio → el modelo pierde ese
+  schema y rediscoverea. Al declarar, verifica que exista
+  `erp-kernel/<entidad>.md` (lowercase) o publica `<skill>/kernel/<entidad>.md`
+  (gana sobre el global; útil para snapshots scratch del MCP).
+- **`twin_concepts:`** para las reglas del tenant que el flujo necesita siempre
+  (ej. `mrp/mrp-sesion-periodo`); no para material de una sola rama.
+- **El compilador es blindado**: si falla devuelve el SKILL.md original (sin
+  vista operativa) y no rompe el turno. Valida con ts-hook que compile.
+
 ---
 
 ## 4. Principios de escritura (resumen; detalle en `references/principios-escritura.md`)
@@ -223,6 +320,12 @@ el proceso de la fábrica**.
 - **Negación**: prohibir arrastra el comportamiento prohibido al contexto.
   Redacta el comportamiento POSITIVO ("lee con `first` numérico") en vez de la
   prohibición ("no uses string").
+- **Prescripción mecánica**: ante un mecanismo que el modelo debe ejecutar
+  (paralelismo, un tool específico, una agrupación), prescribe la CONCRETA — la
+  tool con su nombre y un ejemplo — y no la intención ("en paralelo",
+  "agrupa"). Verificado en vivo: "encadena en paralelo cuando se pueda" → 0
+  uso de `read_parallel`; "usa UNA llamada `read_parallel({ operations: [...]
+  })`" con ejemplo → adopción 4.5× en una sesión.
 - **Completion criteria**: cada paso termina con una condición comprobable
   (clara y exigente). "Cada artículo con su cobertura calculada" fuerza más que
   "produce el reporte".
@@ -254,6 +357,18 @@ consistencia (son los que definen "un skill sk-eve"):
    (`skills:`), y todo skill con `tenant` debe estar en la membresía de al menos
    un agente de ese tenant (verifica con `agent/instructions/agent-active.ts`
    que la lista sea la esperada).
+8. **Compilación**: `entities:` (y `twin_concepts:` donde aplique) declarados
+   para TODO lo que el flujo consulta Y solo eso (probe de
+   `compileSkillMarkdown` verifica que anexa la vista; un skill que consulta
+   entidades SIN declararlas genera rediscovery por turno). `related_skills:`
+   en los skills con hermanos.
+9. **Prescripción mecánica**: los pasos con 2+ lecturas independientes
+   prescriben `read_parallel` con ejemplo JSON; cero "en paralelo cuando se
+   pueda".
+10. **Periodo determinista**: todo skill que consulta por periodo lleva la
+    regla "vigente, nunca variantes".
+11. **Peso compilado**: SKILL.md + vista operativa en ~10-18k chars; skills de
+    20k+ → adelgazar (entities mínimas, material voluminoso a `references/`).
 
 Checklist de auditoría rápido:
 
@@ -286,8 +401,11 @@ nvm use 24 >/dev/null 2>&1 && node scripts/check-knowledge.ts
    schema/twin, no es un skill.
 4. **Redacta** con las convenciones de §3 (o `references/skills-runtime.md`).
 5. **Valida**: `npm run check` (con `nvm use 24`), linter `check-knowledge.ts`
-   (0 críticos), grep de jerga, y si cambió comportamiento: evals + E2E de humo
-   (protocolo en `tesis/protocolo-pruebas.md`).
+   (0 críticos), grep de jerga, **compilador** (ts-hook: `compileSkillMarkdown`
+   produce la Vista operativa y el peso es razonable), y si cambió
+   comportamiento: evals + E2E de humo midiendo adopción de patrones
+   (read_parallel, steps/calls/tokens — protocolo en
+   `tesis/protocolo-pruebas.md`).
 6. **Registra**: si toca conocimiento del runtime → `log.md`/memoria del repo;
    si es promoción del buffer → `promote-learnings`.
 
@@ -295,8 +413,9 @@ nvm use 24 >/dev/null 2>&1 && node scripts/check-knowledge.ts
 
 ## 7. Errores comunes (lecciones validadas)
 
-1. **Schema en el skill** en vez del twin → contradicciones al cambiar el
-   kernel. Regla: el skill apunta, no define.
+1. **Schema en el TEXTO del skill** en vez del kernel/twin → contradicciones
+   al cambiar el kernel. Regla: el skill apunta (o declara `entities:` para
+   compilar), no define.
 2. **Jerga de fábrica** (fechas, E2E, probes, métricas) → el agente la repite.
 3. **Valores de verificación en el cuerpo** ("CRIBACF → 629.6/1,359,936") → el
    agente los repite SIN ejecutar. Los valores de prueba nunca son canónicos.
@@ -317,6 +436,24 @@ nvm use 24 >/dev/null 2>&1 && node scripts/check-knowledge.ts
    el modelo no sabe que está (invisible). Siempre listar con paths relativos.
 10. **Contadores/descripciones stale** ("12 skills" cuando hay 13+) → el
     catálogo cambia; no hardcodear conteos en skills.
+11. **`entities:` infladas** (declarar entidades que el flujo no usa) → la
+    Vista operativa crece ~4k/entidad y el skill compilado pasa de 20k chars →
+    varianza alta. Declara solo lo que consultas.
+12. **Entidades usadas SIN declarar en `entities:`** → el skill compilado no
+    trae su schema y el modelo hace `query_company_twin` por turno (rediscovery
+    caro). Declarar las entidades que el flujo consulta.
+13. **Reglas vagas de paralelismo** ("en paralelo cuando se pueda", "agrupa
+    lecturas") → el modelo NO emite multi-acciones por defecto. Prescribir
+    `read_parallel` con JSON explícito, nunca frases genéricas.
+14. **Exploración de variantes de periodo** (probar 7, 12, 2025/12 "por si
+    acaso") → turnos de 18 steps / 1.4M tokens. Prescribir el vigente
+    (año/mes actuales) y prohibir explícitamente probar variantes.
+15. **`twin_concepts:`/`entities:` que no existen** → el compilador las salta
+    en silencio y el modelo rediscoverea el schema. Verifica el archivo al
+    declarar.
+16. **`query_company_twin` recurrente del mismo concepto** (ej. periodo
+    vigente, calendario) → mover ese hecho a `twin_concepts:` para que el
+    compilador lo anexe al skill (0 consultas).
 
 ---
 
@@ -324,7 +461,16 @@ nvm use 24 >/dev/null 2>&1 && node scripts/check-knowledge.ts
 
 - [ ] Frontmatter: `tenant` + `description: >` (español, triggers front-loaded),
       sin `name:`, `---` en el byte 0
-- [ ] Cero schema (referencia al twin por concepto, `query_company_twin`)
+- [ ] `entities:`/`twin_concepts:` declarados para TODO lo que el flujo
+      consulta Y solo eso (probe: `compileSkillMarkdown` anexa la vista
+      operativa y el contexto del twin; peso compilado razonable ~10-18k;
+      archivos de kernel/concepto existentes)
+- [ ] Periodo/ejercicio: regla "vigente (año/mes actuales), nunca probar
+      variantes" presente en todo skill que consulta por periodo
+- [ ] `read_parallel` prescrito con JSON explícito para 2+ lecturas
+      independientes (nunca "en paralelo cuando se pueda")
+- [ ] Cero schema en texto (referencia al twin por concepto o compilado vía
+      `entities:`)
 - [ ] Cero jerga de fábrica (grep de knowledge-hygiene §5 = 0)
 - [ ] Referencias por slug/`load_skill` y concepto; cero rutas de archivo
 - [ ] Archivos hermanos (si existen) listados con paths relativos + nota de
@@ -334,6 +480,7 @@ nvm use 24 >/dev/null 2>&1 && node scripts/check-knowledge.ts
       verificado contra el MCP real
 - [ ] Criterios de finalización comprobables; reglas de eficiencia sin métricas
 - [ ] Limitaciones honestas declaradas ("no documentado", "no cubierto")
+- [ ] `related_skills:` con hermanos reales donde aplique
 - [ ] `npm run check` 0 errores · linter `check-knowledge.ts` 0 críticos ·
       (si cambia comportamiento) evals + E2E de humo
 - [ ] El skill está en la membresía (`agent.md` → `skills:`) de su tenant/agente

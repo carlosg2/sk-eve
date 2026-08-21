@@ -173,6 +173,22 @@ export type ScopedSkill = {
   slug: string;
   description: string | null;
   markdown: string;
+  /** Directorio absoluto del skill en el catálogo (para compilar su markdown). */
+  dir: string;
+  /**
+   * Entidades declaradas en el frontmatter del SKILL.md (`entities: [a, b]`):
+   * el compilador (`agent/lib/skill-compiler.ts`) anexa su schema del kernel
+   * como "Vista operativa" al markdown final. Vacío si no se declara.
+   */
+  entities: string[];
+  /**
+   * Conceptos del Company Twin del tenant que el skill necesita en contexto
+   * (`twin_concepts: [mrp/mrp-sesion-periodo]` — path relativo a
+   * `companies/<tenant>/` sin extensión). El compilador (`skill-compiler.ts`)
+   * anexa su body como "Contexto del Company Twin" al markdown final. Vacío si
+   * no se declara.
+   */
+  twinConcepts: string[];
   /**
    * Archivos hermanos del skill (references/, scripts/, templates/, assets/...)
    * en formato package-relative (clave = path relativo al directorio del skill,
@@ -278,6 +294,9 @@ export function loadScopedSkills(agent: ActiveAgent): ScopedSkill[] {
       slug: entry.name,
       description: scalar(fm.description),
       markdown: body.trim(),
+      dir: join(root, entry.name),
+      entities: asList(fm.entities),
+      twinConcepts: asList(fm.twin_concepts),
       // Subcarpetas (references/, scripts/, templates/, assets/) se montan como
       // archivos package-relative; Eve los materializa al sandbox del skill.
       files: collectSkillFiles(join(root, entry.name)),

@@ -5,6 +5,9 @@ description: >
   abasto, si alcanza el inventario para surtir pedidos/forecast del mes, o
   pide cruzar demanda (pedidos/ventas pendientes) contra existencias y
   compras pendientes para detectar quiebres de stock.
+entities: [Art, ArtDisponible, ArtMaterial, Compra, CompraD, Venta, VentaD, ResumenPlaneacionCF]
+twin_concepts: [mrp/mrp-sesion-periodo]
+related_skills: [mrp-faltantes, mrp-sesion, mrp-produccion, mrp-inventario]
 ---
 
 # Skill: Gap de abasto — faltante de insumos y materia prima
@@ -15,6 +18,14 @@ description: >
 Conexión MCP: **`intelisis-dab`**. Tools **dedicados** (no `execute_entity`, read-only,
 ya hacen la explosión de materiales/MRP internamente): **`faltante_insumos`**,
 **`faltante_materia_prima`**.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## MÉTODO PRINCIPAL (usar SIEMPRE primero) — tools `faltante_insumos` / `faltante_materia_prima`
 
@@ -30,8 +41,10 @@ para este caso. Esto reemplaza el patrón manual anterior (ver "Método de respa
 - `faltante_materia_prima`: artículos que **no se producen** (`Art.SeProduce = 0`) —
   materia prima que se consume/vende tal cual (granos, etc.).
 
-Si la pregunta del usuario no distingue, **llama a ambos** y combina los resultados en
-una sola respuesta (son complementarios, no se traslapan).
+Si la pregunta del usuario no distingue, **llama a ambos en UNA sola llamada
+`read_parallel`** y combina los resultados en una sola respuesta (son complementarios,
+no se traslapan). No los invoques como dos tool calls en pasos separados: agrupa las dos
+lecturas en una sola llamada `read_parallel` con los nombres de tool SIN prefijo.
 
 ### Parámetros obligatorios: `Usuario`, `Ejercicio`, `Periodo`
 
@@ -43,8 +56,10 @@ una sola respuesta (son complementarios, no se traslapan).
   inventes con otro valor.
 
 ```
-faltante_insumos(Usuario: "MASERP", Ejercicio: 2026, Periodo: 7)
-faltante_materia_prima(Usuario: "MASERP", Ejercicio: 2026, Periodo: 7)
+read_parallel({ operations: [
+  { tool: "faltante_insumos", args: { Usuario: "MASERP", Ejercicio: 2026, Periodo: 7 } },
+  { tool: "faltante_materia_prima", args: { Usuario: "MASERP", Ejercicio: 2026, Periodo: 7 } }
+] })
 ```
 
 ### Campos de respuesta y cómo interpretarlos
@@ -148,6 +163,12 @@ filtrar lo que entra en el rango que pregunte el usuario (hoy, mañana, la
 semana). No hay campo de "arribo confirmado" separado — `FechaEntrega` solo
 se llena cuando la compra ya se concluyó (entonces ya estaría en existencia,
 no como "en camino").
+
+> **Eficiencia:** el `PASO 1` de esta cadena (`read_records(Compra, ...)`) es una lectura
+> independiente del `PASO 1` de la cadena de ventas (`read_records(Venta, ...)`) — ejecuta
+> ambos primeros reads juntos en una sola llamada `read_parallel` (mismo patrón que el
+> método principal) en lugar de pasos separados. Los pasos siguientes de cada cadena SÍ
+> dependen del resultado de su propio primer read, así que no los agrupes.
 
 ```
 PASO 1: read_records(Compra,

@@ -5,6 +5,7 @@ description: >
   cobertura de materia prima o BBC a futuro, cuándo se debe generar un embarque
   sugerido, o arribos pendientes de la línea VACA. Corresponde a la ruta
   "Programa de Arribos" del portal MRP.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: MRP — Programa de Arribos (cobertura y arribos proyectados)
@@ -15,6 +16,15 @@ description: >
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_cobertura_materia_prima`** (cobertura MP 12S), **`fcarribos_vaca`** (arribos Vaca pendientes, 3 bases).
 `Usuario` fijo: **`"MASERP"`** (mismo criterio que `gap-abasto`/`mrp`).
+
+## Periodo vigente (regla determinista)
+
+El programa de arribos es la **proyección de 12 semanas** de la corrida vigente
+(periodo actual — hoy 2026/8); no se consulta por ejercicio/periodo ni se
+prueban variantes (ni 7, ni 12, ni ejercicios anteriores "por si acaso"). Si el
+usuario pide un periodo/ejercicio específico, usa la corrida vigente y declara
+el alcance; no re-corras ni pruebes snapshots pasados. Las semanas salen del
+calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Origen (portal legacy sigma-icf, ruta `/arribos`)
 

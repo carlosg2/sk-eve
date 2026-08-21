@@ -8,6 +8,7 @@ description: >
   resolver en silencio lo que los datos deciden, preguntar SOLO lo que construye
   el siguiente paso, presentar la requisición y pedir autorización DESPUÉS de
   mostrarla, y cerrar con el tablero de autorización de 3 filtros.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: Cierre del gap de abasto — requisición controlada
@@ -18,6 +19,14 @@ description: >
 Conexión MCP: **`intelisis-dab`** (empresa ICF). Tools: **`faltante_insumos`**,
 **`faltante_materia_prima`** (SPs del backend que ya calculan el gap), más `read_records`,
 `aggregate_records`, `buscar_registro` para el cruce de inventario, presupuesto y proveedor.
+
+## Periodo vigente (regla determinista)
+
+El cierre de gap es del periodo **VIGENTE** (año y mes actuales — hoy 2026/8)
+si el usuario no menciona otro ejercicio/periodo. **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas y rompe el presupuesto de la Fase 0. Si el usuario pide un periodo
+específico, usa ESE y solo ese.
 
 ## Cuándo usar este skill (NO confundir con otros)
 

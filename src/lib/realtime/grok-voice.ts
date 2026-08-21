@@ -45,8 +45,6 @@ const TARGET_RATE = 24000;
 
 /** Umbral RMS (0-1 sobre PCM Float32): por debajo es silencio. */
 const VOICE_RMS_THRESHOLD = 0.012;
-/** Throttle del nivel del mic en vivo (onMicLevel → glow del botón estilo VS Code). */
-const VOICE_LEVEL_EMIT_MS = 90;
 /** Silencio requerido tras hablar para considerar fin de frase (no corta prematuramente). */
 const VOICE_SILENCE_MS = 1200;
 /** Umbral RMS para barge-in REAL: el usuario hablando MUY fuerte encima del audio del asistente. */
@@ -289,13 +287,6 @@ export type GrokVoiceCallbacks = {
 	 *  que la produjo (el consumidor la usa para distinguir voz real de ECO). */
 	onUserTranscript?: (text: string, meta?: { peakRms?: number }) => void;
 	/**
-	 * Nivel del mic en vivo (0..1), emitido throttled (~cada VOICE_LEVEL_EMIT_MS)
-	 * mientras el VAD corre. La UI lo usa para el glow reactivo del botón de voz
-	 * estilo VS Code Copilot (dictation-mic-active + `--dictation-mic-level`).
-	 * Blindado: nunca lanza.
-	 */
-	onMicLevel?: (level: number) => void;
-	/**
 	 * Texto del asistente. `delta` = fragmento en streaming (se anexa al
 	 * segmento actual); `done` = transcript final del item (reemplaza el
 	 * segmento para evitar duplicar cuando el servidor re-emite el texto
@@ -416,9 +407,6 @@ export class GrokVoiceClient {
 	// Peak RMS del ÚLTIMO commit (se propaga en onUserTranscript para que el
 	// consumidor distinga eco de voz real al decidir sobre la transcripción).
 	private lastCommitPeakRms = 0;
-	// Throttle del nivel del mic en vivo (onMicLevel): emitir ~cada
-	// VOICE_LEVEL_EMIT_MS para no inundar la UI con updates a 60fps.
-	private lastMicLevelAt = 0;
 	// Throttle de telemetría `mic_drop` (solo si hay voz real, máx 1 por 1.5s).
 	private lastMicDropTelAt = 0;
 	// Watchdog del commit + RECUPERACIÓN: si el servidor NO devuelve
@@ -1485,18 +1473,6 @@ export class GrokVoiceClient {
 			let sum = 0;
 			for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
 			const rms = Math.sqrt(sum / samples.length);
-			// Nivel del mic en vivo (0..1) para el glow reactivo del botón estilo
-			// VS Code Copilot (`--dictation-mic-level`). Se emite también en silencio
-			// (rms ~0) para que la UI muestre la respiración base del glow. Throttle.
-			const level = Math.min(1, rms / 0.15);
-			if (now - this.lastMicLevelAt >= VOICE_LEVEL_EMIT_MS) {
-				this.lastMicLevelAt = now;
-				try {
-					this.callbacks.onMicLevel?.(Number(level.toFixed(3)));
-				} catch {
-					/* noop */
-				}
-			}
 			if (rms >= VOICE_RMS_THRESHOLD) {
 				if (!this.vadSpeaking) {
 					this.vadSpeaking = true;

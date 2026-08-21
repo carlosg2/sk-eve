@@ -4,6 +4,7 @@ description: >
   Use when el usuario pide una vista general / dashboard consolidado de
   producción, ocupación de centros, venta y KPIs generales del periodo.
   Corresponde a la ruta "Dashboard" del portal MRP.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: MRP — Dashboard general
@@ -13,6 +14,14 @@ description: >
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`.
 `Usuario` fijo: **`"MASERP"`**.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Origen (portal legacy sigma-icf, ruta `/dashboard`)
 

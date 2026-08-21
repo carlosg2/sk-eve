@@ -6,6 +6,9 @@ description: >
   concepto o programa, o por la **venta real embarcada** de un
   artículo/periodo (UV_QV_FILLRATE). Corresponde a la ruta "Desglose de
   Forecast" del portal MRP.
+entities: [ResumenPlaneacionCF, ArtFamFC, ForecastHist, UV_QV_FILLRATE, CalendarioFC]
+twin_concepts: [mrp/mrp-sesion-periodo]
+related_skills: [mrp-sesion, mrp-produccion, mrp-indicadores, mrp-cf]
 ---
 
 # Skill: MRP — Desglose de Forecast (grid maestro de planeación)
@@ -15,6 +18,14 @@ description: >
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_desglose_forecast`** (SP del portal: grid EXACTO del Desglose de Forecast; parámetro `Usuario`).
 `Usuario` fijo: **`"MASERP"`**.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Origen (portal legacy sigma-icf, ruta `/forecast`, SP `spWebDesgloseForecast`)
 
@@ -33,6 +44,45 @@ SP** (`spWebDesgloseForecast`, solo con `Usuario`) junto con `SpProduccionCF`,
 y cruza `Articulo` con `CtTrabajo` para saber en qué centro se produce cada
 artículo del BOM — si el usuario pregunta "¿en qué centro se hace el
 artículo X?", este es el patrón.
+
+## Lectura en paralelo (read_parallel)
+
+Los pasos de contexto y de lectura independientes del desglose van agrupados en
+**UNA** tool call `read_parallel` (el modelo no emite varias tool calls por
+step). Operaciones de solo lectura con los mismos args que la llamada directa;
+nombres SIN prefijo `intelisis-dab__`.
+
+Antes de desglosar, ejecuta en un solo `read_parallel`:
+
+1. **Grid maestro** — `read_records(ResumenPlaneacionCF, ...)` (Patrón 1).
+2. **Calendario/semana** — `read_records(CalendarioFC, ...)` (o
+   `DIM_TIEMPO_SEMANA`) para saber qué `Sn`/`Pn` corresponde a la
+   semana/periodo activo.
+3. **Histórico/versiones** — `read_records(ForecastHist, ...)` si la pregunta
+   menciona corridas o versiones (Patrón 4).
+4. **Vista web_** — `web_desglose_forecast({ Usuario: "MASERP" })` cuando el
+   usuario pide el grid EXACTO del portal.
+
+Ejemplo (desglose del periodo, ventana S32–S35):
+
+```json
+read_parallel({ operations: [
+  { "tool": "read_records", "args": { "entity": "ResumenPlaneacionCF",
+      "filter": "Usuario eq 'MASERP'",
+      "select": "CtTrabajo,Articulo,Concepto,Cliente,Programa,FamiliaCF,VariedadCF,Producir,Kg,Stock,InvEmp,InvGra,TotalInv" } },
+  { "tool": "read_records", "args": { "entity": "CalendarioFC",
+      "filter": "Ano eq 2026 and Semana ge 32 and Semana le 35",
+      "select": "Ano,Semana,FechaD,FechaA" } },
+  { "tool": "read_records", "args": { "entity": "ForecastHist",
+      "filter": "Ejercicio eq 2026 and Usuario eq 'MASERP'",
+      "select": "ID,Ejercicio,Periodo,FechaEmision,UltimoCambio,Usuario,MovID" } },
+  { "tool": "web_desglose_forecast", "args": { "Usuario": "MASERP" } }
+]})
+```
+
+Si una operación falla, `read_parallel` reporta `{ ok: false }` para esa
+operación con `hasErrors: true` sin tumbar las demás — declara "dato no
+disponible" solo para la fuente que falló.
 
 ## Patrón 1 — Grid completo por artículo/centro
 

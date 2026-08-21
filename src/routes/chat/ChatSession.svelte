@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { useEveAgent } from 'eve/svelte';
+	import { useEveAgent, defaultMessageReducer, type EveMessage } from 'eve/svelte';
+	import { Client, type ClientSession } from 'eve/client';
 	import { computeDiagnostics, detectMcpError, formatDiagnosticsSummary, friendlyToolLabel, redactSensitiveData, unwrapMcpOutput } from '$lib/lib/agent-diagnostics';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
@@ -155,15 +156,123 @@
 	let devFilter = $state<'all' | 'llm' | 'tool' | 'step' | 'flow'>('all');
 	let expandedRows = $state(new Set<number>());
 
-	const messages = $derived(agent.data.messages);
-	const isBusy = $derived(agent.status === 'submitted' || agent.status === 'streaming');
+	// ── Live-follow al reabrir una sesión activa ────────────────────────────
+	// Al volver a una sesión cuyo turno SIGUE corriendo en el servidor, el
+	// store de useEveAgent solo se rehidrata con el snapshot ACOTADO que
+	// devuelve GET /api/sessions/[id] (`session.stream({ follow: false })` — se
+	// detiene en el tail al abrir). El store SOLO consume el stream en vivo
+	// dentro de `send()` (turnos nuevos), así que sin esto la vista quedaba
+	// estática hasta que el turno terminaba (había que reabrir para ver el
+	// resultado completo). Aquí se abre un stream en vivo con eve/client desde
+	// el final del snapshot y se anexa a una vista unificada (`agentEvents`) con
+	// dedupe por meta.id; esa vista alimenta el feed de actividades, el
+	// inspector, el transcript (vía proyección del reducer) y el estado
+	// "respondiendo" (`liveTurnInProgress`).
+	let liveCatchup = $state<StreamEv[]>([]);
+	let liveCatchupAbort: AbortController | null = null;
+	let liveCatchupSession: ClientSession | null = null;
+	let liveCatchupStarted = false;
+	// El follow terminó SIN recibir nada (el "turno en curso" del snapshot
+	// resultó stale — p. ej. el servidor se reinició a mitad del turno): hay
+	// que desbloquear la UI aunque el último evento no tenga terminal.
+	let liveCatchupIdle = $state(false);
+
+	$effect(() => {
+		const sid = ((initialSession ?? {}) as { sessionId?: string }).sessionId;
+		const seed = Array.isArray(initialEvents) ? (initialEvents as StreamEv[]) : [];
+		if (!sid || liveCatchupStarted) return;
+		liveCatchupStarted = true;
+		// El snapshot puede incluir eventos SINTÉTICOS (client.input.responded
+		// inyectados por el servidor) que NO ocupan índice en el stream real; el
+		// siguiente índice real = cuenta de eventos NO sintéticos.
+		const startIndex = seed.filter((e) => e?.type !== 'client.input.responded').length;
+		const abort = new AbortController();
+		liveCatchupAbort = abort;
+		const cs = new Client({ host: '' }).session({ sessionId: sid, streamIndex: 0 });
+		liveCatchupSession = cs;
+		const stream = cs.stream({ startIndex, follow: true, signal: abort.signal });
+		void (async () => {
+			try {
+				for await (const ev of stream) {
+					liveCatchup = [...liveCatchup, ev as StreamEv];
+					// El turno en curso terminó: dejar de seguir (el store se hace
+					// cargo de los turnos siguientes).
+					const t = (ev as StreamEv).type;
+					if (t === 'turn.completed' || t === 'turn.failed' || t === 'turn.cancelled' || t === 'session.completed' || t === 'session.failed') break;
+				}
+			} catch {
+				// abort normal (desmontar / el usuario envió un turno nuevo)
+			} finally {
+				if (liveCatchup.length === 0) liveCatchupIdle = true;
+				liveCatchupAbort = null;
+			}
+		})();
+		return () => abort.abort();
+	});
+
+	// Vista unificada de eventos: store (snapshot + turnos de este cliente) +
+	// catch-up en vivo del turno en curso, deduplicados por meta.id.
+	const agentEvents = $derived.by((): readonly StreamEv[] => {
+		const storeEvs = agent.events as readonly StreamEv[];
+		if (liveCatchup.length === 0) return storeEvs;
+		const seen = new Set<string>();
+		const out: StreamEv[] = [];
+		for (const ev of storeEvs) {
+			const id = (ev as { meta?: { id?: string } }).meta?.id;
+			if (id !== undefined) { if (seen.has(id)) continue; seen.add(id); }
+			out.push(ev);
+		}
+		for (const ev of liveCatchup) {
+			const id = (ev as { meta?: { id?: string } }).meta?.id;
+			if (id !== undefined) { if (seen.has(id)) continue; seen.add(id); }
+			out.push(ev);
+		}
+		return out;
+	});
+
+	// ¿Hay un turno en curso en la vista fusionada? El store queda en "ready"
+	// al reabrir una sesión que sigue respondiendo en el servidor; sin esto la
+	// UI no mostraría el estado "respondiendo" (ni Detener ni marker).
+	const liveTurnInProgress = $derived.by(() => {
+		if (liveCatchupIdle) return false;
+		const evs = agentEvents;
+		for (let i = evs.length - 1; i >= 0; i--) {
+			const t = evs[i].type;
+			if (t === 'turn.completed' || t === 'turn.failed' || t === 'turn.cancelled' || t === 'session.completed' || t === 'session.failed' || t === 'session.waiting') return false;
+			if (t === 'turn.started' || t === 'step.started' || t === 'actions.requested' || t === 'action.result' || t === 'reasoning.appended' || t === 'message.appended') return true;
+		}
+		return false;
+	});
+
+	// Transcript unificado: la proyección del store (incluye optimistas) más
+	// los mensajes que el live-follow revela del turno en curso (el store no
+	// los proyecta porque no los consumió). Se mergea por id.
+	const messageReducer = defaultMessageReducer();
+	const messages = $derived.by(() => {
+		const base = agent.data.messages;
+		if (liveCatchup.length === 0) return base;
+		try {
+			let proj = messageReducer.initial();
+			for (const ev of agent.events as readonly StreamEv[]) proj = messageReducer.reduce(proj, ev as never);
+			for (const ev of liveCatchup) proj = messageReducer.reduce(proj, ev as never);
+			const byId = new Map<string, EveMessage>(base.map((m) => [m.id, m]));
+			for (const m of proj.messages) byId.set(m.id, m);
+			return [...byId.values()];
+		} catch {
+			return base;
+		}
+	});
+
+	const isBusy = $derived(
+		agent.status === 'submitted' || agent.status === 'streaming' || liveTurnInProgress
+	);
 	let elapsedMs = $state(0);
 
 	// Dot de estado del header (patrón de la referencia de Eve): verde pulsante
 	// cuando el agente trabaja, neutral en ready, rojo en error.
 	const statusDot = $derived.by(() => {
 		const s = agent.status;
-		if (s === 'submitted' || s === 'streaming') return { live: true, tone: 'bg-emerald-500' };
+		if (s === 'submitted' || s === 'streaming' || liveTurnInProgress) return { live: true, tone: 'bg-emerald-500' };
 		if (s === 'error') return { live: false, tone: 'bg-destructive' };
 		return { live: false, tone: s === 'ready' ? 'bg-muted-foreground' : 'bg-muted-foreground/50' };
 	});
@@ -194,7 +303,7 @@
 		  };
 
 	const activitiesByTurn = $derived.by((): Map<string, Activity[]> => {
-		const evs = agent.events as readonly StreamEv[];
+		const evs = agentEvents;
 		const byTurn = new Map<string, Activity[]>();
 		let cur: Activity[] = [];
 		let reasoningSeq = 0;
@@ -358,10 +467,10 @@
 	// Los eventos del stream no traen timestamp fiable; sin este sellado, el timing
 	// del DevTools quedaba en ~0 (todos calculados en el mismo render).
 	let eventTimings = $state<number[]>([]);
-	watch([() => agent.events.length], () => {
-		const n = agent.events.length;
+	watch([() => agentEvents.length], () => {
+		const n = agentEvents.length;
 		if (n < eventTimings.length) {
-			eventTimings = agent.events.map(() => Date.now());
+			eventTimings = agentEvents.map(() => Date.now());
 		} else if (n > eventTimings.length) {
 			const now = Date.now();
 			const next = eventTimings.slice();
@@ -379,7 +488,7 @@
 	}
 
 	// Diagnóstico agregado (módulo compartido con / ).
-	const diagnostics = $derived(computeDiagnostics(agent.events as readonly StreamEv[], eventTs));
+	const diagnostics = $derived(computeDiagnostics(agentEvents, eventTs));
 
 	// ── Trace store (self-improvement) ─────────────────────────────────────
 	// Al terminar cada turno (turn.completed/turn.failed) persiste un resumen de
@@ -490,11 +599,11 @@
 	void refreshInjections();
 
 	let lastTraceTurn = 0;
-	watch([() => agent.events.length], () => {
+	watch([() => agentEvents.length], () => {
 		// ⚠️ Blindado: un throw aquí (shape de evento inesperado) rompería el
 		// watch y podría causar un reload de la página al fallar un tool.
 		try {
-			const evs = agent.events as readonly StreamEv[];
+			const evs = agentEvents;
 			const last = evs[evs.length - 1];
 			if (!last || (last.type !== 'turn.completed' && last.type !== 'turn.failed')) return;
 			let turn = 0;
@@ -539,7 +648,7 @@
 	let todoOpen = $state(true);
 
 	const todoState = $derived.by((): TodoOutput | null => {
-		const evs = agent.events as readonly StreamEv[];
+		const evs = agentEvents;
 		for (let i = evs.length - 1; i >= 0; i--) {
 			const ev = evs[i];
 			if (ev.type !== 'action.result') continue;
@@ -562,7 +671,7 @@
 	// durante los ~segundos de generación/tool en que no hay texto que mostrar).
 	const liveStatus = $derived.by(() => {
 		if (!isBusy) return null;
-		const evs = agent.events as readonly StreamEv[];
+		const evs = agentEvents;
 		let step = 0;
 		let label = 'Entendiendo tu consulta…';
 		for (const ev of evs) {
@@ -624,11 +733,11 @@
 			: text;
 	}
 
-	type StreamEv = { type: string; data?: Record<string, unknown> };
+	type StreamEv = { type: string; data?: Record<string, unknown>; meta?: { id?: string } };
 
 	const tokenTotals = $derived.by(() => {
 		let input = 0, output = 0, total = 0;
-		for (const ev of agent.events as readonly StreamEv[]) {
+		for (const ev of agentEvents) {
 			if (ev.type !== 'step.completed') continue;
 			const u = ((ev.data?.usage ?? {}) as Record<string, number>);
 			input += u.inputTokens ?? u.promptTokens ?? 0;
@@ -643,8 +752,8 @@
 	const traceText = $derived.by(() => {
 		const lines: string[] = [];
 		lines.push('# AGENT INSPECTOR');
-		lines.push(`status: ${agent.status}`);
-		lines.push(`events: ${agent.events.length} · messages: ${agent.data.messages.length}`);
+		lines.push(`status: ${agent.status}${liveTurnInProgress ? ' (en vivo)' : ''}`);
+		lines.push(`events: ${agentEvents.length} · messages: ${messages.length}`);
 		lines.push(`tokens: in=${tokenTotals.input} out=${tokenTotals.output} total=${tokenTotals.total}`);
 		if (trendText) lines.push(`trend: ${trendText}`);
 		lines.push('');
@@ -655,7 +764,7 @@
 			lines.push('');
 		}
 		lines.push('## TRACE');
-		const events = (agent.events as readonly StreamEv[]).slice(-MAX_TRACE_EVENTS);
+		const events = agentEvents.slice(-MAX_TRACE_EVENTS);
 		for (const ev of events) {
 			const d = (ev as any).data ?? {};
 			switch (ev.type) {
@@ -729,7 +838,7 @@
 
 	const devRows = $derived.by(() => {
 		const rows: DevRow[] = [];
-		const evs = agent.events as readonly StreamEv[];
+		const evs = agentEvents;
 		const t0 = evs.length ? eventTs(evs[0], 0) : 0;
 		let prev = t0;
 		// Ventana deslizante: evita miles de filas DOM (turnos con >8k eventos
@@ -919,6 +1028,8 @@
 	async function submit() {
 		const value = text.trim();
 		if ((!value && composerFiles.length === 0) || isBusy) return;
+		// Un turno nuevo lo maneja el store: corta el live-follow del turno previo.
+		liveCatchupAbort?.abort();
 		// Reset del estado de voz POR TURNO (S1/S2): el hint de módulo y la marca de
 		// la primera tool arrancan de cero en cada turno, y se cancela el filler
 		// temprano pendiente para que no hable dentro de un turno nuevo.
@@ -967,6 +1078,20 @@
 			parts.push({ data: f.data, filename: f.name, mediaType: f.mediaType, type: 'file' });
 		}
 		await agent.send({ message: parts, ...context });
+	}
+
+	// Detener: el store corta su propia operación (turno enviado desde aquí);
+	// si el turno en curso viene del SERVIDOR (reabrimos una sesión activa),
+	// agent.stop() es no-op → cancel cooperativo del turno vía eve/client.
+	function handleStop() {
+		if (agent.status === 'submitted' || agent.status === 'streaming') {
+			agent.stop();
+			return;
+		}
+		liveCatchupAbort?.abort();
+		void liveCatchupSession?.cancel().catch(() => {
+			// silencioso: el turno puede terminar justo mientras se cancela
+		});
 	}
 
 	function onKeydown(event: KeyboardEvent) {
@@ -1776,12 +1901,12 @@
 	// vivo con la tool `narrar` (su texto va SOLO a la voz). Se intercepta sobre
 	// los EVENTOS (no sobre liveActivities — `narrar` se excluye del feed), con
 	// dedupe por meta.id y el mismo gap de narración para no saturar la cola.
-	watch([() => agent.events.length], () => {
+	watch([() => agentEvents.length], () => {
 		// ⚠️ Blindado: un throw aquí (shape de evento inesperado) rompería el watch
 		// y podría causar un reload de la página (convención del repo).
 		try {
 			if (!voiceActive || !voicePendingSpeak || !isBusy) return;
-			const evs = agent.events as readonly StreamEv[];
+			const evs = agentEvents;
 			for (let i = Math.max(0, evs.length - 25); i < evs.length; i++) {
 				const ev = evs[i];
 				if (ev.type !== 'actions.requested') continue;
@@ -2315,7 +2440,7 @@
 									size="icon-sm"
 									class="ml-auto"
 									aria-label="Detener"
-									onclick={() => agent.stop()}
+									onclick={handleStop}
 								>
 									<SquareIcon />
 								</InputGroup.Button>
@@ -2350,7 +2475,7 @@
 				<span>▼ DevTools</span>
 			</span>
 			<span class="text-slate-500">
-				{agent.events.length} / {agent.events.length} eventos · {tokenTotals.total} tok
+				{agentEvents.length} / {agentEvents.length} eventos · {tokenTotals.total} tok
 			</span>
 		</button>
 
@@ -2358,7 +2483,7 @@
 		<div role="region" aria-label="Agent inspector">
 			<div class="px-3 pb-1 text-xs font-mono text-slate-400" style="display:{showDebug ? 'block' : 'none'}">
 				<div class="flex items-center justify-between py-1">
-					<span class="text-slate-500">status: {agent.status} · {agent.events.length} eventos · {tokenTotals.total} tokens</span>
+					<span class="text-slate-500">status: {agent.status} · {agentEvents.length} eventos · {tokenTotals.total} tokens</span>
 					<button class="flex items-center gap-1 text-slate-500 hover:text-slate-200" onclick={copyTrace}>
 						<CopyIcon class="size-3" />Copiar
 					</button>
@@ -2381,7 +2506,7 @@
 						onclick={() => (devFilter = f)}
 					>{f}</button>
 				{/each}
-				<span class="ml-auto px-2 py-1 text-xs text-slate-600">{devRows.length} / {agent.events.length} eventos · {tokenTotals.total} tok</span>
+				<span class="ml-auto px-2 py-1 text-xs text-slate-600">{devRows.length} / {agentEvents.length} eventos · {tokenTotals.total} tok</span>
 			</div>
 
 			<!-- Diagnóstico agregado -->
@@ -2450,7 +2575,7 @@
 							{#if expandedRows.has(row.idx)}
 								<tr class="bg-slate-900">
 									<td colspan="4" class="px-4 py-2">
-										<pre class="whitespace-pre-wrap text-slate-300 text-xs">{fullToolPayload((agent.events[row.idx] as any)?.data)}</pre>
+										<pre class="whitespace-pre-wrap text-slate-300 text-xs">{fullToolPayload((agentEvents[row.idx] as any)?.data)}</pre>
 									</td>
 								</tr>
 							{/if}

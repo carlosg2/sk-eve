@@ -2,6 +2,7 @@
 tenant: icf
 description: >
   Use when el usuario inicia una conversación sobre el módulo MRP/Forecast (FC) y aún no se ha validado la sesión: capturar y validar Usuario (contra la tabla Usuario), Ejercicio y Periodo, y confirmar el calendario de semanas y el presupuesto CONCLUIDO del periodo. Corresponde al contrato de sesión del portal MRP.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: MRP — Sesión (contrato de sesión dinámica)
@@ -12,6 +13,15 @@ description: >
 > (`VacaPresupuestoVtaCon`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, el default de la sesión es el
+**VIGENTE**: ejercicio = año actual, periodo = mes actual (hoy 2026/8).
+**NUNCA pruebes variantes** de periodo (ni 7, ni 12, ni ejercicios anteriores
+"por si acaso") — eso multiplica las consultas. Si el usuario pide un periodo
+específico, usa ESE y solo ese. Las semanas del periodo salen del calendario
+(`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Cuándo usarlo
 

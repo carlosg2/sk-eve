@@ -81,6 +81,31 @@ function extractError(
     const m = value.match(/"message":\s*"([^"]+)"/);
     return { type: t?.[1] ?? "", message: m?.[1] ?? "" };
   }
+
+  // read_parallel: errores embebidos en results[] (cada operación del lote
+  // devuelve {tool, ok, data|error}). El top-level es ok:true, así que sin este
+  // escaneo los fallos internos del lote serían invisibles para la radiografía
+  // y el buffer de learnings (verificado en vivo: read_records con campo
+  // inexistente dentro de read_parallel → turno reportó 0 errores).
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const results = (value as Record<string, unknown>).results;
+    if (Array.isArray(results)) {
+      for (const item of results) {
+        if (!item || typeof item !== "object") continue;
+        const it = item as Record<string, unknown>;
+        if (it.ok !== false) continue;
+        if (typeof it.error === "string") {
+          const t = it.error.match(/"type":\s*"([^"]+)"/);
+          const m = it.error.match(/"message":\s*"([^"]+)"/);
+          return { type: t?.[1] ?? "ToolError", message: m?.[1] ?? it.error };
+        }
+        if (it.error && typeof it.error === "object") {
+          const e = it.error as Record<string, unknown>;
+          return { type: String(e.type ?? "ToolError"), message: String(e.message ?? "") };
+        }
+      }
+    }
+  }
   return { type: "", message: "" };
 }
 

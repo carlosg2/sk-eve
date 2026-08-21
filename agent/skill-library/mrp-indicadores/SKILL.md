@@ -4,6 +4,7 @@ description: >
   Use when el usuario pregunta por cumplimiento de producción (programado vs.
   producido), forecast vs. venta real, o KPIs de eficiencia por centro de
   trabajo, familia o artículo. Corresponde a la ruta "Indicadores" del portal MRP.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: MRP — Indicadores (cumplimiento plan vs. real)
@@ -13,6 +14,14 @@ description: >
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`cfarticulo_cumplimiento`**, **`cfcentra_trabajo_cumplimiento`** (SPs del portal: grid EXACTO de cumplimiento por artículo/centro; parámetros `Usuario, Ejercicio, Periodo`).
 `Usuario` fijo: **`"MASERP"`**.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Origen (portal legacy sigma-icf, ruta `/indicadores`)
 
@@ -30,6 +39,49 @@ Tres comparaciones plan-vs-real, cada una con su propio SP:
 
 Filtros de la UI (`spCFFamiliaLista`/`spCFCentroLista`): el usuario puede
 acotar por familia o centro específico.
+
+## Agregados en paralelo (read_parallel)
+
+Los indicadores se construyen con varios agregados. Agrupa en **UNA** tool call
+`read_parallel` los que NO dependen entre sí (el modelo no emite varias tool
+calls por step). Operaciones de solo lectura, mismos args que la llamada
+directa, nombres SIN prefijo `intelisis-dab__`; `groupby` SIEMPRE como array.
+
+**Lote 1 (independientes — plan + calendario/semana + venta real):**
+
+```json
+read_parallel({ operations: [
+  { "tool": "read_records", "args": { "entity": "ResumenPlaneacionCF",
+      "filter": "Usuario eq 'MASERP'",
+      "select": "Articulo,CtTrabajo,Producir,Kg,Gramaje,FamiliaCF,Descripcion" } },
+  { "tool": "read_records", "args": { "entity": "DIM_TIEMPO_SEMANA",
+      "filter": "Anio eq 2026 and MES eq 8",
+      "select": "Anio,MES,SEMANA,FECHAINICIO,FECHAFIN" } },
+  { "tool": "aggregate_records", "args": { "entity": "UV_QV_FILLRATE",
+      "function": "sum", "field": "CANTIDAD_EMBARCADA", "filter": "MES_FISCAL eq 8" } },
+  { "tool": "aggregate_records", "args": { "entity": "UV_QV_FILLRATE",
+      "function": "sum", "field": "RECHAZO", "filter": "MES_FISCAL eq 8" } }
+]})
+```
+
+**Lote 2 (depende de los resultados del Lote 1):** los agregados de producido
+real usan el rango de fechas del periodo que devolvió `DIM_TIEMPO_SEMANA`
+(`MIN(FECHAINICIO)..MAX(FECHAFIN)`) y, en modo artículo (I3), el set de
+artículos del plan. Se ejecutan en un segundo `read_parallel`:
+
+```json
+read_parallel({ operations: [
+  { "tool": "aggregate_records", "args": { "entity": "ProdD", "function": "sum",
+      "field": "Cantidad", "groupby": ["Centro"],
+      "filter": "FechaEntrega ge <inicio>T00:00:00Z and FechaEntrega le <fin>T23:59:59Z" } },
+  { "tool": "aggregate_records", "args": { "entity": "ProdD", "function": "sum",
+      "field": "Cantidad", "groupby": ["Articulo"],
+      "filter": "FechaEntrega ge <inicio>T00:00:00Z and FechaEntrega le <fin>T23:59:59Z" } }
+]})
+```
+
+Si una operación falla, `read_parallel` reporta `{ ok: false }` para esa
+operación con `hasErrors: true` sin tumbar las demás.
 
 ## Patrón 1 — Cumplimiento por artículo (programado vs. producido real)
 

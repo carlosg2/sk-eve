@@ -5,6 +5,9 @@ description: >
   producir (validación de insumos), qué porcentaje de alcance/cobertura tiene
   un material para producción, o capacidad de producción por artículo/centro.
   Corresponde a la ruta "Validación de Insumos" (`/produccion`) del portal.
+entities: [ExplocionMatCF, ResumenPlaneacionCF, ArtMaterial, ArtDisponible, CalendarioFC]
+twin_concepts: [mrp/mrp-sesion-periodo]
+related_skills: [mrp-sesion, mrp-forecast, mrp-faltantes, mrp-inventario, gap-abasto, mrp-cf]
 ---
 
 # Skill: MRP — Validación de Insumos (produccion)
@@ -15,8 +18,16 @@ description: >
 > [mrp-forecast-arribos.md](`mrp-forecast-arribos`) (`UV_QV_FILLRATE`) y el
 > kernel (`ArtMaterial`, `ArtDisponible`, `Prod`/`ProdD`).
 
-Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_art_material_req_prorrateo`** (requerimiento de materiales prorrateado), **`web_art_explosion_material`** (explosión), **`web_art_explosion_mat_faltante`** (explosión de faltantes).
+Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_art_material_req_prorrateo`** (requerimiento de materiales prorrateado), **`web_art_explosion_material`** (explosión), **`web_art_explosion_mat_faltante`** (explosión de faltantes). **`read_parallel`** para 2+ lecturas independientes (1 tool call, ejecución paralela).
 `Usuario` fijo: **`"MASERP"`**.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Elegir UN solo SP 
 
@@ -44,6 +55,22 @@ ver kernel `sp-reportes-mrp`). NO reintentes ni cambies formatos de fecha:
 declara la limitación y usa como respaldo `read_records(ExplocionMatCF, ...)`
 (select de las columnas de cobertura) — mismo patrón aplica a
 `web_art_material_req_prorrateo`.
+
+## Formato de pantalla (obligatorio)
+
+La respuesta DEBE reproducir estas columnas del portal, en este orden; prohibido
+inventar columnas o consolidaciones que el portal no muestra (regla de la
+familia MRP).
+
+**Grid de padres (respuesta por defecto):**
+`Articulo · Materiales (verde/amarillo/rojo) · Descripción · Centro Trabajo · Forecast · Producir · Capacidad de Produccion · En Producción · Venta · % Venta · Inventario · % Stock · Stock · Por Planear`
+(el portal OCULTA `DOH`, `Objetivo`, `BobinaXConsumir` — no inventarlas).
+
+**Detalle BOM por artículo (P2, solo cuando el usuario pida el desglose):**
+columnas exactas en `references/formatos-pantalla.md` — léelo con
+`read_skill_file('mrp-produccion', 'references/formatos-pantalla.md')`.
+
+Semáforo de cobertura: 🟢 ≥100 · 🟡 50–99 · 🔴 <50 (sobre `PorAlcance`).
 
 ## Origen (portal MRP, ruta `/produccion`, SP `SpProduccionCF`)
 
@@ -152,9 +179,41 @@ La pantalla de Validación de Insumos cruza los **padres del usuario** contra su
   filas ni tomar padres de otros usuarios.
 - **BOM FUENTE = `ArtMaterial`** (nunca `ExplocionMatCF` como dato estable:
   snapshot scratch por usuario, solo referencia). Se filtra por el padre y el
-  resultado viene en `result.value[]` (kernel `artmaterial.md`):
+  resultado viene en `result.value[]` (kernel `artmaterial.md`). Respetar el
+  orden del portal con `orderby: "OrdenID"` y traer el detalle del hijo
+  (columnas de M2 del motor):
 ```
-read_records(ArtMaterial, filter: "Articulo eq '<PADRE>'", first: 50)
+read_records(ArtMaterial, filter: "Articulo eq '<PADRE>'",
+  select: "Articulo,OrdenID,Material,Cantidad,Unidad,Merma,Centro", orderby: "OrdenID", first: 50)
+```
+
+**Lotes de lectura (`read_parallel`)** — agrupar SOLO lecturas INDEPENDIENTES
+entre sí; cada lote posterior depende de un resultado previo:
+
+1. **Lote 1** — padres del usuario (independiente):
+   `read_records(ResumenPlaneacionCF, filter: "Usuario eq 'MASERP'",
+   select: "Articulo,Descripcion,CtTrabajo,Venta,Factorstock,Stock,Producir")`.
+2. **Lote 2** — BOM por padre: depende de los padres conocidos (un
+   `read_records(ArtMaterial, ...)` por `<PADRE>`). Los BOMs de distintos
+   padres son independientes entre sí → UN `read_parallel`:
+```
+read_parallel({ operations: [
+  { tool: "read_records", args: { entity: "ArtMaterial", filter: "Articulo eq '<PADRE1>'",
+      select: "Articulo,OrdenID,Material,Cantidad,Unidad,Merma,Centro", orderby: "OrdenID", first: 50 } },
+  { tool: "read_records", args: { entity: "ArtMaterial", filter: "Articulo eq '<PADRE2>'",
+      select: "Articulo,OrdenID,Material,Cantidad,Unidad,Merma,Centro", orderby: "OrdenID", first: 50 } }
+]})
+```
+3. **Lote 3** — `Disponible` por material: depende de los materiales del BOM
+   (un `aggregate_records(ArtDisponible, ...)` por `<Material>`; todos
+   independientes entre sí → otro `read_parallel`):
+```
+read_parallel({ operations: [
+  { tool: "aggregate_records", args: { entity: "ArtDisponible", function: "sum", field: "Disponible",
+      filter: "Articulo eq '<MAT1>' and (Almacen eq 'CRIBA1MP' or Almacen eq 'CRIBA2FUM' or Almacen eq 'JAMAICA' or Almacen eq 'PROCESADOS')" } },
+  { tool: "aggregate_records", args: { entity: "ArtDisponible", function: "sum", field: "Disponible",
+      filter: "Articulo eq '<MAT2>' and (Almacen eq 'CRIBA1MP' or Almacen eq 'CRIBA2FUM' or Almacen eq 'JAMAICA' or Almacen eq 'PROCESADOS')" } }
+]})
 ```
 
 **Cálculo por hijo (cadena neta del material):**
@@ -183,10 +242,33 @@ planear = totalPadre
 
 ## Patrón 1 — Cobertura de materiales para producir (nivel 2 = material directo)
 
+La explosión (`web_art_explosion_material`) y la lectura del nivel 2
+(`read_records(ExplocionMatCF)`) son lecturas INDEPENDIENTES (ninguna depende
+del resultado de la otra) → ir en UNA llamada `read_parallel` (1 tool call,
+ejecución paralela):
+
 ```
-read_records(ExplocionMatCF,
-  filter: "Usuario eq 'MASERP' and Nivel eq 2",
-  select: "Articulo,ArticuloHijo,DescripcionH,InvRequerido,InvH,InvFinal,Cubre,PorAlcance,AlcanceDias,CapacidadProduccion")
+read_parallel({ operations: [
+  { tool: "web_art_explosion_material", args: { Usuario: "MASERP", Ejercicio: <Ejercicio>, Periodo: <Periodo> } },
+  { tool: "read_records", args: {
+      entity: "ExplocionMatCF",
+      filter: "Usuario eq 'MASERP' and Nivel eq 2",
+      select: "Articulo,ArticuloHijo,DescripcionH,InvRequerido,InvH,InvFinal,Cubre,PorAlcance,AlcanceDias,CapacidadProduccion" } }
+]})
+```
+
+**Lote posterior** — el `Disponible` por artículo DEPENDE de los artículos
+conocidos del lote anterior; con los artículos del plan ya en contexto,
+agregarlos TODOS en OTRO `read_parallel` (un `aggregate_records` por
+artículo):
+
+```
+read_parallel({ operations: [
+  { tool: "aggregate_records", args: { entity: "ArtDisponible", function: "sum", field: "Disponible",
+      filter: "Articulo eq '<ART1>' and (Almacen eq 'CRIBA1MP' or Almacen eq 'CRIBA2FUM' or Almacen eq 'JAMAICA' or Almacen eq 'PROCESADOS')" } },
+  { tool: "aggregate_records", args: { entity: "ArtDisponible", function: "sum", field: "Disponible",
+      filter: "Articulo eq '<ART2>' and (Almacen eq 'CRIBA1MP' or Almacen eq 'CRIBA2FUM' or Almacen eq 'JAMAICA' or Almacen eq 'PROCESADOS')" } }
+]})
 ```
 
 Usa `Nivel eq 1` si el usuario pregunta por el producto padre (agregado), o

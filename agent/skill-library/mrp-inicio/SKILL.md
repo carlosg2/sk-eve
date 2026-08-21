@@ -5,6 +5,7 @@ description: >
   plan semanal de producción por centro de trabajo, ocupación, tiempo extra o
   autorización del plan semanal. Corresponde a la ruta Programa Mensual
   (/inicio) del portal MRP.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: MRP — Programa Mensual (inicio / ocupación por centro)
@@ -13,8 +14,47 @@ description: >
 > (`WebInicio`) y [mrp-plan-produccion.md](`mrp-plan-produccion`)
 > (`ForecastPlanSemanal`/`ForecastPlanProduccion`).
 
-Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_inicio_concentrado`** (SP del portal: Programa Mensual concentrado; parámetros `Usuario, Ejercicio, Periodo`).
+Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_inicio_concentrado`** (SP del portal: Programa Mensual concentrado; parámetros `Usuario, Ejercicio, Periodo`). **`read_parallel`** para 2+ lecturas independientes (1 tool call, ejecución paralela).
 `Usuario` fijo: **`"MASERP"`**.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
+
+## Contexto programa mensual / plan por semana — lecturas en UN `read_parallel`
+
+El contexto de "programa mensual / plan por semana" se arma con lecturas
+INDEPENDIENTES (ninguna depende del resultado de otra): programa, calendario,
+semanas del año y plan del periodo. NO encadenarlas en pasos separados:
+agruparlas en UNA llamada `read_parallel` (1 tool call, ejecución paralela):
+
+```
+read_parallel({ operations: [
+  { tool: "web_inicio_concentrado", args: { Usuario: "MASERP", Ejercicio: 2026, Periodo: 8 } },
+  { tool: "read_records", args: { entity: "CalendarioFC",
+      filter: "Usuario eq 'MASERP' and Ano eq 2026", select: "Ano,Semana,FechaD,FechaA" } },
+  { tool: "read_records", args: { entity: "DIM_TIEMPO_SEMANA",
+      filter: "Anio eq 2026", select: "Anio,MES,SEMANA,FECHAINICIO,FECHAFIN" } },
+  { tool: "read_records", args: { entity: "ForecastPlanSemanal",
+      filter: "Ejercicio eq 2026 and Periodo eq 8", select: "ID,Situacion,SituacionUsuario,SituacionFecha" } }
+]})
+```
+
+- **Programa**: `web_inicio_concentrado` (SP) o, si no aplica,
+  `read_records(WebInicio, filter: "Usuario eq 'MASERP'")` (Patrón 1) — usar
+  UNA u OTRA, no ambas.
+- **Calendario**: `CalendarioFC` (camelCase `Ano`/`Semana`) + `DIM_TIEMPO_SEMANA`
+  (`Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) — semanas y rango de fechas
+  del año.
+- **Plan del periodo**: `ForecastPlanSemanal` (camelCase `Ejercicio`/`Periodo`).
+
+Con los resultados en contexto, los Patrones 1–2 resuelven el resto
+(`WebInicio` → ocupación por centro; `ForecastPlanProduccion` → programa de la
+semana por centro).
 
 ## Origen (portal MRP, ruta `/inicio`, SP `spWebInicio`)
 

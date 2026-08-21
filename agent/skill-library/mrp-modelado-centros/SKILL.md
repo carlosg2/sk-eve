@@ -4,6 +4,9 @@ description: >
   Use when el usuario pregunta por configuración/capacidad de centros de
   trabajo y estaciones (turnos, capacidad real, balanceo de carga). Corresponde
   a la ruta Modelado de Centros (/modelado3) del portal MRP.
+entities: [CentroFCTemp, EstacionTFCTemp, BalanceFC, ArtCentroTemp, CentroFC]
+twin_concepts: [mrp/mrp-sesion-periodo]
+related_skills: [mrp-sesion, mrp-inicio, mrp-produccion, mrp-cf]
 ---
 
 # Skill: MRP — Modelado de Centros (capacidad y balanceo)
@@ -13,6 +16,14 @@ description: >
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`fccentro_capacidad_real`** (SP del portal: capacidad real por centro, devuelve `CapacidadHras`/`CapacidadPzas`; parámetros `Usuario, Centro`).
 `Usuario` fijo: **`"MASERP"`**.
+
+## Periodo vigente (regla determinista)
+
+Este skill es configuración de capacidad; el único dato por ejercicio es el
+balance de carga (`BalanceFC`, Patrón 4): si el usuario no menciona ejercicio,
+usa el **VIGENTE** (año actual — hoy 2026). **NUNCA pruebes variantes** de
+ejercicio (ni 2025, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un ejercicio específico, usa ESE y solo ese.
 
 ## Origen (portal MRP, ruta `/modelado3`; existe un duplicado
 `/modelado4` idéntico — el nav real solo enlaza `modelado3`)

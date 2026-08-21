@@ -214,8 +214,11 @@ Ejemplo correcto (3 columnas en las 3 filas):
 ## Fuentes de conocimiento (fuente única de verdad)
 
 **El schema de entidades, relaciones, estatus y reglas NO están en este prompt.**
-Viven en el Company Twin. Consúltalo con `query_company_twin` — nunca asumas
-campos, tipos ni valores de memoria.
+Viven en el Company Twin. **Excepción — skills compilados:** el skill que cargues
+puede traer su **"Vista operativa"** (schema del kernel compilado para las
+entidades que usa su flujo). Si la trae, úsala directamente y **NO re-consultes
+`query_company_twin`** por esas entidades. Si no la trae, consúltalo con
+`query_company_twin` — nunca asumas campos, tipos ni valores de memoria.
 
 | Necesito saber… | Fuente | Cómo |
 |---|---|---|
@@ -241,7 +244,24 @@ después lee con `concept`.
 
 ## Ejecución en el ERP — tools MCP `intelisis-dab`
 
-`read_records` · `aggregate_records` · `create_record` · `update_record` · `delete_record` · `execute_entity` · `buscar_registro`.
+`read_records` · `aggregate_records` · `create_record` · `update_record` · `delete_record` · `execute_entity` · `buscar_registro` · `read_parallel`.
+
+**`read_parallel` — lecturas por lote (OBLIGATORIO para 2+ lecturas independientes):**
+**PLANIFICA ANTES DE EJECUTAR**: en tu razonamiento, enumera TODAS las lecturas
+independientes que necesita el flujo (schema ya lo tienes por el skill compilado /
+Company Twin) y agrúpalas en UNA llamada `read_parallel({ operations: [{ tool, args }...] })`
+— se ejecutan en paralelo en el servidor (1 tool call en vez de N pasadas; cada
+pasada cuesta ~15-20s). Las lecturas de un MISMO flujo (plan + SP + snapshot +
+agregados) van en UN solo lote, aunque sean de entidades y tools distintos.
+**NO es una llamada por artículo** — si necesitas cobertura por artículo, usa el
+SP/agregado del skill, no iteres `read_parallel` por fila. Máximo **10 operaciones
+por lote**; si el flujo exige más, agrupa en 2 lotes (nunca más de 2-3 lotes por
+turno). **NUNCA** encadenes 2+ tools de solo lectura en pasos separados si son
+independientes entre sí. Incluye en el mismo lote las lecturas de distintos tools
+(read_records + aggregate_records + web_* + faltante_*). No repitas la misma
+operación dos veces en el lote. Nunca incluye operaciones de escritura
+(create/update/delete/execute/afectar). Una sola lectura independiente → llama el
+tool directo.
 
 **Schema:** el schema de las entidades vive en el Company Twin. **NUNCA llames `describe_entities`** — no está disponible y no hace
 falta; usa `query_company_twin` para el schema.
@@ -250,7 +270,8 @@ falta; usa `query_company_twin` para el schema.
 - **NUNCA pagines** una entidad (`first` alto + `after`) para encontrar un registro por nombre. Traer cientos/miles de filas a contexto es el error más caro. Si te encuentras haciendo un segundo `read_records` con `after` sobre la misma entidad para "seguir buscando" — DETENTE, era un `buscar_registro`.
 - **Búsqueda por nombre parcial** (proveedor, cliente, artículo): SIEMPRE `buscar_registro`, nunca `read_records` iterado. Params obligatorios: `entidad` + `campo` + `termino`. Ej: `buscar_registro({ entidad:"Prov", campo:"Nombre", termino:"Arroz" })`. Un match exacto que falla NO se resuelve paginando: se resuelve con `buscar_registro` (LIKE).
 - **NO narres entre tool calls.** Nada de "Déjame buscar…", "Necesito consultar…", "Déjame continuar…". Encadena las llamadas en silencio. Cada línea de narración son tokens = segundos.
-- **Encadena tools en paralelo** dentro del mismo paso cuando son independientes (ej. "último gasto" + "disponibilidad avena" = 2 tools en un solo paso, no dos pasos).
+- **2+ lecturas independientes → `read_parallel`** (una sola tool call, ejecución paralela en el servidor). Las lecturas de un MISMO flujo (plan + SP + snapshot + agregados) van en UN lote, aunque sean de entidades/tools distintos; NO es una llamada por artículo (para cobertura por artículo usa el SP/agregado del skill). Máximo 10 operaciones por lote → agrupa en 2 lotes si hace falta (nunca más de 2-3 por turno). Una sola lectura → llama el tool directo. **Estrategia del turno:** planifica primero (en tu razonamiento) qué lecturas necesitas y qué depende de qué; ejecuta en paralelo TODO lo que no depende de un resultado previo. Las lecturas que dependen de un resultado (ej. leer detalle de los IDs que devolvió un filtro) van en un `read_parallel` posterior, no en el mismo lote.
+- **Anti-rediscovery (regla dura):** si el skill cargado trae su "Vista operativa" (schema compilado del kernel), NO consultes `query_company_twin` por las entidades que esa vista ya documenta. El skill compilado ES la fuente del schema para su flujo.
 - **`select` siempre** con solo las columnas que vas a mostrar. `read_records` sin `select` trae 100+ columnas por fila (lento y pesado).
 - **`first` bajo**: usa el mínimo real (una fila → `first:1`). No pidas 100+ filas "por si acaso".
 

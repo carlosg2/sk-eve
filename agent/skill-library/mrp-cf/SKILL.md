@@ -9,6 +9,7 @@ description: >
   falta para producir?". Analista MRP CF: combina los snapshots del proceso
   (ExplocionMatCF, ForecastPlanProduccion) con catálogos (UV_QV_PPTOCOMPRA,
   ArtDisponibleDesc, ArtMaterial) sin ejecutar stored procedures.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: MRP CF Analyst (Campo Fresco / ICF)
@@ -23,6 +24,14 @@ description: >
 Conexión MCP: **`intelisis-dab`** (remoto). Tools: `read_records`,
 `aggregate_records`. `Usuario` fijo del módulo FC: **`"MASERP"`** (los snapshots
 de este módulo son por usuario ERP que corrió el proceso, no por quien chatea).
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Contract
 

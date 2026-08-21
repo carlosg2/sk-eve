@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ChatSession from './ChatSession.svelte';
+	import SchedulesSection from '../studio/components/SchedulesSection.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as ScrollArea from '$lib/components/ui/scroll-area/index.js';
@@ -12,7 +13,7 @@
 	import ArchiveIcon from '@lucide/svelte/icons/archive';
 	import ArchiveRestoreIcon from '@lucide/svelte/icons/archive-restore';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import MicIcon from '@lucide/svelte/icons/mic';
+	import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
 
 	// Índice de sesiones (para el sidebar) — GET /api/sessions, escrito por
 	// agent/hooks/session-log.ts. Se refresca por polling: los eventos que
@@ -54,6 +55,9 @@
 	// id de la sesión a eliminar mientras el AlertDialog de confirmación está
 	// abierto; null cuando el diálogo está cerrado.
 	let pendingDeleteId = $state<string | null>(null);
+	// Vista del sidebar: 'sessions' (historial de conversaciones) o 'schedules'
+	// (administración de tareas cron — el mismo SchedulesSection que /studio).
+	let sidebarView = $state<'sessions' | 'schedules'>('sessions');
 
 	const sessionKey = $derived(selectedId ?? `new-${newNonce}`);
 
@@ -206,7 +210,37 @@
 			<Separator />
 		</Sidebar.Header>
 		<Sidebar.Content class="gap-0 p-0">
-			<ScrollArea.Root class="min-h-0 flex-1">
+			{#if sidebarView === 'schedules'}
+				<!-- Administración de schedules (misma pantalla que /studio) -->
+				<div class="flex h-full min-h-0 flex-col">
+					<div class="flex items-center gap-1 border-b border-border px-2 py-1.5">
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-7 gap-1 px-1.5 text-xs"
+							onclick={() => (sidebarView = 'sessions')}
+						>
+							<MessagesSquareIcon class="size-3.5" />
+							Conversaciones
+						</Button>
+						<div class="flex-1"></div>
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-7 gap-1 px-1.5 text-xs"
+							href="/studio"
+							title="Abrir pantalla completa en /studio"
+						>
+							<CalendarClockIcon class="size-3.5" />
+							Studio
+						</Button>
+					</div>
+					<div class="min-h-0 min-w-0 flex-1">
+						<SchedulesSection />
+					</div>
+				</div>
+			{:else}
+				<ScrollArea.Root class="min-h-0 flex-1">
 				<nav class="flex flex-col gap-0.5 p-1.5" aria-label="Historial de sesiones">
 					{#if sessions.length === 0}
 						<p class="text-muted-foreground px-2 py-3 text-xs">
@@ -276,6 +310,7 @@
 					{/each}
 				</nav>
 			</ScrollArea.Root>
+			{/if}
 		</Sidebar.Content>
 		<Sidebar.Footer class="gap-0 p-0">
 			<Separator />
@@ -291,13 +326,19 @@
 					</button>
 				{/each}
 			</div>
-			<a
-				href="/voice"
+			<button
+				type="button"
 				class="text-muted-foreground flex items-center gap-1.5 px-3 py-2 text-xs hover:bg-accent"
+				onclick={() => (sidebarView = sidebarView === 'schedules' ? 'sessions' : 'schedules')}
 			>
-				<MicIcon class="size-3.5" />
-				Voz (Grok Voice)
-			</a>
+				{#if sidebarView === 'schedules'}
+					<MessagesSquareIcon class="size-3.5" />
+					Ver conversaciones
+				{:else}
+					<CalendarClockIcon class="size-3.5" />
+					Schedules
+				{/if}
+			</button>
 			<button
 				type="button"
 				class="text-muted-foreground flex items-center gap-1.5 px-3 py-2 text-xs hover:bg-accent"

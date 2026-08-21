@@ -1,5 +1,5 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
-import { loadActiveAgent, loadScopedSkills } from "../lib/runtime-config.js";
+import { loadActiveAgent } from "../lib/runtime-config.js";
 import { setCurrentSessionId } from "../lib/current-session.js";
 
 // Composición runtime del harness por agente: al iniciar sesión inyecta el
@@ -33,32 +33,6 @@ export default defineDynamic({
           "## Tools del ERP permitidas para este agente",
           "",
           `Usa únicamente estas tools MCP: ${agent.mcpTools.join(", ")}. No invoques otras.`,
-        );
-      }
-      // NOMENCLATURA REAL de fuentes de conocimiento (2026-08-20). El agente debe
-      // distinguir TRES tipos de fuente por su mecanismo de carga; nunca inferir
-      // nombres: la lista de skills de abajo es EXHAUSTIVA (no hay otras).
-      const scopedSkills = loadScopedSkills(agent);
-      if (scopedSkills.length) {
-        parts.push(
-          "",
-          "## Fuentes de conocimiento — nomenclatura (IMPORTANTE)",
-          "",
-          "- **Skill** → se carga con `load_skill('<slug>')`. La lista de abajo es la ÚNICA válida; " +
-            "si un nombre que ves en el contexto no está aquí (p.ej. un documento del Company Twin), NO es un skill y " +
-            "NO lo cargues con `load_skill`.",
-          "- **Concepto del Company Twin / ERP Kernel** → se lee con `query_company_twin('<concepto>')`. " +
-            "Los documentos con sufijo `.md` y los nombres entre paréntesis marcados como " +
-            "`(concepto del Company Twin: ...)` son conceptos, NO skills.",
-          "- **Dato del ERP** → se consulta con las tools MCP (`read_records`, `aggregate_records`, `buscar_registro`...).",
-          "",
-          `### Skills disponibles de este agente (catálogo EXHAUSTIVO — usa solo estos slugs):`,
-          "",
-          scopedSkills.map((s) => `- \`${s.slug}\` — ${s.description ?? ""}`).join("\n"),
-          "",
-          "Carga un skill solo si su slug está en esta lista. Si el contexto menciona otro nombre " +
-            "(p.ej. `mrp-plan-produccion`, `mrp-programa`), es un CONCEPTO del twin (consúltalo con " +
-            "`query_company_twin`) o un artefacto de conocimiento, NO un skill.",
         );
       }
       // Canal de voz (Canal-Aware Dual-Brain): cuando la UI activa la voz, cada

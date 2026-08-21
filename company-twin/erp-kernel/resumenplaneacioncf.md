@@ -19,6 +19,11 @@ FC, ver [artfamfc.md](artfamfc.md)) y el plan por semana en los pares
 
 # Schema 
 
+⚠️ **NO tiene columna `Periodo`** (BadRequest si se usa en `select`/`filter`).
+`Ejercicio` y `Concepto` SÍ existen. El periodo/ejercicio vigente se obtiene
+del calendario (`CalendarioFC`/`DIM_TIEMPO_SEMANA`) o del concepto de sesión
+del Company Twin, nunca de esta vista.
+
 Campos de cabecera:
 - `ID`, `Usuario` (fijo del módulo FC: `MASERP`), `Prioridad`, `CtTrabajo`
 - `Ejercicio`, `Concepto`

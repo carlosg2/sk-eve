@@ -82,14 +82,29 @@ export function skillLibraryRoot(): string {
 	return join(process.cwd(), "agent", "skill-library");
 }
 
+/** Resuelve la raíz de los schedules (`agent/schedules/`, root-only del agente). */
+export function scheduleRoot(): string {
+	let dir = process.cwd();
+	for (let depth = 0; depth < 8; depth++) {
+		const candidate = join(dir, "agent", "schedules");
+		if (existsSync(candidate)) return candidate;
+		const parent = dirname(dir);
+		if (parent === dir) break;
+		dir = parent;
+	}
+	return join(process.cwd(), "agent", "schedules");
+}
+
 /** Prefijo que distingue rutas del catálogo (`agent/skill-library/`) dentro del API genérico de archivos. */
 const AGENT_SKILLS_PREFIX = "agent-skills/";
+/** Prefijo que distingue rutas de schedules (`agent/schedules/`) dentro del API genérico de archivos. */
+const AGENT_SCHEDULES_PREFIX = "agent-schedules/";
 
 /**
  * Resuelve una ruta relativa (recibida del cliente) contra `company-twin/` (o,
  * si empieza con `agent-skills/`, contra `agent/skill-library/` — el catálogo
- * que carga el runtime) y verifica que no escape del raíz correspondiente.
- * Lanza si hay traversal.
+ * que carga el runtime; o con `agent-schedules/`, contra `agent/schedules/`)
+ * y verifica que no escape del raíz correspondiente. Lanza si hay traversal.
  */
 export function safeResolve(relPath: string): string {
 	if (relPath.startsWith(AGENT_SKILLS_PREFIX)) {
@@ -97,6 +112,14 @@ export function safeResolve(relPath: string): string {
 		const full = resolve(root, relPath.slice(AGENT_SKILLS_PREFIX.length));
 		if (full !== root && !full.startsWith(root + sep)) {
 			throw new Error(`Ruta fuera de agent/skill-library: ${relPath}`);
+		}
+		return full;
+	}
+	if (relPath.startsWith(AGENT_SCHEDULES_PREFIX)) {
+		const root = scheduleRoot();
+		const full = resolve(root, relPath.slice(AGENT_SCHEDULES_PREFIX.length));
+		if (full !== root && !full.startsWith(root + sep)) {
+			throw new Error(`Ruta fuera de agent/schedules: ${relPath}`);
 		}
 		return full;
 	}
@@ -514,6 +537,102 @@ export async function createCatalogSkill(input: {
 		tenant: input.tenant ? [slugify(input.tenant)] : null,
 		path: rel,
 	};
+}
+
+// ── schedules (agent/schedules/) ─────────────────────────────────────────────
+
+export type ScheduleInfo = {
+	/** Slug del schedule (sin extensión), = nombre que usa Eve para dispararlo. */
+	name: string;
+	/** Ruta relativa (`agent-schedules/<name>.ts`) para el API genérico de archivos. */
+	path: string;
+	/** Expresión cron de 5 campos. */
+	cron: string;
+	/** Prompt fire-and-forget (o vacío si el schedule usa `run`). */
+	prompt: string;
+	kind: "ts" | "md";
+};
+
+/** Lee los schedules definidos en `agent/schedules/` (raíz del agente, root-only). */
+export async function listSchedules(): Promise<ScheduleInfo[]> {
+	const root = scheduleRoot();
+	if (!existsSync(root)) return [];
+	const entries = await readdir(root, { withFileTypes: true });
+	const out: ScheduleInfo[] = [];
+	for (const entry of entries) {
+		if (entry.isDirectory() || entry.name.startsWith(".")) continue;
+		if (!entry.name.endsWith(".ts") && !entry.name.endsWith(".md")) continue;
+		const name = entry.name.replace(/\.(ts|md)$/, "");
+		const content = await readFile(join(root, entry.name), "utf8").catch(() => "");
+		const parsed = parseScheduleFile(name, entry.name, content);
+		if (parsed) out.push({ name, path: `${AGENT_SCHEDULES_PREFIX}${entry.name}`, ...parsed });
+	}
+	return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Extrae cron + prompt de un archivo de schedule: `.md` (frontmatter `cron` +
+ * body = prompt) o `.ts` (`defineSchedule({ cron, markdown })`). Best-effort:
+ * si no se puede extraer el cron, el schedule no se lista.
+ */
+function parseScheduleFile(
+	name: string,
+	fileName: string,
+	content: string,
+): { cron: string; prompt: string; kind: "ts" | "md" } | null {
+	if (fileName.endsWith(".md")) {
+		const { fm, body } = parseFrontmatter(content);
+		const cron = typeof fm.cron === "string" ? fm.cron.trim() : "";
+		return cron ? { cron, prompt: body.trim(), kind: "md" } : null;
+	}
+	const cronMatch = /cron\s*:\s*["']([^"']+)["']/.exec(content);
+	if (!cronMatch) return null;
+	const promptMatch = /markdown\s*:\s*["']([^"']*)["']/s.exec(content);
+	return { cron: cronMatch[1], prompt: (promptMatch ? promptMatch[1] : "").trim(), kind: "ts" };
+}
+
+/**
+ * Crea un schedule fire-and-forget en `agent/schedules/<slug>.ts` (scaffold
+ * tipo eve-studio: `defineSchedule` con cron + markdown).
+ */
+export async function createSchedule(input: {
+	name: string;
+	cron: string;
+	prompt: string;
+}): Promise<ScheduleInfo> {
+	const slug = slugify(input.name);
+	if (!slug) throw new Error("Nombre de schedule inválido.");
+	const rel = `${AGENT_SCHEDULES_PREFIX}${slug}.ts`;
+	if (existsSync(safeResolve(rel))) throw new Error(`El schedule '${slug}' ya existe.`);
+	const ts = [
+		'import { defineSchedule } from "eve/schedules";',
+		"",
+		"/**",
+		` * ${slug} — cron de 5 campos evaluado en UTC en Vercel.`,
+		" */",
+		"export default defineSchedule({",
+		`  cron: ${JSON.stringify(input.cron)},`,
+		`  markdown: ${JSON.stringify(input.prompt)},`,
+		"});",
+		"",
+	].join("\n");
+	await writeTwinFile(rel, ts);
+	return { name: slug, path: rel, cron: input.cron, prompt: input.prompt, kind: "ts" };
+}
+
+/** Elimina un schedule por nombre (archivo `.ts` o `.md`). Devuelve false si no existe. */
+export async function deleteSchedule(name: string): Promise<boolean> {
+	const slug = slugify(name);
+	if (!slug) return false;
+	for (const ext of ["ts", "md"]) {
+		const rel = `${AGENT_SCHEDULES_PREFIX}${slug}.${ext}`;
+		const full = safeResolve(rel);
+		if (existsSync(full)) {
+			await rm(full, { force: true });
+			return true;
+		}
+	}
+	return false;
 }
 
 // ── capabilities: manifest del agente (agent.md) ─────────────────────────────

@@ -33,6 +33,10 @@ export default defineConfig({
 				'**/.data/**',
 				'**/docs/**',
 				'**/company-twin/**',
+				// agent/schedules/** = tareas cron editadas desde /studio (o /chat): la
+				// escritura del archivo no debe recargar la página (Eve sí las detecta
+				// para registrarlas, pero Vite no debe hacer page reload por ello).
+				'**/agent/schedules/**',
 				// references/** = repos clonados de la fábrica (vercel/ai, xai-cookbook):
 				// no deben disparar page reload en ningún caso.
 				'**/references/**'

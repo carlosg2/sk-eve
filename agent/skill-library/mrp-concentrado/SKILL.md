@@ -5,6 +5,7 @@ description: >
   agrupado por familia de artículo, o por el programa de producción de
   concentrado por centro de trabajo y semana. Corresponde a la ruta
   "Concentrado de Familias" del portal MRP.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: MRP — Concentrado de Familias (consolidado por familia)
@@ -13,6 +14,14 @@ description: >
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_inicio_concentrado`** (SP del portal: concentrado por familia; parámetros `Usuario, Ejercicio, Periodo`).
 `Usuario` fijo: **`"MASERP"`**.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Origen (portal legacy sigma-icf, ruta `/concentrado`)
 

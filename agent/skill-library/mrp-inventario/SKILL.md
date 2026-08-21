@@ -6,6 +6,7 @@ description: >
   producción ya autorizado, o por el **saldo de inventario de un artículo
   (entradas CargoU menos salidas AbonoU de la rama inventario)**. Corresponde
   a la ruta "Inventario Semanal" del portal MRP.
+twin_concepts: [mrp/mrp-sesion-periodo]
 ---
 
 # Skill: MRP — Inventario Semanal (presupuesto VACA + lotes PEPS)
@@ -16,6 +17,14 @@ description: >
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`vaca_presupuesto_forecast_semanal`** (SP del portal: presupuesto VACA semanal; parámetros `Usuario='MASERP', Ejercicio, Semana`).
 `Usuario` fijo: **`"MASERP"`**.
+
+## Periodo vigente (regla determinista)
+
+Si el usuario no menciona ejercicio/periodo, usa el **VIGENTE** derivado de la
+fecha actual (año y mes actuales — hoy 2026/8). **NUNCA pruebes variantes** de
+periodo (ni 7, ni 12, ni ejercicios anteriores "por si acaso") — eso multiplica
+las consultas. Si el usuario pide un periodo específico, usa ESE y solo ese. Las
+semanas del periodo salen del calendario (`DIM_TIEMPO_SEMANA`/`CalendarioFC`).
 
 ## Si el usuario NO especifica artículo 
 

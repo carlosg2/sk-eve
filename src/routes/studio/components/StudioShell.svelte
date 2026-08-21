@@ -8,6 +8,7 @@
 	import McpToolsSection from "./McpToolsSection.svelte";
 	import SkillsSection from "./SkillsSection.svelte";
 	import CapabilitiesSection from "./CapabilitiesSection.svelte";
+	import SchedulesSection from "./SchedulesSection.svelte";
 	import BuildingIcon from "@lucide/svelte/icons/building-2";
 	import BotIcon from "@lucide/svelte/icons/bot";
 	import PlusIcon from "@lucide/svelte/icons/plus";
@@ -115,6 +116,10 @@
 		{ id: "twin", label: "Company Twin", icon: DatabaseIcon },
 		{ id: "kernel", label: "ERP Kernel · compartido", icon: BookIcon },
 	];
+	// Secciones globales del agente (root-only): no dependen del tenant/agente.
+	const GLOBAL_SECTIONS = [
+		{ id: "schedules", label: "Schedules", icon: CalendarIcon },
+	];
 	const AGENT_SECTIONS = [
 		{ id: "modelo", label: "Modelo", icon: CpuIcon, ready: true },
 		{ id: "instructions", label: "Instructions", icon: FileTextIcon, ready: true },
@@ -123,7 +128,6 @@
 		{ id: "tools", label: "Tools", icon: WrenchIcon, ready: true },
 		{ id: "connections", label: "Connections", icon: PlugIcon, ready: false },
 		{ id: "channels", label: "Channels", icon: RadioIcon, ready: false },
-		{ id: "schedules", label: "Schedules", icon: CalendarIcon, ready: false },
 		{ id: "deploy", label: "Deploy", icon: RocketIcon, ready: false },
 		{ id: "evals", label: "Evals", icon: CheckIcon, ready: false },
 		{ id: "chat", label: "Chat", icon: MessageSquareIcon, ready: true },
@@ -313,8 +317,22 @@
 
 	<!-- Nav de secciones -->
 	<nav class="flex min-h-0 flex-col overflow-y-auto border-r border-border py-2">
+		<div class="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+			Agente
+		</div>
+		{#each GLOBAL_SECTIONS as s (s.id)}
+			<button
+				type="button"
+				onclick={() => (section = s.id)}
+				class="mx-1 flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] {section === s.id ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'}"
+			>
+				<s.icon class="size-3.5" />
+				<span class="truncate">{s.label}</span>
+			</button>
+		{/each}
+
 		{#if tenant}
-			<div class="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+			<div class="mt-3 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 				{tenant.companyName}
 			</div>
 			{#each TENANT_SECTIONS as s (s.id)}
@@ -351,7 +369,10 @@
 
 	<!-- Contenido -->
 	<main class="flex min-h-0 min-w-0 flex-col">
-		{#if !tenant}
+		{#if section === "schedules"}
+			<!-- Schedules es global (raíz del agente), no depende del tenant/agente. -->
+			<SchedulesSection />
+		{:else if !tenant}
 			<div class="flex flex-1 items-center justify-center text-sm text-muted-foreground">
 				Selecciona o crea un tenant.
 			</div>
