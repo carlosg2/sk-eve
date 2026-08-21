@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { Client } from 'eve/client';
+import { setSessionSource } from '../../../../agent/lib/session-store.js';
 import type { RequestHandler } from './$types';
 
 // Tareas programadas (cron) del agente Eve.
@@ -72,5 +73,9 @@ export const POST: RequestHandler = async ({ url, request }) => {
 		// Desconocido → Eve responde 404 con `availableScheduleIds`.
 		throw error(res.status, text || `No se pudo ejecutar la tarea "${id}"`);
 	}
-	return json(await res.json());
+	const dispatchBody = (await res.json()) as { scheduleId?: string; sessionIds?: string[] };
+	// Las sesiones creadas por una tarea programada se etiquetan con source
+	// 'tarea' para poder filtrarlas en el sidebar (Todas/Chat/Evals/Tareas).
+	for (const sid of dispatchBody.sessionIds ?? []) void setSessionSource(sid, 'tarea');
+	return json(dispatchBody);
 };

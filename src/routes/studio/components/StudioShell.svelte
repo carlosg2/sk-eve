@@ -23,7 +23,7 @@
 	import WrenchIcon from "@lucide/svelte/icons/wrench";
 	import PlugIcon from "@lucide/svelte/icons/plug";
 	import RadioIcon from "@lucide/svelte/icons/radio";
-	import CalendarIcon from "@lucide/svelte/icons/calendar";
+	import ListTodoIcon from "@lucide/svelte/icons/list-todo";
 	import RocketIcon from "@lucide/svelte/icons/rocket";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import MessageSquareIcon from "@lucide/svelte/icons/message-square";
@@ -118,7 +118,7 @@
 	];
 	// Secciones globales del agente (root-only): no dependen del tenant/agente.
 	const GLOBAL_SECTIONS = [
-		{ id: "schedules", label: "Schedules", icon: CalendarIcon },
+		{ id: "schedules", label: "Tareas", icon: ListTodoIcon },
 	];
 	const AGENT_SECTIONS = [
 		{ id: "modelo", label: "Modelo", icon: CpuIcon, ready: true },
@@ -370,7 +370,7 @@
 	<!-- Contenido -->
 	<main class="flex min-h-0 min-w-0 flex-col">
 		{#if section === "schedules"}
-			<!-- Schedules es global (raíz del agente), no depende del tenant/agente. -->
+			<!-- Tareas (schedules) es global (raíz del agente), no depende del tenant/agente. -->
 			<SchedulesSection />
 		{:else if !tenant}
 			<div class="flex flex-1 items-center justify-center text-sm text-muted-foreground">

@@ -595,6 +595,10 @@ function parseScheduleFile(
  * Crea un schedule fire-and-forget en `agent/schedules/<slug>.ts` (scaffold
  * tipo eve-studio: `defineSchedule` con cron + markdown).
  */
+/**
+ * Crea un schedule fire-and-forget en `agent/schedules/<slug>.md` (frontmatter
+ * `cron` + body = prompt markdown, el formato que usa el editor visual).
+ */
 export async function createSchedule(input: {
 	name: string;
 	cron: string;
@@ -602,22 +606,18 @@ export async function createSchedule(input: {
 }): Promise<ScheduleInfo> {
 	const slug = slugify(input.name);
 	if (!slug) throw new Error("Nombre de schedule inválido.");
-	const rel = `${AGENT_SCHEDULES_PREFIX}${slug}.ts`;
+	const rel = `${AGENT_SCHEDULES_PREFIX}${slug}.md`;
 	if (existsSync(safeResolve(rel))) throw new Error(`El schedule '${slug}' ya existe.`);
-	const ts = [
-		'import { defineSchedule } from "eve/schedules";',
+	const md = [
+		"---",
+		`cron: "${input.cron}"`,
+		"---",
 		"",
-		"/**",
-		` * ${slug} — cron de 5 campos evaluado en UTC en Vercel.`,
-		" */",
-		"export default defineSchedule({",
-		`  cron: ${JSON.stringify(input.cron)},`,
-		`  markdown: ${JSON.stringify(input.prompt)},`,
-		"});",
+		input.prompt.trim() || `# ${slug}`,
 		"",
 	].join("\n");
-	await writeTwinFile(rel, ts);
-	return { name: slug, path: rel, cron: input.cron, prompt: input.prompt, kind: "ts" };
+	await writeTwinFile(rel, md);
+	return { name: slug, path: rel, cron: input.cron, prompt: input.prompt, kind: "md" };
 }
 
 /** Elimina un schedule por nombre (archivo `.ts` o `.md`). Devuelve false si no existe. */

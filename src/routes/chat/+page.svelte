@@ -13,7 +13,8 @@
 	import ArchiveIcon from '@lucide/svelte/icons/archive';
 	import ArchiveRestoreIcon from '@lucide/svelte/icons/archive-restore';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
+	import ListTodoIcon from '@lucide/svelte/icons/list-todo';
+	import FlaskConicalIcon from '@lucide/svelte/icons/flask-conical';
 
 	// Índice de sesiones (para el sidebar) — GET /api/sessions, escrito por
 	// agent/hooks/session-log.ts. Se refresca por polling: los eventos que
@@ -30,12 +31,12 @@
 		updatedAt: string;
 		active: boolean;
 		turns: number;
-		source?: 'chat' | 'eval';
+		source?: 'chat' | 'eval' | 'tarea';
 	};
 
 	// Filtro por origen: 'all' (todo), 'chat' (solo conversaciones humanas),
 	// 'eval' (solo sesiones creadas por el harness e2e-demo / evals).
-	const sourceOptions = ['all', 'chat', 'eval'] as const;
+	const sourceOptions = ['all', 'chat', 'eval', 'tarea'] as const;
 	type SourceFilter = (typeof sourceOptions)[number];
 	let sourceFilter = $state<SourceFilter>('all');
 
@@ -231,7 +232,7 @@
 							href="/studio"
 							title="Abrir pantalla completa en /studio"
 						>
-							<CalendarClockIcon class="size-3.5" />
+							<ListTodoIcon class="size-3.5" />
 							Studio
 						</Button>
 					</div>
@@ -265,11 +266,16 @@
 									{/if}
 									<span class="truncate">{s.title}</span>
 									{#if s.source === 'eval'}
-										<span
-											class="ml-auto shrink-0 rounded bg-purple-500/15 px-1 py-0.5 text-[0.6rem] font-semibold uppercase text-purple-400"
+										<FlaskConicalIcon
+											class="text-purple-400 ml-auto size-3.5 shrink-0"
 											title="Sesión de evals/harness"
-											>Eval</span
-										>
+										/>
+									{/if}
+									{#if s.source === 'tarea'}
+										<ListTodoIcon
+											class="text-amber-400 ml-auto size-3.5 shrink-0"
+											title="Tarea programada"
+										/>
 									{/if}
 								</span>
 								<span class="text-muted-foreground text-[0.7rem]">{formatRelative(s.updatedAt)}</span>
@@ -318,11 +324,18 @@
 				{#each sourceOptions as f (f)}
 					<button
 						type="button"
-						class="rounded-md px-2 py-1 text-xs transition-colors {sourceFilter === f ? 'bg-accent text-foreground font-medium' : 'text-muted-foreground hover:bg-accent/50'}"
+						class="flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors {sourceFilter === f ? 'bg-accent text-foreground font-medium' : 'text-muted-foreground hover:bg-accent/50'}"
 						aria-pressed={sourceFilter === f}
 						onclick={() => setSourceFilter(f)}
 					>
-						{f === 'all' ? 'Todas' : f === 'chat' ? 'Chat' : 'Evals'}
+						{#if f === 'chat'}
+							<MessagesSquareIcon class="size-3" />
+						{:else if f === 'eval'}
+							<FlaskConicalIcon class="size-3" />
+						{:else if f === 'tarea'}
+							<ListTodoIcon class="size-3" />
+						{/if}
+						{f === 'all' ? 'Todas' : f === 'chat' ? 'Chat' : f === 'eval' ? 'Evals' : 'Tareas'}
 					</button>
 				{/each}
 			</div>
@@ -335,8 +348,8 @@
 					<MessagesSquareIcon class="size-3.5" />
 					Ver conversaciones
 				{:else}
-					<CalendarClockIcon class="size-3.5" />
-					Schedules
+					<ListTodoIcon class="size-3.5" />
+					Tareas
 				{/if}
 			</button>
 			<button

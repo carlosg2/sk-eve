@@ -63,8 +63,8 @@ export interface SessionRecord {
   turns: number;
   /** true si el usuario la archivó — se oculta de la lista principal del sidebar. */
   archived: boolean;
-  /** origen: "chat" (humano en /chat) | "eval" (harness e2e-demo / evals). */
-  source: "chat" | "eval";
+  /** origen: "chat" (humano en /chat) | "eval" (harness e2e-demo / evals) | "tarea" (ejecución de una tarea programada). */
+  source: "chat" | "eval" | "tarea";
 }
 
 let db: DatabaseSync | undefined;
@@ -304,7 +304,7 @@ function toRecord(row: SessionRow): SessionRecord {
     ...row,
     active: row.active === 1,
     archived: row.archived === 1,
-    source: row.source === "eval" ? "eval" : "chat",
+    source: row.source === "eval" ? "eval" : row.source === "tarea" ? "tarea" : "chat",
   };
 }
 
@@ -364,7 +364,7 @@ export async function markSessionIdle(id: string): Promise<void> {
 
 /** Lista más recientes primero (por updatedAt). Por defecto excluye archivadas. */
 export async function listSessions(
-  opts: { archived?: boolean; source?: "chat" | "eval" } = {},
+  opts: { archived?: boolean; source?: "chat" | "eval" | "tarea" } = {},
 ): Promise<SessionRecord[]> {
   // Solo se reporta `active` si la última actividad es reciente; una sesión
   // "activa" sin tocar `updatedAt` en >1h es un turno huérfano y se lista
@@ -373,7 +373,7 @@ export async function listSessions(
   const conn = getDb();
   let sql = "SELECT * FROM sessions WHERE archived = ? AND (active = 0 OR updatedAt > ?)";
   const params: (string | number)[] = [opts.archived ? 1 : 0, cutoff];
-  if (opts.source === "chat" || opts.source === "eval") {
+  if (opts.source === "chat" || opts.source === "eval" || opts.source === "tarea") {
     sql += " AND source = ?";
     params.push(opts.source);
   }
@@ -382,10 +382,15 @@ export async function listSessions(
   return rows.map(toRecord);
 }
 
-/** Marca el origen de una sesión ("chat" humano en /chat | "eval" del harness). */
-export async function setSessionSource(id: string, source: "chat" | "eval"): Promise<void> {
+/** Marca el origen de una sesión ("chat" humano | "eval" del harness | "tarea" programada). */
+export async function setSessionSource(id: string, source: "chat" | "eval" | "tarea"): Promise<void> {
   try {
-    getDb().prepare("UPDATE sessions SET source = ? WHERE id = ?").run(source, id);
+    // ⚠️ CARRERA: el dispatch de una tarea devuelve el sessionId ANTES de que
+    // session.started cree la fila (session-log.ts → touchSessionStarted), así
+    // que un UPDATE puro no-op si la fila no existe → la sesión quedaba 'chat'.
+    // Con create=true hacemos upsert: si la fila no existe la creamos con el
+    // source correcto; si ya existe, la re-marca (ON CONFLICT DO UPDATE).
+    update(id, (rec) => ({ ...rec, source }), true);
   } catch {
     // nunca romper por un fallo de marcado
   }

@@ -4,7 +4,10 @@
 	import { Textarea } from "$lib/components/ui/textarea/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
+	import { Markdown } from "$lib/components/ai/markdown/index.js";
+	import CronEditor from "./CronEditor.svelte";
 	import CalendarIcon from "@lucide/svelte/icons/calendar";
+	import ListTodoIcon from "@lucide/svelte/icons/list-todo";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
 	import Loader2Icon from "@lucide/svelte/icons/loader-2";
@@ -13,10 +16,14 @@
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import SaveIcon from "@lucide/svelte/icons/save";
 	import XIcon from "@lucide/svelte/icons/x";
+	import Settings2Icon from "@lucide/svelte/icons/settings-2";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import PencilIcon from "@lucide/svelte/icons/pencil";
+	import FileCodeIcon from "@lucide/svelte/icons/file-code";
 
-	// Pantalla "Schedules" replicada de eve-studio: lista de tareas cron con
+	// Pantalla "Tareas" (schedules) replicada de eve-studio: lista de tareas cron con
 	// cron legible + badge, botón "Probar" (dispara una vez en desarrollo),
-	// modal para crear (name/cron/prompt → agent/schedules/<name>.ts) y editor
+	// modal para crear (name/cron/prompt → agent/schedules/<name>.md) y editor
 	// de archivo para ver/editar/eliminar el source.
 
 	type Schedule = {
@@ -42,7 +49,7 @@
 
 	// Editar / eliminar
 	let editing = $state<Schedule | null>(null);
-	let editSource = $state("");
+	let editSource = $state(""); // source crudo completo (para .ts o modo código)
 	let editOriginal = $state("");
 	let editLoading = $state(false);
 	let saving = $state(false);
@@ -50,11 +57,51 @@
 	let savedAt = $state<number | null>(null);
 	let deleteBusy = $state(false);
 
+	// Editor visual (solo schedules .md): cron (frecuencia) + body (prompt markdown)
+	let editCron = $state("");
+	let editBody = $state("");
+	let editOriginalCron = $state("");
+	let editOriginalBody = $state("");
+	let promptMode = $state<"preview" | "edit">("preview");
+	let editTab = $state<"propiedades" | "prompt">("propiedades");
+
 	// Probar (disparo manual en dev)
 	let testing = $state<string | null>(null);
 	let testMsg = $state<{ ok: boolean; text: string } | null>(null);
 
-	const editDirty = $derived(editSource !== editOriginal);
+	const editDirty = $derived(
+		editing?.kind === "md"
+			? editBody !== editOriginalBody || editCron !== editOriginalCron
+			: editSource !== editOriginal,
+	);
+
+	/** Separa el frontmatter YAML (`--- … ---`) del cuerpo. */
+	function splitFrontmatter(source: string): { frontmatter: string | null; body: string } {
+		const match = /^---\r?\n([\s\S]*?)\r?\n---\s*\r?\n?/.exec(source);
+		if (!match) return { frontmatter: null, body: source };
+		return { frontmatter: match[1], body: source.slice(match[0].length) };
+	}
+
+	/** Reemplaza (o añade) la línea `cron:` en un bloque de frontmatter. */
+	function replaceCronInFrontmatter(frontmatter: string, newCron: string): string {
+		const lines = frontmatter.split("\n");
+		let replaced = false;
+		const out = lines.map((l) => {
+			const m = /^cron\s*:/.exec(l);
+			if (m) {
+				replaced = true;
+				return `cron: "${newCron}"`;
+			}
+			return l;
+		});
+		if (!replaced) out.push(`cron: "${newCron}"`);
+		return out.join("\n");
+	}
+
+	/** Fuente del markdown en la vista previa del prompt (solo el body; el frontmatter se edita en Propiedades). */
+	const promptPreviewSource = $derived.by(() => {
+		return editBody;
+	});
 
 	async function load() {
 		loading = true;
@@ -65,7 +112,7 @@
 			const data = (await res.json()) as { schedules: Schedule[] };
 			schedules = data.schedules ?? [];
 		} catch (err) {
-			error = err instanceof Error ? err.message : "Error al cargar schedules";
+			error = err instanceof Error ? err.message : "Error al cargar tareas";
 		} finally {
 			loading = false;
 		}
@@ -123,6 +170,11 @@
 		editing = s;
 		editSource = "";
 		editOriginal = "";
+		editCron = "";
+		editBody = "";
+		editOriginalCron = "";
+		editOriginalBody = "";
+		promptMode = "preview";
 		editLoading = true;
 		saveError = null;
 		savedAt = null;
@@ -132,6 +184,14 @@
 			const data = (await res.json()) as { content: string; exists: boolean };
 			editSource = data.content;
 			editOriginal = data.content;
+			if (s.kind === "md") {
+				const { frontmatter, body } = splitFrontmatter(data.content);
+				const cronMatch = /cron\s*:\s*["']?([^"'\n]+)["']?/.exec(frontmatter ?? "");
+				editCron = cronMatch ? cronMatch[1].trim() : s.cron;
+				editBody = body;
+				editOriginalCron = editCron;
+				editOriginalBody = body;
+			}
 		} catch (err) {
 			saveError = err instanceof Error ? err.message : "Error al leer el schedule";
 		} finally {
@@ -144,13 +204,25 @@
 		saving = true;
 		saveError = null;
 		try {
+			let content: string;
+			if (editing.kind === "md") {
+				const { frontmatter } = splitFrontmatter(editOriginal);
+				const fm = replaceCronInFrontmatter(frontmatter ?? "", editCron);
+				content = `---\n${fm}\n---\n\n${editBody}`;
+			} else {
+				content = editSource;
+			}
 			const res = await fetch("/studio/api/file", {
 				method: "PUT",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ path: editing.path, content: editSource }),
+				body: JSON.stringify({ path: editing.path, content }),
 			});
 			if (!res.ok) throw new Error(await res.text());
-			editOriginal = editSource;
+			editOriginal = content;
+			if (editing.kind === "md") {
+				editOriginalCron = editCron;
+				editOriginalBody = editBody;
+			}
 			savedAt = Date.now();
 			await load();
 		} catch (err) {
@@ -210,8 +282,8 @@
 <div class="flex h-full min-h-0 flex-col">
 	<!-- Cabecera -->
 	<div class="flex items-center gap-2 border-b border-border px-4 py-2.5">
-		<CalendarIcon class="size-4 text-muted-foreground" />
-		<span class="text-sm font-medium">Schedules</span>
+		<ListTodoIcon class="size-4 text-muted-foreground" />
+		<span class="text-sm font-medium">Tareas</span>
 		<span class="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
 			{schedules.length}
 		</span>
@@ -248,16 +320,16 @@
 			<div class="mx-auto max-w-2xl px-4 py-4 text-xs text-red-600">{error}</div>
 		{:else if schedules.length === 0}
 			<div class="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-				<CalendarIcon class="size-6 text-muted-foreground" />
+				<ListTodoIcon class="size-6 text-muted-foreground" />
 				<div class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-					Schedules
+					Tareas
 				</div>
-				<div class="text-sm font-medium">No schedules</div>
+				<div class="text-sm font-medium">Sin tareas</div>
 				<p class="max-w-xs text-xs text-muted-foreground">
 					Los trabajos programados despiertan al agente con un cron (solo agente raíz).
 				</p>
 				<Button variant="default" size="sm" onclick={openAdd}>
-					<PlusIcon class="size-3.5" /> Nuevo schedule
+					<PlusIcon class="size-3.5" /> Nueva tarea
 				</Button>
 			</div>
 		{:else}
@@ -267,7 +339,7 @@
 						<li
 							class="group flex cursor-pointer items-center gap-2 px-3 py-2.5 hover:bg-muted/50"
 							onclick={() => openEdit(s)}
-							title="Editar schedule"
+							title="Editar tarea"
 						>
 							<CalendarIcon class="size-4 shrink-0 text-muted-foreground" />
 							<div class="min-w-0 flex-1">
@@ -305,7 +377,7 @@
 	</div>
 </div>
 
-<!-- Modal: nuevo schedule -->
+	<!-- Modal: nueva tarea -->
 <Dialog.Root
 	open={addOpen}
 	onOpenChange={(o) => {
@@ -314,9 +386,9 @@
 >
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Nuevo schedule</Dialog.Title>
+			<Dialog.Title>Nueva tarea</Dialog.Title>
 			<Dialog.Description>
-				Se crea en <code class="font-mono text-xs">agent/schedules/&lt;nombre&gt;.ts</code>
+				Se crea en <code class="font-mono text-xs">agent/schedules/&lt;nombre&gt;.md</code>
 			</Dialog.Description>
 		</Dialog.Header>
 		{#if createDone}
@@ -336,15 +408,17 @@
 			<div class="space-y-3 px-6 pb-6">
 				<div>
 					<div class="mb-1 text-xs font-medium text-muted-foreground">
-						Name <span class="opacity-70">— se vuelve schedules/&lt;nombre&gt;.ts</span>
+						Name <span class="opacity-70">— se vuelve schedules/&lt;nombre&gt;.md</span>
 					</div>
 					<Input value={newName} oninput={(e) => (newName = e.currentTarget.value)} placeholder="daily-summary" class="font-mono" />
 				</div>
 				<div>
-					<div class="mb-1 text-xs font-medium text-muted-foreground">
-						Cron <span class="opacity-70">— 5 campos, UTC (min hora dom mes dow)</span>
+					<div
+						class="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+					>
+						<Settings2Icon class="size-3.5" /> Propiedades
 					</div>
-					<Input value={newCron} oninput={(e) => (newCron = e.currentTarget.value)} placeholder="0 9 * * *" class="font-mono" />
+					<CronEditor cron={newCron} onchange={(c) => (newCron = c)} />
 				</div>
 				<div>
 					<div class="mb-1 text-xs font-medium text-muted-foreground">
@@ -381,22 +455,105 @@
 		if (!o) editing = null;
 	}}
 >
-	<Dialog.Content class="sm:max-w-2xl">
+	<Dialog.Content class="sm:max-w-3xl max-h-[90svh] overflow-y-auto">
 		<Dialog.Header>
 			<Dialog.Title class="font-mono">{editing?.path ?? ""}</Dialog.Title>
 			<Dialog.Description>
 				{#if editing}
-					{editing.cron}
-					{editing.kind === "md" ? "· schedule markdown (frontmatter cron)" : "· defineSchedule"}
+					<span class="inline-flex items-center gap-2">
+						<span>{editing.kind === "md" ? "Schedule markdown" : "defineSchedule"}</span>
+						<Badge variant="outline" class="font-mono">
+							{editing.kind === "md" ? editCron : editing.cron}
+						</Badge>
+					</span>
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
-		<div class="space-y-3 px-6 pb-6">
+		<div class="space-y-5 px-6 pb-6">
 			{#if editLoading}
 				<div class="flex justify-center py-10 text-muted-foreground">
 					<Loader2Icon class="size-5 animate-spin" />
 				</div>
+			{:else if editing?.kind === "md"}
+				<!-- Tabs: Propiedades (frecuencia) | Prompt (markdown) -->
+				<div class="flex items-center rounded-md border border-border bg-background p-0.5">
+					<button
+						type="button"
+						onclick={() => (editTab = "propiedades")}
+						title="Frecuencia y horario del cron"
+						class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors {editTab === 'propiedades'
+							? 'bg-muted text-foreground'
+							: 'text-muted-foreground hover:text-foreground'}"
+					>
+						<Settings2Icon class="size-3.5" />
+						Propiedades
+					</button>
+					<button
+						type="button"
+						onclick={() => (editTab = "prompt")}
+						title="Instrucciones en markdown que ejecuta el agente"
+						class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors {editTab === 'prompt'
+							? 'bg-muted text-foreground'
+							: 'text-muted-foreground hover:text-foreground'}"
+					>
+						<PencilIcon class="size-3.5" />
+						Prompt
+					</button>
+				</div>
+
+				{#if editTab === "propiedades"}
+					<CronEditor cron={editCron} onchange={(c) => (editCron = c)} />
+				{:else}
+					<!-- Prompt: markdown con preview (sin el frontmatter, que vive en Propiedades) -->
+					<div class="mb-2 flex items-center justify-between gap-2">
+						<div class="flex shrink-0 items-center rounded-md border border-border bg-background p-0.5">
+							<button
+								type="button"
+								onclick={() => (promptMode = "preview")}
+								title="Vista previa renderizada"
+								aria-label="Vista previa del prompt"
+								class="flex items-center gap-1.5 rounded px-2 py-1 text-xs {promptMode === 'preview'
+									? 'bg-muted font-medium text-foreground'
+									: 'text-muted-foreground hover:text-foreground'}"
+							>
+								<EyeIcon class="size-3.5" />
+								<span class="hidden lg:inline">Vista</span>
+							</button>
+							<button
+								type="button"
+								onclick={() => (promptMode = "edit")}
+								title="Editar markdown"
+								aria-label="Editar prompt"
+								class="flex items-center gap-1.5 rounded px-2 py-1 text-xs {promptMode === 'edit'
+									? 'bg-muted font-medium text-foreground'
+									: 'text-muted-foreground hover:text-foreground'}"
+							>
+								<PencilIcon class="size-3.5" />
+								<span class="hidden lg:inline">Editar</span>
+							</button>
+						</div>
+					</div>
+					{#if promptMode === "preview"}
+						<div class="preview-markdown max-h-80 overflow-y-auto rounded-md border border-border bg-muted/20 p-4">
+							<Markdown content={promptPreviewSource} />
+						</div>
+					{:else}
+						<textarea
+							bind:value={editBody}
+							rows={12}
+							spellcheck="false"
+							class="w-full resize-y rounded-md border border-border bg-muted/40 p-3 font-mono text-xs leading-relaxed outline-none focus:border-foreground/30"
+						></textarea>
+					{/if}
+				{/if}
 			{:else}
+				<!-- Schedules .ts: source crudo (código) -->
+				<div
+					class="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+				>
+					<FileCodeIcon class="size-3.5" />
+					Código
+				</div>
 				<textarea
 					value={editSource}
 					oninput={(e) => (editSource = e.currentTarget.value)}
@@ -404,38 +561,54 @@
 					spellcheck="false"
 					class="w-full resize-y rounded-md border border-border bg-muted/40 p-3 font-mono text-xs leading-relaxed outline-none focus:border-foreground/30"
 				></textarea>
-				{#if saveError}
-					<div class="text-xs text-red-600">{saveError}</div>
-				{/if}
-				<div class="flex items-center justify-between gap-2">
-					<Button
-						variant="destructive"
-						size="sm"
-						onclick={removeSchedule}
-						disabled={deleteBusy}
-						title="Eliminar este schedule"
-					>
-						<Trash2Icon class="size-3.5" /> Eliminar
-					</Button>
-					<div class="flex items-center gap-2">
-						{#if savedAt}
-							<span class="text-xs text-emerald-600">Guardado</span>
-						{:else if editDirty}
-							<span class="text-xs text-amber-600">Sin guardar</span>
-						{/if}
-						<Button variant="ghost" size="sm" onclick={() => (editing = null)}>Cerrar</Button>
-						<Button
-							variant="default"
-							size="sm"
-							onclick={saveEdit}
-							disabled={saving || !editDirty}
-						>
-							<SaveIcon class="size-3.5" />
-							{saving ? "Guardando…" : "Guardar"}
-						</Button>
-					</div>
-				</div>
 			{/if}
+			{#if saveError}
+				<div class="text-xs text-red-600">{saveError}</div>
+			{/if}
+			<div class="flex items-center justify-between gap-2">
+				<Button
+					variant="destructive"
+					size="sm"
+					onclick={removeSchedule}
+					disabled={deleteBusy}
+					title="Eliminar este schedule"
+				>
+					<Trash2Icon class="size-3.5" /> Eliminar
+				</Button>
+				<div class="flex items-center gap-2">
+					{#if savedAt}
+						<span class="text-xs text-emerald-600">Guardado</span>
+					{:else if editDirty}
+						<span class="text-xs text-amber-600">Sin guardar</span>
+					{/if}
+					<Button variant="ghost" size="sm" onclick={() => (editing = null)}>Cerrar</Button>
+					<Button
+						variant="default"
+						size="sm"
+						onclick={saveEdit}
+						disabled={saving || !editDirty}
+					>
+						<SaveIcon class="size-3.5" />
+						{saving ? "Guardando…" : "Guardar"}
+					</Button>
+				</div>
+			</div>
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
+
+<style>
+	/*
+	 * En la vista previa del prompt, el código en línea debe poder partir la
+	 * línea para no desbordar el panel; los bloques de código conservan scroll.
+	 */
+	.preview-markdown :global(code) {
+		overflow-wrap: anywhere;
+		word-break: break-word;
+	}
+	.preview-markdown :global(pre code) {
+		overflow-wrap: normal;
+		word-break: normal;
+		white-space: pre;
+	}
+</style>
