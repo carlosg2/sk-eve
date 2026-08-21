@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks por el desglose semanal de forecast/plan de
+  Use when el usuario pregunta por el desglose semanal de forecast/plan de
   producción (S1-S54, P1-P54) por artículo, cliente, centro de trabajo,
   concepto o programa, o por la **venta real embarcada** de un
   artículo/periodo (UV_QV_FILLRATE). Corresponde a la ruta "Desglose de

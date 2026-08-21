@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks sobre faltante de materia prima, insumos o
+  Use when el usuario pregunta por faltante de materia prima, insumos o
   concentrado por familia (versión agregada). Corresponde a la ruta
   "Faltantes de Materia" del portal MRP. Para el caso
   general de faltante de insumos/materia prima, usa primero el skill

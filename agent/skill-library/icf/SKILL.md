@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks about disponibilidad de artículos, inventario, stock,
+  Use when el usuario pregunta por disponibilidad de artículos, inventario, stock,
   ventas (pedidos, facturas, clientes), compras (órdenes, entradas, proveedores),
   o cualquier consulta operativa del ERP Intelisis.
 ---

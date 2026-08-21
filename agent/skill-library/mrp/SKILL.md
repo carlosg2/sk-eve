@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks about MRP, explosión de materiales, forecast de venta,
+  Use when el usuario pregunta por MRP, explosión de materiales, forecast de venta,
   arribos proyectados, plan o programa de producción, capacidad de centros,
   presupuesto VACA, indicadores de cumplimiento, o cualquier
   funcionalidad del portal MRP de la empresa ICF, y no está

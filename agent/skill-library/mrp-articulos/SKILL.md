@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks sobre prototipos de artículo/receta nueva, costeo o
+  Use when el usuario pregunta por prototipos de artículo/receta nueva, costeo o
   lista de materiales de un artículo en desarrollo, o autorización/rechazo de
   un prototipo. Corresponde a la ruta "Artículos" (Art Prototipo) del portal
   MRP.

@@ -127,14 +127,22 @@ cuándo usarlo → prerrequisitos → cómo ejecutar → validación → errores
 checklist. NUNCA un skill de fábrica debe confundirse con uno del runtime: la
 descripción y el cuerpo dejan claro que lo opera Copilot, no el agente.
 
-### 2.3 Índice / router
+### 2.3 Índice / router — no escribas routers vacíos
 
-Un skill cuya función es **ruteo + reglas transversales** (ej. `mrp` como
-índice de la familia MRP): tabla ruta→skill hermano, reglas que aplican a toda
-la familia, cero schema, cero duplicación de los leaves (cada leaf lleva su
-contenido). **No escribas un router vacío** cuyo único contenido sea punteros a
-hermanos: el catálogo y los triggers de cada hermano ya hacen ese trabajo; el
-índice solo agrega valor con reglas transversales propias.
+**Regla dura** (principio de Hermes agent-skill-authoring, adoptado): un
+router/hub/index cuyo contenido central sea una tabla de ruteo apuntando a
+skills hermanos ("para X, carga el skill Y") añade un **salto de indirección**
+y **duplica los triggers `Use when` que cada hermano ya declara**. Prueba de
+corte: si el skill quedaría **vacío** sin los punteros "carga X en su lugar",
+**no lo escribas** — el catálogo (`agent-active.ts`) y los triggers de cada
+hermano ya hacen ese trabajo.
+
+Excepción — **índice con valor propio** (ej. `mrp` como índice de la familia
+MRP): ruteo + **reglas transversales** que aplican a toda la familia (contrato
+de sesión, formato, eficiencia común), cero schema, cero duplicación de los
+leaves (cada leaf lleva su contenido). Un índice sin esas reglas no agrega
+valor: es contexto que el agente paga cada turno sin cambiar su
+comportamiento.
 
 ---
 

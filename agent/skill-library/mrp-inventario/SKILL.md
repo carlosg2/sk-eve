@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user pregunta por el presupuesto VACA semanal, por la
+  Use when el usuario pregunta por el presupuesto VACA semanal, por la
   asignación de lotes/series de materia prima (PEPS/FIFO) contra el plan de
   producción ya autorizado, o por el **saldo de inventario de un artículo
   (entradas CargoU menos salidas AbonoU de la rama inventario)**. Corresponde

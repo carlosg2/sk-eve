@@ -1,7 +1,7 @@
 ---
 tenant: null
 description: >
-  Use when the user asks explicitly about Cuentas por Pagar (CXP), tesorería
+  Use when el usuario pregunta explícitamente por Cuentas por Pagar (CXP), tesorería
   (Dinero), o cuentas bancarias (CtaDinero) en una empresa con esos módulos.
 ---
 # Skill: Módulo CXP / Tesorería — patrones de ejecución

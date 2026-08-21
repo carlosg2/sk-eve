@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user inicia una conversación sobre el módulo MRP/Forecast (FC) y aún no se ha validado la sesión: capturar y validar Usuario (contra la tabla Usuario), Ejercicio y Periodo, y confirmar el calendario de semanas y el presupuesto CONCLUIDO del periodo. Corresponde al contrato de sesión del portal MRP.
+  Use when el usuario inicia una conversación sobre el módulo MRP/Forecast (FC) y aún no se ha validado la sesión: capturar y validar Usuario (contra la tabla Usuario), Ejercicio y Periodo, y confirmar el calendario de semanas y el presupuesto CONCLUIDO del periodo. Corresponde al contrato de sesión del portal MRP.
 ---
 
 # Skill: MRP — Sesión (contrato de sesión dinámica)

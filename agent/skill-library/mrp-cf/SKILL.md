@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks sobre el sistema MRP/Forecast de Campo Fresco
+  Use when el usuario pregunta por el sistema MRP/Forecast de Campo Fresco
   (MRPCF5000) de la empresa ICF: ¿tenemos materia prima suficiente?, stock de
   seguridad o inventario mínimo/máximo, cobertura de inventario, plan de
   producción vs. disponible, estado del MRP, faltantes de producción,

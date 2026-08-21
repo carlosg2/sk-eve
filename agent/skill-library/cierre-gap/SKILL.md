@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks to CLOSE the abasto gap with a purchase: "cierra el
+  Use when el usuario pide CERRAR el gap de abasto con una compra: "cierra el
   gap de abasto", "arma la requisición de lo que falta", "cubre los faltantes
   del mes", "prepara la compra de los faltantes críticos". Es el flujo de
   requisición con aprobación (HITL): planificar con la herramienta de tareas,

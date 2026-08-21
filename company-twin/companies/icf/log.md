@@ -4,7 +4,29 @@ Historial de promociones del Company Twin de ICF. Más nuevo primero.
 
 ## 2026-08-20
 
-- **Corrida del ciclo de la fábrica (skill promote-learnings §4)** — buffer regenerado
+- **Corrida del ciclo de la fábrica (skill promote-learnings §4) — RUTEO, 0 conocimiento declarativo nuevo**:
+  - **`fecha-web_art_explosion_material` (×9) → RUTEO, no promover.** La hipótesis del buffer
+    ("documentar el formato de fecha que espera el SP") está **refutada por el hogar canónico**
+    (`erp-kernel/sp-reportes-mrp.md`, promovido el mismo día): `web_art_explosion_material`
+    acepta SOLO `Usuario/Ejercicio/Periodo` (sin fechas) y el error `varchar→datetime
+    out-of-range` es **interno del SP/snapshot**, no del llamador. Fix de ruteo: añadido
+    respaldo procedural en `agent/skill-library/mrp-produccion/SKILL.md` (si el SP falla con
+    ese error → `read_records(ExplocionMatCF)` como respaldo, sin reintentar).
+  - **`concepto-inexistente-uv-qv-pptocompra` (×4) → RUTEO.** El conocimiento ya existe en
+    `presupuesto-compras.md`; el modelo usó el nombre de ENTIDAD como `concept`. El fix de
+    nomenclatura del 08-20 02:38 (`twin-clean.ts`/`agent-active.ts`) NO cubría este caso
+    (3 recurrencias posteriores al fix, 03:53-04:34). Doble fix:
+    - `agent/instructions.md` — regla de nombres de `concept` (slug de búsqueda ≠ nombre de
+      entidad ≠ ruta de bundle ≠ prefijo `icf-`; buscar con `query` si se duda) + corregido
+      el misleading «(layer: erp-kernel)» que inducía `concept: "erp-kernel"`.
+    - `presupuesto-compras.md` — título refinado a "Presupuesto de compras (UV_QV_PPTOCOMPRA)
+      y control del periodo" (alias: `concept: "UV_QV_PPTOCOMPRA"` resuelve por título; sin
+      duplicar conocimiento). `index.md` sincronizado.
+  - **`concepto-inexistente-erp-kernel` (×3) → RUTEO** — todas pre-fix (08-14); cubierto por
+    la neutralización de `erp-kernel` en `twin-clean.ts` + regla de `concept` nueva.
+  - **Buffer**: vaciado el `[fecha-web_art_explosion_material]` (canónico + respaldo en
+    skill). Permanece `[movtipo-lookup] [pendiente]` (sin caso real en la ventana).
+  - **Corrida anterior** (misma fecha) — buffer regenerado
   (`scripts/regenerar-learnings.ts`, 41 entradas de los fallos de la campaña E2E) +
   tablero `check-cycle.ts`:
   - **Promovido** `modulos.md` — `ArtPrototipo` y `ArtPrototipoMaterial` añadidos a

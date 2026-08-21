@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks about arribos (recepciones) proyectados a 12 semanas,
+  Use when el usuario pregunta por arribos (recepciones) proyectados a 12 semanas,
   cobertura de materia prima o BBC a futuro, cuándo se debe generar un embarque
   sugerido, o arribos pendientes de la línea VACA. Corresponde a la ruta
   "Programa de Arribos" del portal MRP.

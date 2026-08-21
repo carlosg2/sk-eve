@@ -1,6 +1,6 @@
 ---
 type: Intelisis Module Reference
-title: ICF — Presupuesto de compras y control del periodo
+title: ICF — Presupuesto de compras (UV_QV_PPTOCOMPRA) y control del periodo
 description: Cómo ICF controla el gasto de compra: presupuesto por artículo (UV_QV_PPTOCOMPRA, 154 artículos con tope) y compras del periodo por periodo fiscal en Compra. Verificado en vivo contra el MCP.
 layer: company
 tenant: icf

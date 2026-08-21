@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks por cumplimiento de producción (programado vs.
+  Use when el usuario pregunta por cumplimiento de producción (programado vs.
   producido), forecast vs. venta real, o KPIs de eficiencia por centro de
   trabajo, familia o artículo. Corresponde a la ruta "Indicadores" del portal MRP.
 ---

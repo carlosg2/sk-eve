@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user pregunta por el programa mensual, situación/avance del
+  Use when el usuario pregunta por el programa mensual, situación/avance del
   plan semanal de producción por centro de trabajo, ocupación, tiempo extra o
   autorización del plan semanal. Corresponde a la ruta Programa Mensual
   (/inicio) del portal MRP.

@@ -9,6 +9,11 @@ canónico (query_company_twin + context-planner).
 > Promoción 2026-08-20: las 41 entradas del buffer se compilaron a su hogar
 > canónico (kernel index.md/sp-reportes-mrp.md/mcp-tools.md, modulos.md del
 > tenant) y el buffer se vació. Queda solo el pendiente sin caso real.
+> Corrida 2026-08-20 (2ª): `fecha-web_art_explosion_material` era RUTEO — el
+> hecho ya es canónico (`sp-reportes-mrp.md`: el error `varchar→datetime` es
+> interno del SP, no del llamador) y se añadió el respaldo al skill
+> `mrp-produccion`. `concepto-inexistente-*` → regla de nomenclatura de
+> `concept` en instructions + alias UV_QV_PPTOCOMPRA en `presupuesto-compras`.
 
 ## Pendientes por promover
 

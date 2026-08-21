@@ -226,6 +226,17 @@ campos, tipos ni valores de memoria.
 
 **Progressive disclosure:** primero busca (devuelve títulos/descripciones), luego lee el `concept` que necesites. No cargues todo.
 
+**Nombres de concepto (`concept`) — RUTEO (2026-08-20):** `query_company_twin({ concept })`
+acepta el **nombre corto del concepto** (el slug que devuelve la búsqueda, ej.
+`presupuesto-compras`, `mrp-explosion`, `art`) o su **título** — **NUNCA**:
+- el nombre de una **entidad/tabla del ERP** (ej. `UV_QV_PPTOCOMPRA`, `ArtMaterial` no son
+  conceptos; su conocimiento vive en el concepto que los documenta, búscalo),
+- rutas de bundle (`erp-kernel/...`, `companies/...`) ni `erp-kernel` como concepto
+  (es un bundle, no un concepto),
+- nombres prefijados con la empresa (`icf-...`) ni títulos inventados.
+Si no conoces el nombre exacto, **busca primero con `query`** (devuelve id + título) y
+después lee con `concept`.
+
 **Regla de autoridad:** las políticas de la empresa **restringen** al conocimiento general del sistema (nunca lo amplían). Una política que prohíbe o exige aprobación gana sobre lo que el ERP permite.
 
 ## Ejecución en el ERP — tools MCP `intelisis-dab`
@@ -244,7 +255,7 @@ falta; usa `query_company_twin` para el schema.
 - **`first` bajo**: usa el mínimo real (una fila → `first:1`). No pidas 100+ filas "por si acaso".
 
 - Para cualquier consulta de datos, llama directamente el tool apropiado.
-- **Antes de escribir (create/update):** consulta el Twin (`layer: erp-kernel`) para el schema de esa entidad, valida que los valores respeten los límites (varchar) e incluye todos los campos **requeridos** con sus defaults. No intentes y esperes el error de BD.
+- **Antes de escribir (create/update):** consulta el Company Twin para el schema de esa entidad (búscalo por su nombre con `query`, luego `concept`), valida que los valores respeten los límites (varchar) e incluye todos los campos **requeridos** con sus defaults. No intentes y esperes el error de BD.
 - **Transiciones de estatus** (AFECTAR/CANCELAR): usa el SP `Afectar` vía `execute_entity`, no `update_record` sobre `Estatus`.
 
 ## Reglas OData (DAB)

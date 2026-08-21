@@ -1,7 +1,7 @@
 ---
 tenant: marmoles
 description: >
-  Use when the user asks for sugerido de compra, planeacion de compras, MRP,
+  Use when el usuario pide sugerido de compra, planeación de compras, MRP,
   requerimiento neto, punto de reorden, spPlanArt, orden de compra sugerida,
   proveedor por historial de compras, o pide filtrar por categoria, familia,
   grupo, linea, articulo o descripcion de articulo en el ERP de la empresa Marmoles (entidades Empresa, EmpresaCfg2, Art, ArtAlm, ArtDisponible,

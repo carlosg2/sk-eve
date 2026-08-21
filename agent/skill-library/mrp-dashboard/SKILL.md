@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user pide una vista general / dashboard consolidado de
+  Use when el usuario pide una vista general / dashboard consolidado de
   producción, ocupación de centros, venta y KPIs generales del periodo.
   Corresponde a la ruta "Dashboard" del portal MRP.
 ---

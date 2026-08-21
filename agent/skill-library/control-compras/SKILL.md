@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user asks about control de gasto de compras del periodo: qué se
+  Use when el usuario pregunta por control de gasto de compras del periodo: qué se
   compró, cuánto se gastó y con qué proveedor, en qué estatus están las órdenes
   de compra (sábana de estatus), o qué compras se salen del presupuesto
   (desviaciones de presupuesto por artículo vs UV_QV_PPTOCOMPRA). Temas de la

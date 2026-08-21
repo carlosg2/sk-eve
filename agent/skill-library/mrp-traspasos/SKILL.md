@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user pregunta por traspasos/movimientos de mercancía
+  Use when el usuario pregunta por traspasos/movimientos de mercancía
   programados entre almacenes por semana. Corresponde a la ruta "Programa de
   Traspasos" (`/traspasos/[semana]`) del portal MRP.
   ⚠️ Cobertura DAB no confirmada — ver Limitaciones.

@@ -414,10 +414,11 @@ Un `throw` en un hook / instruction dinámica / middleware (ej. `ReferenceError:
 
 ## Skills de la fábrica (2026-08-10 — leer antes de tocar el sistema)
 
-La fábrica (Copilot) tiene TRES skills de operación avanzada:
+La fábrica (Copilot) tiene CUATRO skills de operación avanzada:
 
 | Skill | Dónde | Para qué |
 |---|---|---|
+| **`skill-authoring`** | `.github/skills/skill-authoring/` | ⭐ **Autoridad de autoría** de sk-eve: cómo carga el sistema cada skill (Eve + library.ts + load_skill + read_skill_file), convenciones por tipo (runtime procedural vs fábrica vs índice/router), frontmatter/higiene/estructura, principios de escritura (writing-for-agents en `references/principios-escritura.md`), homogenización del catálogo y checklist de validación. **Leerlo antes de crear/editar/revisar cualquier skill.** |
 | **`stack-mastery`** | `.github/skills/stack-mastery/` | Mejora continua E2E del stack con patrón autoresearch (Karpathy): program.md (agenda), 6 manuales de dominio (Eve, DAB, SQL Server, Company Twin, multi-tenant, SvelteKit, AI Gateway), ratchet loop con evals/radiografía como juez. **Leer `program.md` antes de proponer cualquier mejora.** |
 | **`promote-learnings`** | `.github/skills/promote-learnings/` | Compilar el buffer `state/learnings.md` → hogar canónico (OKF/skills/instructions). ⚠️ **Desde 2026-08-19 el runtime NO inyecta el buffer al prompt** (es canal runtime→fábrica); promover rápido es lo que hace que el agente aprenda. Primero corre `scripts/check-cycle.ts` (tablero: separa RUTEO de pendientes reales). |
 | **`knowledge-hygiene`** | `.github/skills/knowledge-hygiene/` | ⚠️ **Regla de oro transversal en DOS modos**: (1) **escribir** — todo conocimiento del runtime (skills, twin, kernel, learnings) sanitizado, sin jerga de proceso de la fábrica; incluye regla del buffer (canal de la fábrica) y no-redundancia entre capas; (2) **auditar** — verificación de canonicidad (cada hecho en su hogar, detecta duplicados/contradicciones/jerga/stale, reporte 🔴/🟡/⚪). **Correr el checklist (grep + `sanitize-knowledge.py` + linter) antes de crear/editar/promover cualquier archivo; usar el §9 para "auditar el conocimiento".** |

@@ -1,7 +1,7 @@
 ---
 tenant: icf
 description: >
-  Use when the user pregunta si hay suficientes materiales/insumos para
+  Use when el usuario pregunta si hay suficientes materiales/insumos para
   producir (validación de insumos), qué porcentaje de alcance/cobertura tiene
   un material para producción, o capacidad de producción por artículo/centro.
   Corresponde a la ruta "Validación de Insumos" (`/produccion`) del portal.
@@ -35,6 +35,15 @@ sobre-explora y la respuesta puede quedar incompleta. Regla:
 
 Si el SP elegido ya trae la cobertura (`Cubre`, `PorAlcance`, `AlcanceDias`),
 no recalcular a mano; presentar el grid del portal.
+
+⚠️ **Fallo del SP → respaldo (error interno, no del llamador):** si el SP falla
+con `The conversion of a varchar data type to a datetime data type resulted in
+an out-of-range value`, es un **error interno del SP/snapshot** (estos SPs NO
+reciben fechas: `web_art_explosion_material` solo `Usuario/Ejercicio/Periodo`;
+ver kernel `sp-reportes-mrp`). NO reintentes ni cambies formatos de fecha:
+declara la limitación y usa como respaldo `read_records(ExplocionMatCF, ...)`
+(select de las columnas de cobertura) — mismo patrón aplica a
+`web_art_material_req_prorrateo`.
 
 ## Origen (portal MRP, ruta `/produccion`, SP `SpProduccionCF`)
 
