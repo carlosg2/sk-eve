@@ -4,8 +4,7 @@ description: >
   Use when the user pregunta si hay suficientes materiales/insumos para
   producir (validación de insumos), qué porcentaje de alcance/cobertura tiene
   un material para producción, o capacidad de producción por artículo/centro.
-  Corresponde a la ruta "Validación de Insumos" (`/produccion`) del portal
-  MRP legacy (sigma-icf).
+  Corresponde a la ruta "Validación de Insumos" (`/produccion`) del portal.
 ---
 
 # Skill: MRP — Validación de Insumos (produccion)
@@ -25,8 +24,7 @@ Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, 
 corresponde a UN SP; llamar todos (ej. `web_art_material_req_prorrateo` +
 `web_art_explosion_material` + `web_art_explosion_mat_faltante` +
 `web_cobertura_materia_prima` + `faltante_insumos` + `faltante_materia_prima`)
-sobre-explora (13+ calls), consume ~1.2M tokens y la respuesta puede quedar
-incompleta. Regla:
+sobre-explora y la respuesta puede quedar incompleta. Regla:
 
 | Petición del usuario | Usar SOLO |
 |---|---|
@@ -38,7 +36,7 @@ incompleta. Regla:
 Si el SP elegido ya trae la cobertura (`Cubre`, `PorAlcance`, `AlcanceDias`),
 no recalcular a mano; presentar el grid del portal.
 
-## Origen (portal legacy sigma-icf, ruta `/produccion`, SP `SpProduccionCF`)
+## Origen (portal MRP, ruta `/produccion`, SP `SpProduccionCF`)
 
 `SpProduccionCF` es un **orquestador**: primero corre
 `spWebArtMaterialReqProrrateo` (prorratea el requerimiento de material entre
@@ -112,7 +110,7 @@ aggregate_records(ArtDisponible, function: "sum", field: "Disponible",
 5. **`Produciendo`** — órdenes de producción reales del rango de la semana:
    `sum(ProdD.Cantidad)` de encabezados `Prod` `Estatus eq 'CONCLUIDO'` con
    `FechaEmision` dentro de la semana (rango `FechaD`/`FechaA` de
-   `CalendarioFC`/`DimTiempoSemana` del usuario). Sin join en MCP → dos pasos
+   `CalendarioFC`/`DIM_TIEMPO_SEMANA` del usuario). Sin join en MCP → dos pasos
    (IDs de `Prod` + agregado por `ID` en `ProdD`). ⚠️ Schema de `Prod`/`ProdD`
    no verificado en vivo — si el `select` falla, descubrir con
    `read_records(Prod, first: 1)` sin `select` (kernel `prod.md`).

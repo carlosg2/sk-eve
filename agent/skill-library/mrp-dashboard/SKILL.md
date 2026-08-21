@@ -3,7 +3,7 @@ tenant: icf
 description: >
   Use when the user pide una vista general / dashboard consolidado de
   producción, ocupación de centros, venta y KPIs generales del periodo.
-  Corresponde a la ruta "Dashboard" del portal MRP legacy (sigma-icf).
+  Corresponde a la ruta "Dashboard" del portal MRP.
 ---
 
 # Skill: MRP — Dashboard general

@@ -4,7 +4,7 @@ description: >
   Use when the user asks por el consolidado semanal de piezas/kilos a producir
   agrupado por familia de artículo, o por el programa de producción de
   concentrado por centro de trabajo y semana. Corresponde a la ruta
-  "Concentrado de Familias" del portal MRP legacy (sigma-icf).
+  "Concentrado de Familias" del portal MRP.
 ---
 
 # Skill: MRP — Concentrado de Familias (consolidado por familia)
@@ -82,6 +82,6 @@ criterio que el `HAVING` del origen).
   (o `CalendarioFC`) antes de reportar "no hay datos".
 - La columna calculada "Producido" (comparación plan vs. real por semana) no
   existe como campo DAB — hay que calcularla aparte con `Prod`/`ProdD`
-  filtrando por fecha de la semana (usar `DimTiempoSemana` — campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN` — o
+  filtrando por fecha de la semana (usar `DIM_TIEMPO_SEMANA` — campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN` — o
   `CalendarioFC` — camelCase `Ano`/`Semana`/`FechaD`/`FechaA` — para traducir
   semana → rango de fechas).

@@ -5,7 +5,7 @@ description: >
   asignación de lotes/series de materia prima (PEPS/FIFO) contra el plan de
   producción ya autorizado, o por el **saldo de inventario de un artículo
   (entradas CargoU menos salidas AbonoU de la rama inventario)**. Corresponde
-  a la ruta "Inventario Semanal" del portal MRP legacy (sigma-icf).
+  a la ruta "Inventario Semanal" del portal MRP.
 ---
 
 # Skill: MRP — Inventario Semanal (presupuesto VACA + lotes PEPS)
@@ -27,7 +27,7 @@ respuesta vacía ni solo cargar el skill**. Dos opciones en orden:
 2. Si no hay plan, pedir el artículo: "¿De qué artículo quieres el inventario
    semanal?" y esperar.
 
-## Origen (portal legacy sigma-icf, ruta `/inventario`)
+## Origen (portal MRP, ruta `/inventario`)
 
 Esta ruta lista las semanas del periodo (`spFCPPSemanaLista`) y, para cada una,
 trae el presupuesto VACA de esa semana (`spVacaPresupuestoForecastSemanal`)
@@ -59,7 +59,7 @@ qué lote específico saldría cada material. El resultado queda materializado e
 la tabla `UtMrpPrevioMateriaPrima`.
 
 > ⚠️ **`UtMrpPrevioMateriaPrima` NO existe en el MCP de ICF** (EntityNotFound
-> ; es un staging de la base MSSQL `MRPCF5000` del portal legacy, NO publicado
+> ; es un staging de la base MSSQL `MRPCF5000` del portal MRP, NO publicado
 > aquí). Si el usuario pregunta por la asignación
 > PEPS/FIFO de lotes contra el plan, responde la limitación (dato no
 > disponible) y ofrece en su lugar existencias por artículo/almacén vía

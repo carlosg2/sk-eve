@@ -81,6 +81,10 @@
 		return s.sessionId ?? s.id;
 	}
 
+	// ID de la sesión activa para el header (reactivo: se actualiza en cuanto
+	// Eve asigna la sesión durante el streaming).
+	const headerSessionId = $derived(currentSessionId());
+
 	// Persiste las respuestas HITL en el servidor (tabla `input_responses` de
 	// session-store). El reducer marca la gate como respondida con el evento
 	// LOCAL `client.input.responded` — que nunca llega al stream de Eve — así
@@ -1897,6 +1901,26 @@
 			</span>
 		</div>
 		<div class="flex items-center gap-0.5">
+			{#if headerSessionId}
+				<span
+					class="text-muted-foreground max-w-44 truncate font-mono text-[0.7rem]"
+					title="Sesión actual: {headerSessionId}"
+				>
+					{headerSessionId}
+				</span>
+				<Button
+					variant="ghost"
+					size="icon"
+					class="size-7"
+					aria-label="Copiar ID de sesión"
+					title="Copiar ID de sesión"
+					onclick={() => {
+						if (headerSessionId) void navigator.clipboard?.writeText(headerSessionId);
+					}}
+				>
+					<CopyIcon class="size-3.5" />
+				</Button>
+			{/if}
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					{#snippet child({ props })}

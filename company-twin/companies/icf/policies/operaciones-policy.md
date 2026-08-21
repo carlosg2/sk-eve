@@ -54,7 +54,7 @@ requiere confirmación explícita del usuario. El HITL gate está activo para:
 
 # Reportes de faltante (MRP) — tools dedicados `faltante_insumos` / `faltante_materia_prima`
 
-Agregados por el equipo backend como stored procedures registrados en el DAB
+Agregados como stored procedures registrados en el DAB
 de ICF: `spWebFCFaltanteInsumos` → tool `faltante_insumos`, `spWebFCFaltanteMateriaPrima` →
 tool `faltante_materia_prima`. Ambos son **read-only** (no pasan por `execute_entity`, no
 requieren HITL) y ya hacen la explosión de materiales (MRP) internamente — no re-calcules
@@ -68,4 +68,5 @@ Parámetros obligatorios: `Usuario`, `Ejercicio`, `Periodo`.
   siempre por default, sin preguntarlo ni pedir confirmación.
 - `Ejercicio`/`Periodo`: año y mes/periodo fiscal, enteros (ej. `2026`, `7`).
 
-Ver el patrón completo de uso en `agent/skill-library/gap-abasto/SKILL.md`.
+El patrón completo de uso del cruce presupuesto vs compra está en la skill
+`gap-abasto` (cargar con `load_skill('gap-abasto')`).

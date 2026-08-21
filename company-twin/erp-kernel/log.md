@@ -2,6 +2,27 @@
 
 Historial de promociones del ERP Kernel (capa universal Intelisis). Más nuevo primero.
 
+## 2026-08-20
+
+- **Update** `index.md` §Capacidades OData — regla de **tipos compatibles en operadores**:
+  comparar una fecha con comillas (`le '2026-12-31'`) falla con
+  `A binary operator with incompatible types` (DateTimeOffset vs String); fechas siempre
+  sin comillas y en ISO. Regla de `$filter query parameter is not well formed` (sintaxis
+  rota: paréntesis/comillas/operador). Promovido de `odata-read_records` (×10) y
+  `odata-aggregate_records` (×4).
+- **Update** `sp-reportes-mrp.md` — **firmas verificadas en vivo**: `@Semana` es
+  **REQUERIDO** en `programa_produccion_concentrado_centro` (antes `+Semana?`);
+  `@ID` REQUERIDO en `fcppplan_semana`. `web_art_explosion_material` acepta SOLO
+  `Usuario/Ejercicio/Periodo` (rechaza `FechaEmision`/`FechaD`/`Semana` con
+  `InvalidArguments`); el error interno `varchar→datetime out-of-range` es del SP/snapshot,
+  no del llamador (respaldo: `read_records(ExplocionMatCF)`). Promovido de
+  `req-programa_produccion_concentrado_centro-semana` (×10), `req-fcppplan_semana-id` (×2),
+  `fecha-web_art_explosion_material` (×8), `fecha-web_art_material_req_prorrateo` (×1),
+  `fecha-vaca_presupuesto_forecast_semanal` (×1).
+- **Update** `mcp-tools.md` — documentado `buscar_registro` como Custom Tool con `@campo`
+  REQUERIDO (además de `entidad`/`termino`/`primero` numérico). Promovido de
+  `req-buscar_registro-campo` (×1).
+
 ## 2026-08-17
 
 - **Corrección** regla "Campos en UPPERCASE" de `index.md` §Capacidades OData — era una

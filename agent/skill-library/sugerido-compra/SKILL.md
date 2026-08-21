@@ -4,8 +4,7 @@ description: >
   Use when the user asks for sugerido de compra, planeacion de compras, MRP,
   requerimiento neto, punto de reorden, spPlanArt, orden de compra sugerida,
   proveedor por historial de compras, o pide filtrar por categoria, familia,
-  grupo, linea, articulo o descripcion de articulo en el ERP de la empresa
-  Marmoles (entidades Empresa, EmpresaCfg2, Art, ArtAlm, ArtDisponible,
+  grupo, linea, articulo o descripcion de articulo en el ERP de la empresa Marmoles (entidades Empresa, EmpresaCfg2, Art, ArtAlm, ArtDisponible,
   Alm, Prov, PlanArtOP, Compra, CompraD, Venta, VentaD, Prod, ProdD, Inv, MovTipo).
 ---
 
@@ -396,9 +395,8 @@ artículos con RN negativo grande, o discrepancia evidente), ejecuta
   que marcar `PlanArtOP` como liberado a mano (ver arriba). El sub-procedimiento
   `xpPlanArtOPLiberar` puede existir como stub sin efecto real — no asumir que corrió lógica
   adicional por invocarlo.
-- Nombres
-  exactos de tools (`planeacion_mrp`) y campos deben confirmarse con `describe_entities`
-  solo si un patrón documentado aquí falla, y luego promoverse a este skill/Twin.
+- Nombres exactos de tools (`planeacion_mrp`) y campos deben confirmarse con `describe_entities`
+  solo si un patrón documentado aquí falla.
 
 # Citations
 

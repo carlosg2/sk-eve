@@ -1,18 +1,14 @@
 ---
 tenant: icf
 description: >
-  Use when the user inicia una conversación sobre el módulo MRP/Forecast (FC)
-  y aún no se ha validado la sesión: capturar y validar Usuario (contra la
-  tabla Usuario), Ejercicio y Periodo, y confirmar el calendario de semanas y
-  el presupuesto CONCLUIDO del periodo. Corresponde al contrato de sesión del
-  portal MRP.
+  Use when the user inicia una conversación sobre el módulo MRP/Forecast (FC) y aún no se ha validado la sesión: capturar y validar Usuario (contra la tabla Usuario), Ejercicio y Periodo, y confirmar el calendario de semanas y el presupuesto CONCLUIDO del periodo. Corresponde al contrato de sesión del portal MRP.
 ---
 
 # Skill: MRP — Sesión (contrato de sesión dinámica)
 
 > **Este skill es SOLO procedural.** Schema: [mrp-soporte](`mrp-soporte`)
 > (`Usuario`), [mrp-forecast-arribos](`mrp-forecast-arribos`)
-> (`DimTiempoSemana`, `CalendarioFC`), [mrp-vaca](`mrp-vaca`)
+> (`DIM_TIEMPO_SEMANA`, `CalendarioFC`), [mrp-vaca](`mrp-vaca`)
 > (`VacaPresupuestoVtaCon`).
 
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`.

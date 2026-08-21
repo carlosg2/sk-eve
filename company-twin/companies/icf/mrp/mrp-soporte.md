@@ -56,9 +56,8 @@ agregar.
 Si no devuelve filas → el usuario no existe; si `Estatus` ≠ `ALTA` → bloqueado.
 Columnas relevantes: `Usuario` (PK), `Nombre`, `DefEmpresa` (ej. `INCF`),
 `Sucursal`, `Estatus` (ALTA/BLOQUEADO), más banderas de permisos de app
-(`AppInicio`, `AppForecast`, `AppArribos`, ...). Usuarios verificados:
-`MASERP` (CARLOS GARZA, INCF, ALTA — quien corre el proceso FC) y `MASERP`
-(CONSULTOR MASERP, INCF, ALTA).
+(`AppInicio`, `AppForecast`, `AppArribos`, ...). El usuario fijo del módulo FC
+es `MASERP` (INCF, ALTA).
 
 ⚠️ La tabla contiene `Contrasena` (hash) y `PIN` — **solo lectura; NUNCA
 seleccionar `Contrasena`/`PIN`** en un `select`, no incluirlas en descriptions.

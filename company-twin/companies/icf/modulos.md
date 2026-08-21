@@ -1,17 +1,16 @@
 ---
 type: Intelisis Module Reference
-title: MCP de ICF — módulos disponibles
-description: Cobertura del MCP de ICF: qué módulos expone y cuáles NO (CXP/tesorería/cuentas bancarias no está disponible → EntityNotFound).
+title: Módulos disponibles — empresa ICF
+description: Cobertura de la fuente de datos de ICF: qué módulos están disponibles y cuáles no (CXP/tesorería/cuentas bancarias no disponible).
 layer: company
 tenant: icf
-tags: [icf, mcp, cobertura, modulos, restriccion]
+tags: [icf, cobertura, modulos, disponibilidad, restriccion]
 mcp_tools: [read_records, aggregate_records]
 ---
 
-# MCP de ICF — módulos disponibles
+# Módulos disponibles — empresa ICF
 
-Cobertura del endpoint MCP de la empresa **ICF** (`https://api2.maserp.mx/icf/mcp`).
-Este documento registra qué publica **esta** empresa y qué no está disponible.
+Qué módulos publica la fuente de datos de la empresa **ICF** y qué no está disponible.
 
 ## Módulos disponibles
 
@@ -19,57 +18,56 @@ Este documento registra qué publica **esta** empresa y qué no está disponible
   producción. Entidades: `ExplocionMatCF`, `ForecastPlanProduccion`, `CalendarioFC`,
   `UV_QV_PPTOCOMPRA`, `ArtDisponibleDesc`, `ArtDisponible`, `ArtMaterial`, `CentroFCTemp`,
   etc. Ver [mrp](/companies/icf/mrp/index.md).
-- **Catálogos core** — `Art`, `Alm`, `Prov`, `Almacen*` y demás entidades expuestas por el
-  DAB de la empresa (verificar con `describe_entities` / `read_records(first:1)`).
+- **Catálogos core** — `Art`, `Alm`, `Prov`, `Almacen*` y demás entidades de la fuente de
+  datos de la empresa (validar la disponibilidad real consultando la entidad).
 
-## No disponible en ICF (EntityNotFound verificado en runtime)
+## No disponible en esta empresa (dato no disponible)
 
-El módulo **CXP / Tesorería / Cuentas bancarias** NO está publicado en el MCP de ICF.
-Consultar estas entidades devuelve
-`EntityNotFound: Entity '<X>' is not defined in the configuration.` (verificado en
-varias corridas):
+El módulo **CXP / Tesorería / Cuentas bancarias** no está disponible en la fuente de datos
+de ICF. Consultar estas entidades devuelve "entidad no definida en la configuración":
 
 - `CXP`, `CxpD`, `CxpConSaldo`, `CXPD`
 - `CtaDinero`, `Dinero`, `DineroD`
 
-Tampoco están publicadas algunas entidades que el kernel/skills documentan como
-universales (EntityNotFound verificado en runtime):
+Tampoco están expuestas algunas entidades que el conocimiento general documenta como
+universales:
 - `ArtAlm`, `UtLogEjcProMrp` (bitácora del MRP; ver `mrp/mrp-explosion.md` para
-  proxies).
+  alternativas).
+- `EmpresaCfg2` (existe en la base de datos, pero no está expuesta en la fuente de datos).
+- `InvD` (existe en la base de datos, pero no está expuesta).
 
-> ⚠️ **`DimTiempoSemana` SÍ está publicada** (junto con `Usuario`,
-> `UV_QV_FILLRATE` y `AuxiliarU`). Ya NO está en esta lista: se puede usar
-> para traducir semanas (campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/
-> `FECHAFIN`) además de `CalendarioFC`. La publicación amplía el total de
-> entidades del MCP de ICF a 73.
+Entidades que **no existen** (no consultarlas; las existencias se consultan con
+`ArtDisponibleDesc` o `AuxiliarU`):
+- `SaldoInv`, `InvSerieLote`, `InvDisp`
+- `ArtPrototipo`, `ArtPrototipoMaterial` (catálogo de prototipos; la explosión de
+  materiales real se consulta con `ArtMaterial` / `web_art_explosion_material`).
 
-> ✅ **Tool `fcforcast_cfnuk` publicado **: el SP de carga inicial
-> `spFCForcastCFNuk` se expone como tool ejecutable (11 tools en el MCP). Con
-> la corrida de `MASERP · 2026 · Periodo 8` ya ejecutada, el plan de
-> `ResumenPlaneacionCF` está poblado en línea (90 filas, S32=3,978,128).
-> Detalle del tool en el [kernel](/erp-kernel/fcforcast-cfnuk.md).
+> ⚠️ **`DIM_TIEMPO_SEMANA` SÍ está disponible** (junto con `Usuario`,
+> `UV_QV_FILLRATE` y `AuxiliarU`). Sirve para traducir semanas (alternativa a
+> `CalendarioFC`). Campos: `Anio`, `MES`, `SEMANA`, `NMES` (ej. "12 Diciembre"),
+> `NSEMANA` (ej. "SEM 53/08"), `FECHAINICIO`, `FECHAFIN`, `PERIODOCERRADO`.
 
-> ✅ **SPs del portal MRP publicados **: el config pasó a **100
-> entidades** y el MCP expone **37 tools** (7 DML + 30 custom de SPs): la
-> cadena de carga P0 (`fcasignar_bases_defaul`, `art_centro_defaul`,
-> `art_centro_balanceo`, `web_forecast12`, `web_forecast_fam12_s`,
-> `web_forecast_bbc12`, `web_forecast_arribos12`,
-> `web_forecast_arribos_materia_prima12`, `web_forecast_arribos_insumo12`,
-> `generar_web_inicio`) y los **16 SPs de reporte P1** (`web_desglose_forecast`,
-> `web_cobertura_materia_prima`, `cfarticulo_cumplimiento`,
-> `cfcentra_trabajo_cumplimiento`, `fccentro_capacidad_real`, etc. — detalle en
-> [kernel](/erp-kernel/sp-reportes-mrp.md)). Los SPs de reporte están en la
-> allow-list del agente; los de carga NO (regeneración = backend).
+> ✅ **El plan de `MASERP · 2026 · Periodo 8` ya está cargado**: `ResumenPlaneacionCF`
+> está poblado (90 filas — detalle en
+> [mrp-plan-produccion](/companies/icf/mrp/mrp-plan-produccion.md)).
+
+> ✅ **Consultas del portal MRP disponibles**: la fuente de datos expone las consultas
+> del portal (`web_desglose_forecast`, `web_cobertura_materia_prima`,
+> `cfarticulo_cumplimiento`, `cfcentra_trabajo_cumplimiento`, `fccentro_capacidad_real`,
+> etc. — detalle en [sp-reportes-mrp](/erp-kernel/sp-reportes-mrp.md)). Las de consulta
+> están disponibles para el agente; las de carga regeneran el plan y no deben usarse
+> directamente.
 
 Los nombres pueden variar en mayúsculas/minúsculas (`CXP`/`Cxp`/`cxp`); en todos los casos
-la entidad no existe en la configuración del DAB de ICF.
+la entidad no existe en la configuración de ICF.
 
 ## Notas
 
-- `describe_entities` es un catálogo **incompleto**: no lista todas las entidades usables
-  (ej. `UV_QV_PPTOCOMPRA` no aparece y sí funciona en `read_records`). La disponibilidad real
-  se valida con `read_records(entity, first: 1)`.
-- Un `EntityNotFound` significa "no está publicado en el MCP de ICF", no que el dato sea cero.
+- El catálogo de entidades es incompleto: no lista todas las entidades usables
+  (ej. `UV_QV_PPTOCOMPRA` no aparece y sí funciona al consultarla). La disponibilidad real
+  se valida consultando la entidad directamente.
+- Cuando una consulta devuelve "entidad no definida", significa que no está disponible en
+  la fuente de datos de esta empresa, no que el dato sea cero.
 
 ## Detalles operativos del catálogo `Art` en ICF
 

@@ -47,7 +47,7 @@ aplicación a documentos vive en [DineroD](/erp-kernel/dinerod.md).
 
 ```
 # Movimientos por cuenta, más recientes primero
-read_records(entity=Dinero, filter="CtaDinero eq '20713'", orderby="FechaEmision desc", first=3, fields=[ID, FechaEmision, Importe, Mov, BeneficiarioNombre])
+read_records(entity=Dinero, filter="CtaDinero eq '20713'", orderby=["FechaEmision desc"], first=3, select="ID,FechaEmision,Importe,Mov,BeneficiarioNombre")
 
 # Pendientes
 read_records(entity=Dinero, filter="Estatus eq 'PENDIENTE'")

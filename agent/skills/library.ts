@@ -21,6 +21,10 @@ export default defineDynamic({
           defineSkill({
             description: skill.description ?? undefined,
             markdown: skill.markdown,
+            // Archivos hermanos (references/, scripts/, templates/, assets/...):
+            // Eve los materializa al sandbox en session.started; el modelo los
+            // lee on-demand con read_skill_file / read_file del sandbox.
+            ...(Object.keys(skill.files).length > 0 ? { files: skill.files } : {}),
           }),
         ]),
       );

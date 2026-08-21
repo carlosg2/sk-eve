@@ -1,7 +1,7 @@
 ---
 type: MCP Tool Contract
-title: Contrato de MCP tools (DAB custom)
-description: Parámetros y formas de respuesta reales de los 7 DML tools + tools custom que expone nuestro DAB fork.
+title: Contrato de MCP tools
+description: Parámetros y formas de respuesta reales de los 7 DML tools + tools custom del MCP.
 resource: http://localhost:5050/mcp
 layer: erp-kernel
 tenant: null
@@ -20,7 +20,7 @@ sources:
 
 # Resumen
 
-Contrato **verificado empíricamente**  contra nuestro DAB fork vía `tools/list`
+Contrato **verificado empíricamente**  contra el MCP vía `tools/list`
 y llamadas read-only. Documenta qué parámetros acepta cada tool y qué forma tiene la
 respuesta. Las capacidades del filtro OData viven en
 [Capacidades OData](/erp-kernel/index.md#capacidades-odata-dab). No dupliques schema de
@@ -71,21 +71,13 @@ El DAB también expone `afectar` y `cambiar_situacion` como **tools MCP dedicado
   `GenerarMov`, `Usuario`, `Estacion`, `FechaRegistro`.
 - `cambiar_situacion`: `Modulo, ID, Situacion, SituacionFecha, Usuario`, …
 
-> ⚠️ **Configuración de arranque:** el DAB fork carga siempre desde su CWD
-> (`dab-custom/dab-config.json`). El flag `--config` con path absoluto es ignorado.
-> **Solución aplicada:** `dab-custom/dab-config.json` es un **symlink** a
-> `sk-eve/dab/dab-config.json`. Todo cambio en el proyecto aplica automáticamente
-> al reiniciar. Arranque: `cd dab-custom && dotnet Azure.DataApiBuilder.Service.dll --urls "http://localhost:5050"`.
->
 > ⚠️ **Tools dedicados `afectar`/`cambiar_situacion`:** expuestos en el MCP (herramientas
-> tipadas). Ya están en el allow-list de `agent/connections/intelisis-dab.ts` y gateados
-> por HITL (`WRITE_TOOL_RE`). Usar directamente en vez de `execute_entity`.
+> tipadas) y gateados por HITL. Usar directamente en vez de `execute_entity`.
 
-# Custom Tools (TVFs / SPs — sigma-dab .NET 10)
+# Custom Tools (TVFs / SPs)
 
-El fork sigma-dab expone stored procedures y table-valued functions de Intelisis como
-**tools MCP dedicados** (además de los 7 DML estándar). Verificados contra JoyaRock
-.
+El MCP expone stored procedures y table-valued functions de Intelisis como
+**tools MCP dedicados** (además de los 7 DML estándar).
 
 ## Tools de consulta (solo lectura)
 
@@ -98,6 +90,7 @@ El fork sigma-dab expone stored procedures y table-valued functions de Intelisis
 | `tipo_impuesto_tasa` | Tasa de un tipo de impuesto | `TipoImpuesto` (clave del catálogo) | `{Result: decimal\|null}` |
 | `mov_opcion_encabezado` | Opción de encabezado de un movimiento | `Opcion` (string) | `{Result: string}` |
 | `art_unidad_factor` | Factor de conversión entre unidades de un artículo | `Empresa, Articulo, Unidad` | `{Result: decimal}` |
+| `buscar_registro` | Búsqueda por término en una entidad | `entidad, campo` (**REQUERIDO**), `termino, primero` | array de registros que coinciden |
 
 ## Tools de escritura (HITL-gateados)
 
@@ -111,5 +104,6 @@ El fork sigma-dab expone stored procedures y table-valued functions de Intelisis
 - **`forma_pago_ayuda_captura.CobroIntegrado`**: debe ser **Boolean** (`true`/`false`), NO string `"0"`. Error: `"Parameter cannot be resolved as type Boolean"`.
 - **`mov_situacion_tipo_flujo`**: llamar ANTES de `cambiar_situacion` para conocer los valores permitidos. JoyaRock/CXP/PENDIENTE → solo `"Normal"`.
 - **`tipo_impuesto_tasa`**: requiere la clave exacta del catálogo `TipoImpuesto1`. `"IVA"` devuelve `null`; usar la clave real de la empresa (ej. `"IVA16"` o consultar `read_records(TipoImpuesto1)`).
+- **`buscar_registro`**: `campo` es obligatorio (el campo sobre el que se busca); sin él falla `spbuscar_registro expects parameter '@campo'`. `primero` siempre numérico.
 - **`gasto_concepto_prov`**: el schema del DAB dice sin params pero el SP requiere `@Acreedor`. Usar `execute_entity(GastoConceptoProv, parameters:{Acreedor:'...'})` como workaround hasta que el config se corrija.
 - **`borrar_ver_cfdi`, `busca_rfcdocumentos_gasto`, `ver_prov_cfdi`, `ver_prov_cfdejecutar`**: misma situación — params no declarados en config. Usar con `execute_entity`.

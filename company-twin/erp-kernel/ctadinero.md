@@ -37,8 +37,8 @@ Catálogo de cuentas bancarias (y otras cuentas de dinero) de la empresa. Refere
 
 ```
 # Cuentas activas en USD
-read_records(entity=CtaDinero, filter="Estatus eq 'ALTA' and Moneda eq 'USD'", fields=[CtaDinero, Descripcion, CLABE, Institucion])
+read_records(entity=CtaDinero, filter="Estatus eq 'ALTA' and Moneda eq 'USD'", select="CtaDinero,Descripcion,CLABE,Institucion")
 
 # Contar cuentas activas
-aggregate_records(entity=CtaDinero, function=count, field=*, filter="Estatus eq 'ALTA'")
+aggregate_records(entity=CtaDinero, function=count, field="*", filter="Estatus eq 'ALTA'")
 ```

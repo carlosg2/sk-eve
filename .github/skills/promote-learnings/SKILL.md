@@ -127,10 +127,23 @@ si algún destino quedó ambiguo.
 1. **Lee** el buffer `company-twin/companies/<tenant>/state/learnings.md`
    (default `icf` — el tenant activo en `company-twin/runtime.json`; revisa ese archivo
    si dudas). Si solo tiene encabezado → termina: "buffer vacío".
+0. **Tablero del ciclo primero**: corre `scripts/check-cycle.ts` (fábrica) ANTES de
+   compilar. Te separa las entradas en: **RUTEO** (el hecho ya es canónico pero el
+   error sigue ocurriendo → NO promover más conocimiento: es problema de
+   descubrimiento del modelo, revisar ruteo/instructions/skills) y **pendientes
+   reales** (hechos no canónicos, con su recurrencia `[×N]` para priorizar).
+   Un error aislado compila distinto a un patrón que se repite 10 veces.
+0. **Corrobora contra lo real antes de compilar** (verdad de runtime, no
+   suposiciones): para cada hecho que vayas a promover (entidad/campo "existe"/"no
+   existe"), verifícalo con `read_records(<Ent>, first:1)` contra el MCP del tenant
+   (la superficie que el runtime ve; el DAB normaliza nombres, ej. `AÑO`→`Anio`)
+   y con `INFORMATION_SCHEMA` vía MCP-ICF (BD full `Intelisis5000`) para distinguir
+   "existe en BD pero no publicada" de "no existe en absoluto". La fábrica tiene
+   acceso privilegiado: úsalo. (Ej.: `InvD` existe en BD pero no publicada;
+   `SaldoInv`/`InvSerieLote`/`InvDisp` no existen en ningún lado.)
 0. **Contexto con evidencia** (si el buffer tiene entradas): consulta la radiografía para
    entender el costo real de cada problema antes de compilar — `curl http://localhost:5173/api/audit/turns`
-   y SQL sobre `.data/sessions.sqlite3` (ver `tesis/protocolo-pruebas.md` §1). Un error
-   aislado compila distinto a un patrón que repite 5 veces y quema 300k tokens: usa
+   y SQL sobre `.data/sessions.sqlite3` (ver `tesis/protocolo-pruebas.md` §1). Usa
    `turn_summaries` para medir el impacto y justificar la promoción.
 2. **Inventaría** el destino: revisa `index.md` del kernel/twin y el archivo destino
    probable **antes** de escribir, para refinar en vez de reescribir y evitar duplicados.

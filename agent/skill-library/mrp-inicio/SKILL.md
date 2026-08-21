@@ -4,7 +4,7 @@ description: >
   Use when the user pregunta por el programa mensual, situación/avance del
   plan semanal de producción por centro de trabajo, ocupación, tiempo extra o
   autorización del plan semanal. Corresponde a la ruta Programa Mensual
-  (/inicio) del portal MRP legacy (sigma-icf).
+  (/inicio) del portal MRP.
 ---
 
 # Skill: MRP — Programa Mensual (inicio / ocupación por centro)
@@ -16,7 +16,7 @@ description: >
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`web_inicio_concentrado`** (SP del portal: Programa Mensual concentrado; parámetros `Usuario, Ejercicio, Periodo`).
 `Usuario` fijo: **`"MASERP"`**.
 
-## Origen (portal legacy sigma-icf, ruta `/inicio`, SP `spWebInicio`)
+## Origen (portal MRP, ruta `/inicio`, SP `spWebInicio`)
 
 Dashboard por **centro de trabajo** con una fila `Total` agregada. Por cada
 centro (excepto la fila `Total`) se calculan: `Venta`, `AProducir`,

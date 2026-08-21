@@ -3,7 +3,7 @@ tenant: icf
 description: >
   Use when the user asks sobre faltante de materia prima, insumos o
   concentrado por familia (versión agregada). Corresponde a la ruta
-  "Faltantes de Materia" del portal MRP legacy (sigma-icf). Para el caso
+  "Faltantes de Materia" del portal MRP. Para el caso
   general de faltante de insumos/materia prima, usa primero el skill
   `gap-abasto` — este skill solo agrega la variante "por familia" que
   gap-abasto no cubre.
@@ -41,16 +41,10 @@ con lo que ya está implementado ahí.
 **Caso 3 (concentrado por familia)** → SP del portal **`web_fcfaltante_concentrado`**
 (parámetros `Usuario, Ejercicio, Periodo`): devuelve el grid EXACTO de
 `Familia · Inventario Requerido · Disponibilidad ICF · Faltante`.
-**Caso 3 (faltante de concentrado, agregado por familia)** — no existe un tool
-dedicado para esta agregación. Usar `aggregate_records` sobre `ExplocionMatCF`
-agrupando por `FamiliaCF` :
 
-```
-# Patrón canónico : faltante de concentrado por familia
-aggregate_records(ExplocionMatCF,
-  filter: "Usuario eq 'MASERP' and SeProduce eq false",
-  groupby: ["FamiliaCF"], function: "sum", field: "InvRequerido")
-```
+> Nota: `web_fcfaltante_concentrado` es el tool dedicado para esta agregación
+> (publicado en el MCP). El patrón manual con `aggregate_records` sobre
+> `ExplocionMatCF` NO es necesario; usarlo solo como respaldo si el tool falla.
 
 ⚠️ Notas:
 - `SeProduce` es **booleano** (`false`/`true`), NO entero: `SeProduce eq 0` →
@@ -75,8 +69,6 @@ de las solicitudes como vienen del ERP.
 
 ## Limitaciones
 
-- No hay tool dedicado para "faltante por familia" — usar el patrón de arriba
-  .
 - Si el usuario simplemente pregunta "¿qué falta comprar?" sin mencionar
   "familia"/"concentrado", **usa siempre `gap-abasto` primero** — este skill
   solo aplica cuando la pregunta pide explícitamente el nivel de agregación

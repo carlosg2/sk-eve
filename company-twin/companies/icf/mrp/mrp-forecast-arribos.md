@@ -62,7 +62,7 @@ UPPERCASE aquí (a diferencia de `ForecastPlanProduccion`, que sí es UPPERCASE 
 ver mrp-plan-produccion.md). Si un filter/select falla con BadRequest, verifica
 el casing real con `read_records(CalendarioFC, first:1)` antes de reportar.
 
-## `DimTiempoSemana`
+## `DIM_TIEMPO_SEMANA`
 ✅ **SÍ existe en el MCP de ICF** (antes se documentaba como
 EntityNotFound — era info stale). Es la dimensión de tiempo por semana natural:
 `Anio` (mapeo del DAB de `AÑO`), `MES`, `SEMANA`, `FECHAINICIO`, `FECHAFIN`, más `NMES`/
@@ -71,7 +71,7 @@ Solo lectura. Llave lógica: `Anio+SEMANA`. **Usar esta tabla para traducir sema
 (alternativa a `CalendarioFC`, que es por usuario). Casing: `Anio`/`MES`/`SEMANA`
 (`Anio` con mayúsculas solo en la inicial — verificado con `select` real).
 
-## `DimTiempoSemanaIso`
+## `DIM_TIEMPO_SEMANA_ISO`
 Dimensión de tiempo por semana **ISO**: `EJERCICIO+SEMANA_ISO` con fechas de
 inicio/fin (`FI`/`FF`). Tabla de referencia, solo lectura. Llave lógica:
 `EJERCICIO+SEMANA_ISO`.
@@ -110,6 +110,6 @@ siempre consultar con filtros.
 - Para preguntas de "¿qué se espera vender/recibir en las próximas N semanas?",
   usar `ForecastArtFam12`/`ForecastBBC12` (venta) o `Arribos12`/`FCArribos`
   (recepciones) — no confundir forecast de venta con arribo de compra.
-- `DimTiempoSemana`/`DimTiempoSemanaIso` son catálogos de referencia, útiles para
+- `DIM_TIEMPO_SEMANA`/`DIM_TIEMPO_SEMANA_ISO` son catálogos de referencia, útiles para
   convertir semana calendario ↔ semana ISO al cruzar con otras entidades del ERP
   que usan `Ejercicio`/`Periodo` en vez de semana.

@@ -36,7 +36,7 @@ Dada una pregunta de negocio sobre producción, inventario o materia prima:
 
 **Garantías:**
 - Nunca ejecutar DML (`create_record`/`update_record`/`execute_entity`) — solo lectura.
-- ⚠️ `UtLogEjcProMrp` NO existe en el MCP ICF (EntityNotFound) — no llamarla. Para semanas/fechas usar `DimTiempoSemana` (campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) o `CalendarioFC`.
+- ⚠️ `UtLogEjcProMrp` NO existe en el MCP ICF (EntityNotFound) — no llamarla. Para semanas/fechas usar `DIM_TIEMPO_SEMANA` (campos `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN`) o `CalendarioFC`.
 - Advertir cuando `CalendarioFC` no cubre el año actual.
 - Calificar los datos por ejercicio y `Usuario` de sesión.
 
@@ -59,7 +59,7 @@ ArtDisponibleDesc     — Inventario actual por almacén y empresa (vista ENRIQU
                         con Descripcion1/Unidad; usar SIEMPRE esta, no ArtDisponible)
 ArtMaterial           — Lista de materiales (BOM): artículo → materiales
 CalendarioFC          — Calendario de semanas por usuario/año (Ano, Semana,
-                        FechaD, FechaA). Alternativa: `DimTiempoSemana`
+                        FechaD, FechaA). Alternativa: `DIM_TIEMPO_SEMANA`
                         (campos `Anio`/`MES`/`SEMANA`).
 UV_QV_PPTOCOMPRA      — Stock mínimo/máximo y máx. de compra por artículo/familia (materia prima)
 CentroFCTemp / EstacionTFCTemp — Centros/estaciones y capacidades (sesión de usuario)
@@ -112,7 +112,7 @@ parámetro configurado — no asumir 0.
 6. `UtLogEjcProMrp` NO existe en el MCP ICF — no intentar verificar la corrida
    con ella; usar los snapshots directamente y advertir si parecen vacíos.
 7. **NUNCA llamar `describe_entities`**: el schema vive en el Company Twin y
-   este skill (fuente única). No está en el allow-list del agente.
+   este skill (fuente única). No está disponible como tool del agente.
 8. **No duplicar llamadas**: si ya consultaste `X` con el mismo `filter`/`select`
    en este turno, reutiliza el resultado; no repitas el tool call.
 9. **No leer vistas masivas**: nunca `read_records` con `first` alto sobre
@@ -192,7 +192,7 @@ aggregate_records(ProdD, filter: "Articulo eq '<A>' and FechaRequerida ge <inici
   function: "sum", field: "Cantidad")
 ```
 Cumplimiento % = `SUM(Cantidad real) / Producir programado * 100`; traducir
-semana → rango de fechas con `DimTiempoSemana` o `CalendarioFC` antes de
+semana → rango de fechas con `DIM_TIEMPO_SEMANA` o `CalendarioFC` antes de
 filtrar.
 
 - **Q6 — Vigencia del calendario (¿cubre hoy?)**
@@ -206,7 +206,7 @@ read_records(CalendarioFC, filter: "Ano ge 2026 and Usuario eq 'MASERP'",
 Estructura de respuesta estándar:
 
 ```
-⚠️  [Advertencia de datos si el ejercicio es < al actual o el calendario (DimTiempoSemana/CalendarioFC) no cubre hoy]
+⚠️  [Advertencia de datos si el ejercicio es < al actual o el calendario (DIM_TIEMPO_SEMANA/CalendarioFC) no cubre hoy]
 
 ## [Pregunta respondida]
 
@@ -220,7 +220,7 @@ Estructura de respuesta estándar:
 [qué hacer con esta información]
 ```
 
-## Output Format
+## Formato de respuesta (obligatorio)
 
 - Tablas en Markdown para datos tabulares.
 - Números con separador de miles.

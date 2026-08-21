@@ -49,7 +49,7 @@ SINAFECTAR --(AFECTAR)--> PENDIENTE --(AFECTAR)--> CONCLUIDO
 
 # Cómo llamar (recipe)
 
-Usar el **tool dedicado `afectar`** (está en el allow-list de Eve).
+Usar el **tool dedicado `afectar`**.
 **No** usar `execute_entity(Afectar, ...)` — el tool dedicado tiene mejor tipado.
 
 ```

@@ -2,6 +2,64 @@
 
 Historial de promociones del Company Twin de ICF. Más nuevo primero.
 
+## 2026-08-20
+
+- **Corrida del ciclo de la fábrica (skill promote-learnings §4)** — buffer regenerado
+  (`scripts/regenerar-learnings.ts`, 41 entradas de los fallos de la campaña E2E) +
+  tablero `check-cycle.ts`:
+  - **Promovido** `modulos.md` — `ArtPrototipo` y `ArtPrototipoMaterial` añadidos a
+    "Entidades que no existen" (verificado en vivo con `read_records(first:1)`:
+    EntityNotFound; la explosión real es `ArtMaterial`/`web_art_explosion_material`).
+    Cubre `ent-inexistente-artprototipo` (×4) y `ent-inexistente-artprototipomaterial` (×3).
+  - **RUTEO (no promover más conocimiento)** — la mayoría del buffer son fallos de
+    descubrimiento cuya causa raíz ya se corrigió hoy (2026-08-20) en
+    `agent/lib/twin-clean.ts` + `agent/instructions/agent-active.ts` (neutralización de
+    wikilinks, catálogo exhaustivo de skills, nomenclatura skill↔concepto↔archivo):
+    `skill-inexistente-*`, `archivo-inexistente-*`, `concepto-inexistente-*`
+    (incl. `uv-qv-pptocompra`, `erp-kernel`, `mrp-explosion`, `attested-computation`,
+    `contrato-de-fuente-de-datos-funciones`, `industrias-campo-fresco-perfil-de-despliegue`,
+    etc.). Los `fld-read_records-*` canónicos (casing) → ya en `casing.md`/kernel.
+    `req-faltante_insumos-ejercicio`/`req-faltante_materia_prima-ejercicio` → ya
+    documentados en `agent/skill-library/gap-abasto/SKILL.md`.
+  - **Buffer vaciado** — solo queda el encabezado + `[movtipo-lookup] [pendiente]`
+    (sin caso real, regla: no compilar sin evidencia).
+  - **Verificado en vivo** (probes de fábrica `probe-firmas-sps.ts`,
+    `probe-verifica-artprototipo.ts`, `probe-web-art-explosion.ts`): firmas de SPs
+    MRP y disponibilidad de entidades, que se promovieron al kernel
+    (`sp-reportes-mrp.md`, `mcp-tools.md`, `index.md`) — ver `erp-kernel/log.md`.
+
+## 2026-08-19
+
+- **Corrida del ciclo de la fábrica (skill promote-learnings §4)** — revisión del
+  buffer `state/learnings.md` + tablero `scripts/check-cycle.ts` (ventana 14 días):
+  - **Bandeja del runtime**: 1 sola entrada `[movtipo-lookup] [pendiente]` (patrón
+    procedural ventas/compras por tipo semántico). Buscada evidencia en la
+    radiografía (`llm_inputs` últimos 400 registros): **0 casos reales** de
+    preguntas de "tipo de movimiento"/"movtipo". Sin evidencia → **se mantiene
+    pendiente** (regla: no compilar sin caso real).
+  - **Recurrencias del espejo**: 100% **CANÓNICO → RUTEO** (`ent-inexistente-*`
+    ×1..×16, `fld-*` casing ×1..×9). El conocimiento ya está en su hogar
+    (`modulos.md`, `casing.md`, kernel) — el modelo no lo consulta antes de
+    intentar entidades/campos. **NO promover más conocimiento**: señal de
+    descubrimiento (revisar ruteo/instructions).
+  - **Resultado**: 0 pendientes reales para promover. Buffer intacto (solo el
+    `[pendiente]` justificado). Veredicto de la corrida: nada que compilar.
+
+- **Verificación contra lo real (MCP-ICF + MCP del tenant)** de las entidades
+  "no disponibles" y del calendario, antes de dejar el conocimiento como
+  canónico:
+  - `EmpresaCfg2` y `InvD` → **existen en la BD `Intelisis5000` pero no publicadas
+    en el MCP** (EntityNotFound real). Documentadas así en `modulos.md`.
+  - `SaldoInv`, `InvSerieLote`, `InvDisp` → **NO existen ni en BD ni en MCP**
+    (invenciones del modelo). Separadas en `modulos.md` de las "no publicadas".
+  - `DIM_TIEMPO_SEMANA` → campos verificados contra el MCP real: `Anio` (el DAB
+    normaliza `AÑO` de la BD), `MES`, `SEMANA`, `NMES`, `NSEMANA`, `FECHAINICIO`,
+    `FECHAFIN`, `PERIODOCERRADO`. `casing.md` ganó su fila + correcciones
+    `DimTiempoSemana`/`FechaInicio`→`DIM_TIEMPO_SEMANA`/`FECHAINICIO`.
+- **Protocolo reforzado**: verificar contra lo real antes de promover es ahora
+  paso OBLIGATORIO (knowledge-hygiene §5 paso 0 + promote-learnings §4 +
+  check-cycle.ts). Probes de referencia: `scripts/probe-verifica-canonicidad.ts`.
+
 ## 2026-08-17
 
 - **Promote** buffer `state/learnings.md` — ~30 entradas clasificadas y vaciadas

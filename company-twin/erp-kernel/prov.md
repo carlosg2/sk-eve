@@ -36,10 +36,10 @@ vía el campo `Proveedor`.
 
 ```
 # Proveedores activos
-read_records(entity=Prov, filter="Estatus eq 'ALTA'", fields=[Proveedor, Nombre, RFC])
+read_records(entity=Prov, filter="Estatus eq 'ALTA'", select="Proveedor,Nombre,RFC")
 
 # Resolver nombres de varias claves
-read_records(entity=Prov, filter="Proveedor eq 'P0001' or Proveedor eq 'P0201'", fields=[Proveedor, Nombre])
+read_records(entity=Prov, filter="Proveedor eq 'P0001' or Proveedor eq 'P0201'", select="Proveedor,Nombre")
 ```
 
 # Reglas de escritura

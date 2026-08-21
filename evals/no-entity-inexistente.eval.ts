@@ -23,8 +23,13 @@ export default defineEval({
     // FAMILIA) en vez de `read_records` paginado — ambos caminos usan la entidad
     // REAL ForecastPlanProduccion y cumplen el invariante. Validar invariante,
     // no ruta (protocolo-pruebas.md §gotchas).
+    // (2026-08-19) El SP dedicado `programa_produccion_concentrado_familia` del
+    // portal es también una ruta válida para el consolidado por familia (hace el
+    // aggregate server-side); el invariante es usar entidades/SPs REALES del
+    // tenant y nunca describe_entities.
     t.calledTool("intelisis-dab__read_records", { input: { entity: "ForecastPlanProduccion" } }).soft();
-    t.calledTool("intelisis-dab__aggregate_records");
+    t.calledTool("intelisis-dab__aggregate_records").soft();
+    t.calledTool("intelisis-dab__programa_produccion_concentrado_familia").soft();
     t.notCalledTool("intelisis-dab__describe_entities");
     // Ninguna llamada debe referenciar entidades inexistentes del tenant ICF.
     t.eventsSatisfy("ninguna entidad inexistente", (events) => {

@@ -85,7 +85,9 @@ Dos actores, roles estrictamente separados:
 
 - **Runtime (Eve / agente Sigma)** — SOLO puede: leer el Twin, ejecutar tools, y **anexar
   al buffer** (`state/learnings.md`) vía el hook cuando algo falla. **Nunca** reorganiza el
-  Twin ni promueve conocimiento. El agente opera; no se auto-edita el conocimiento.
+  Twin, **nunca lee el buffer como conocimiento** (no se inyecta al prompt) ni promueve
+  conocimiento. El agente opera; no se auto-edita el conocimiento. Su aprendizaje viene
+  exclusivamente del hogar canónico (Twin/kernel/skill, higienizados por `cleanTwin*`).
 - **Fábrica (VS Code Copilot + skills)** — es la ÚNICA que **promueve**: toma el buffer,
   clasifica cada aprendizaje, lo escribe en su hogar canónico (kernel / twin / skill /
   instructions / dab-config), valida y **vacía el buffer**.
@@ -95,6 +97,9 @@ flowchart LR
   subgraph Runtime["Runtime (Eve) — opera, no se auto-edita"]
     A[Agente ejecuta tool] -->|falla accionable| H[hook memory.ts]
     H -->|append| B[(state/learnings.md<br/>BUFFER efímero)]
+    A -->|lee el hogar canónico| K
+    A -->|lee el hogar canónico| T
+    A -->|lee el hogar canónico| S
   end
   subgraph Fabrica["Meta-fábrica (VS Code Copilot) — promueve"]
     B -->|/promote-learnings| P[Clasifica cada learning]
@@ -157,3 +162,7 @@ Resumen del protocolo (detalle completo en el skill §4):
 - Un SKILL.md no contiene schema de entidades (campos/tipos).
 - Tras `/promote-learnings`, `learnings.md` solo tiene encabezado o entradas `[pendiente]`.
 - El runtime nunca escribe fuera de `state/` (solo el hook, solo append).
+- El runtime no inyecta `state/learnings.md` al prompt: el buffer es canal runtime→fábrica,
+  no una fuente de conocimiento del agente (el conocimiento llega por el hogar canónico).
+- El contenido del buffer (lo que el hook anexa) es de la fábrica: no se considera conocimiento
+  del runtime, no debe pasar por `cleanTwin*` y no debe aparecer en respuestas del agente.

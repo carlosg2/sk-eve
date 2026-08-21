@@ -80,10 +80,17 @@ agent/
 │   ├── icf/SKILL.md           # skills del tenant ICF
 │   ├── mrp*/SKILL.md          # familia MRP (producción, inventario, arribos, forecast…)
 │   └── control-compras/SKILL.md # use case control de compras vs presupuesto
+│   # ⚠️ SUBFOLDERAS SÍ SE MONTAN (2026-08-20): `references/`, `scripts/`, `templates/`,
+│   # `assets/` dentro de un skill se cargan como archivos package-relative vía
+│   # `defineSkill({ files })` (loader: `loadScopedSkills` en lib/runtime-config.ts).
+│   # Eve los materializa al sandbox; el modelo los lee on-demand con `read_skill_file`
+│   # (o `read_file` del sandbox). Solo el SKILL.md entra al prompt — cero costo por turno.
+│   # El SKILL.md debe listar los archivos con paths relativos explícitos.
 ├── skills/library.ts          # catálogo (membresía por tenant/agente)
 └── tools/
     ├── erp.ts                 # tools de ejecución ERP
     ├── query_company_twin.ts  # consulta al Company Twin
+    ├── read_skill_file.ts     # lee archivo hermano de un skill (references/, scripts/, …) por slug+path
     ├── get_weather.ts         # tool de ejemplo (zod schema)
     ├── bash.ts / glob.ts      # DESHABILITADOS (disableTool)
 ```
@@ -304,8 +311,8 @@ Sesión=snapshot (reiniciar conversación) · llm-io captura PRE-middleware (pla
 El sistema sigue la **constitución** (`tesis/constitucion.md`) y el **context stack** (`tesis/context-stack.md`). Reglas que Copilot (la fábrica) debe respetar SIEMPRE:
 
 ### Separación de poderes
-- **Runtime (Eve/agente)** SOLO: lee el Twin, ejecuta tools, y **anexa al buffer** `company-twin/companies/<tenant>/state/learnings.md` (vía `agent/hooks/memory.ts`) cuando un tool falla. NUNCA reorganiza el Twin ni promueve conocimiento.
-- **Fábrica (tú, Copilot)** SOLO: toma el buffer, clasifica cada aprendizaje y lo escribe en su **hogar canónico** (protocolo del skill `/promote-learnings` en `.github/skills/promote-learnings/SKILL.md`), y vacía el buffer.
+- **Runtime (Eve/agente)** SOLO: lee el Twin, ejecuta tools, y **anexa al buffer** `company-twin/companies/<tenant>/state/learnings.md` (vía `agent/hooks/memory.ts`) cuando un tool falla. NUNCA reorganiza el Twin, **NUNCA inyecta el buffer al prompt** (desde 2026-08-19 el buffer es canal runtime→fábrica; el conocimiento al agente llega por el hogar canónico vía `query_company_twin` + `context-planner`), ni promueve conocimiento.
+- **Fábrica (tú, Copilot)** SOLO: toma el buffer, clasifica cada aprendizaje y lo escribe en su **hogar canónico** (protocolo del skill `/promote-learnings` en `.github/skills/promote-learnings/SKILL.md`), y vacía el buffer. Promover RÁPIDO es lo que hace que el agente aprenda (el runtime ya no lee el buffer).
 
 ### Hogar canónico de cada hecho (constitución §2)
 | Tipo de conocimiento | Hogar | Prohibido en |
@@ -318,11 +325,11 @@ El sistema sigue la **constitución** (`tesis/constitucion.md`) y el **context s
 
 **Nunca conviertas una observación local en conocimiento universal sin validación.** Un `EntityNotFound` de un tenant NO sube al kernel; vive en el twin del tenant.
 
-### Ciclo completo (validado 2026-08-05)
+### Ciclo completo (validado 2026-08-05, rediseñado 2026-08-19)
 1. Un tool falla (ej. `read_records CXP` → `EntityNotFound` en ICF).
-2. El hook `agent/hooks/memory.ts` lo captura (ahora detecta errores **embebidos** `{ error: "..." }`, no solo `isError`) y anexa `ent-inexistente-CXP` al buffer.
-3. El buffer se inyecta en el prompt de la próxima sesión (`agent/instructions/memory.ts`).
-4. **Promoción (tú)**: clasifica el learning → twin declarativo del tenant (ej. `companies/icf/modulos.md`), ruteo → `agent/instructions.md`, capacidades → kernel root. Luego marca como promovido en el buffer.
+2. El hook `agent/hooks/memory.ts` lo captura (detecta errores **embebidos** `{ error: "..." }`, no solo `isError`) y, **si el hecho NO está ya en su hogar canónico** (guard `isLearningCanonical` sobre casing.md/modulos.md/kernel/twin), anexa `ent-inexistente-CXP` al buffer con recurrencia `[×N]` + última sesión (sin timestamps ISO). Un hecho canónico que sigue fallando NO se escribe: es señal de **RUTEO**.
+3. El buffer queda como **canal para la fábrica** — el runtime YA NO lo inyecta al prompt (rediseño 2026-08-19: contaminaba con jerga de proceso y duplicaba el hogar canónico).
+4. **Promoción (tú)**: corre `scripts/check-cycle.ts` (tablero: pendientes del buffer + recurrencias reales del espejo + cruce con canónico) → separa **RUTEO** (no promover más conocimiento: arreglar ruteo/instructions — el modelo no consulta el twin) de **pendientes reales** (promover al twin/skill con prioridad por `[×N]`). Luego vacía el buffer. La promoción RÁPIDA es el mecanismo de aprendizaje del agente (el conocimiento llega por el hogar canónico).
 5. Resultado: el agente responde "Dato no disponible" consultando el twin en **2 steps / 14s / 22k tokens** (antes: 12 steps / 16 calls / 4 errores / 608k tokens).
 
 ### Evals de regresión
@@ -412,8 +419,8 @@ La fábrica (Copilot) tiene TRES skills de operación avanzada:
 | Skill | Dónde | Para qué |
 |---|---|---|
 | **`stack-mastery`** | `.github/skills/stack-mastery/` | Mejora continua E2E del stack con patrón autoresearch (Karpathy): program.md (agenda), 6 manuales de dominio (Eve, DAB, SQL Server, Company Twin, multi-tenant, SvelteKit, AI Gateway), ratchet loop con evals/radiografía como juez. **Leer `program.md` antes de proponer cualquier mejora.** |
-| **`promote-learnings`** | `.github/skills/promote-learnings/` | Compilar el buffer `state/learnings.md` → hogar canónico (OKF/skills/instructions). |
-| **`knowledge-hygiene`** | `.github/skills/knowledge-hygiene/` | ⚠️ **Regla de oro transversal**: escribir/promover TODO conocimiento del runtime (skills, twin, kernel, learnings) **sanitizado** — sin jerga de proceso de la fábrica (fechas de validación, E2E, linter, probe, sp-mrp.sql, métricas de corridas, sesiones wrun_, rutas absolutas a skills). **Correr el checklist (grep + `sanitize-knowledge.py` + linter) antes de crear/editar/promover cualquier archivo de conocimiento.** |
+| **`promote-learnings`** | `.github/skills/promote-learnings/` | Compilar el buffer `state/learnings.md` → hogar canónico (OKF/skills/instructions). ⚠️ **Desde 2026-08-19 el runtime NO inyecta el buffer al prompt** (es canal runtime→fábrica); promover rápido es lo que hace que el agente aprenda. Primero corre `scripts/check-cycle.ts` (tablero: separa RUTEO de pendientes reales). |
+| **`knowledge-hygiene`** | `.github/skills/knowledge-hygiene/` | ⚠️ **Regla de oro transversal en DOS modos**: (1) **escribir** — todo conocimiento del runtime (skills, twin, kernel, learnings) sanitizado, sin jerga de proceso de la fábrica; incluye regla del buffer (canal de la fábrica) y no-redundancia entre capas; (2) **auditar** — verificación de canonicidad (cada hecho en su hogar, detecta duplicados/contradicciones/jerga/stale, reporte 🔴/🟡/⚪). **Correr el checklist (grep + `sanitize-knowledge.py` + linter) antes de crear/editar/promover cualquier archivo; usar el §9 para "auditar el conocimiento".** |
 
 **Manuales de dominio** (en `stack-mastery/references/`): antes de tocar una capa,
 lee su manual — contiene el contrato verificado, los gotchas y las oportunidades

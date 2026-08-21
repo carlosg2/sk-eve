@@ -28,8 +28,24 @@ export function cleanTwinBody(body: string): string {
       (_m, path: string) => `](${lastSegment(path)})`,
     );
     // 2. Rutas sueltas en prosa → nombre corto (sin ruta de fábrica)
-    out = out.replace(SHORT_ID_RE, (_m, name: string) => name);
-    // 3. Noción de capas y del concepto "tenant" en prosa → lenguaje de
+    out = out.replace(SHORT_ID_RE, (_m, name: string) => name);    // ── 2b. NOMENCLATURA REAL (raíz, 2026-08-20): neutralizar TODO wikilink de
+    // documento del twin para que el modelo no lo confunda con un skill. El
+    // runtime distingue TRES fuentes con nombres explícitos:
+    //   · skill         → se carga con `load_skill('<slug>')` (catálogo del agente)
+    //   · concepto      → se lee con `query_company_twin('<id>')` (Company Twin / ERP Kernel)
+    //   · tool del ERP  → se invoca directo (read_records, aggregate_records…)
+    // Cualquier slug con extensión `.md` que sobreviva aquí parece un skill al
+    // modelo (p.ej. `mrp-plan-produccion` desde `[..](mrp-plan-produccion.md)`)
+    // → `load_skill("mrp-plan-produccion")` → error. Se anota como CONCEPTO.
+    // 2b.1 Enlaces markdown relativos [texto](id.md) → texto (concepto: id)
+    out = out.replace(
+      /\[([^\]]+)\]\(([a-z0-9_-]+)(?:\.md)?\)/gi,
+      (_m, text: string, id: string) => `${text} (concepto del Company Twin: ${id})`,
+    );
+    // 2b.2 Backticks con .md → nombre (concepto del Company Twin)
+    out = out.replace(/`([a-z0-9_-]+)\.md`/gi, "$1 (concepto del Company Twin)");
+    // 2b.3 Menciones sueltas id.md en prosa → id (concepto del Company Twin)
+    out = out.replace(/\b([a-z0-9_-]+)\.md\b/gi, "$1 (concepto del Company Twin)");    // 3. Noción de capas y del concepto "tenant" en prosa → lenguaje de
     //    empresa/neutro. El agente trabaja con UNA empresa y no debe hablar
     //    de tenants, capas ni del kernel. Reglas en orden específico + una
     //    pasada final de normalización gramatical.
@@ -61,6 +77,41 @@ export function cleanTwinBody(body: string): string {
       .replace(/\buniversal\b/gi, "general")
       .replace(/\brestringe a\s*/gi, "")
       .replace(/\bcapa de capacidad de ejecuci[oó]n\b/gi, "capacidad de ejecución")
+      // ── jerga de infraestructura → lenguaje operativo (2026-08-19) ──
+      // El twin físico lo escribe la fábrica (con su vocabulario técnico); la
+      // proyección que ve el runtime lo traduce a lenguaje operativo. El agente
+      // no debe repetir "MCP/DAB/EntityNotFound/describe_entities/BD" al usuario.
+      // ── jerga de proceso (SP / tools / métricas) → lenguaje operativo ──
+      .replace(/\b(?:los |las )?SPs de carga\b(?![\w-])/gi, "las rutinas de carga")
+      .replace(/\b(?:el |un )?SP de carga\b(?![\w-])/gi, "la rutina de carga")
+      .replace(/\b(?:los |las )?SPs de reporte\b(?![\w-])/gi, "las consultas de reporte")
+      .replace(/\b(?:los |las )?SPs de cumplimiento\b(?![\w-])/gi, "las consultas de cumplimiento")
+      .replace(/\bTool MCP\b(?![\w-])/gi, "Función")
+      .replace(/\b37 tools\b(?![\w-])/gi, "varias funciones")
+      .replace(/\bcustom[- ]tools?\b(?![\w-])/gi, "funciones")
+      .replace(/\btool ([a-z0-9_]+)\b(?![\w-])/gi, "función $1")
+      .replace(/\btools\/list\b/gi, "la lista de funciones disponibles")
+      .replace(/\b(?:los |las |unos |unas )?SPs\b(?![\w-])/gi, "las rutinas")
+      .replace(/\b(?:el |un |este )?SP\b(?![\w-])/gi, "la rutina")
+      .replace(/(?<![\w-])\btools\b(?![\w-])/gi, "funciones")
+      .replace(/\bEntityNotFound\b/gi, "entidad no definida")
+      .replace(/\bdescribe_entities\b/gi, "catálogo de entidades")
+      .replace(/\bel DAB de la empresa\b(?![-\w])/gi, "la fuente de datos de la empresa")
+      .replace(/\bnuestro DAB\b(?![-\w])/gi, "el sistema")
+      .replace(/\bdel DAB\b(?![-\w])/gi, "de la fuente de datos")
+      .replace(/(?<![\w-])\b(?:el |al |un )?DAB\b(?![\w-])/gi, "el sistema")
+      .replace(/\bel MCP de esta empresa\b(?![-\w])/gi, "la fuente de datos de esta empresa")
+      .replace(/\bel MCP de la empresa\b(?![-\w])/gi, "la fuente de datos de la empresa")
+      .replace(/\bdel MCP de\b(?![-\w])/gi, "de la fuente de datos de")
+      .replace(/\bdel MCP\b(?![-\w])/gi, "de la fuente de datos")
+      .replace(/\ben el MCP\b(?![-\w])/gi, "en la fuente de datos")
+      .replace(/\bal MCP\b(?![-\w])/gi, "a la fuente de datos")
+      .replace(/\bel MCP\b(?![-\w])/gi, "la fuente de datos")
+      .replace(/(?<![\w-])\bMCP\b(?![\w-])/gi, "fuente de datos")
+      .replace(/la BD\s*`?Intelisis5000`?/gi, "la base de datos")
+      .replace(/`?Intelisis5000`?/gi, "la base de datos")
+      .replace(/\bla BD\b/gi, "la base de datos")
+      .replace(/\b\(?verificado en (?:runtime|varias corridas)\)?/gi, "")
       // ── normalización gramatical de residuos ──
       .replace(/\bd[ae]l el\b/gi, "del")
       .replace(/\bd[ae]l la\b/gi, "de la")

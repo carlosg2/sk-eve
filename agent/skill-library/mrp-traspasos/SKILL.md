@@ -3,7 +3,7 @@ tenant: icf
 description: >
   Use when the user pregunta por traspasos/movimientos de mercancía
   programados entre almacenes por semana. Corresponde a la ruta "Programa de
-  Traspasos" (`/traspasos/[semana]`) del portal MRP legacy (sigma-icf).
+  Traspasos" (`/traspasos/[semana]`) del portal MRP.
   ⚠️ Cobertura DAB no confirmada — ver Limitaciones.
 ---
 
@@ -49,8 +49,6 @@ confirmaron los campos que calcula, la tabla base o si depende de
    `Inv`/`MovTipo`/`CalendarioFC` ni explores el catálogo. Solo si el usuario pide
    explícitamente **movimientos de inventario transaccional real** (no
    traspasos programados), ofrécele `Inv` (del sistema) como alternativa.
-3. Si el usuario reporta que sí existe una entidad de traspaso, repórtalo
-   para que se documente — no la documentes tú mismo con datos inventados.
 
 ## Limitaciones
 

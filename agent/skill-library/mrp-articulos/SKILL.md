@@ -4,7 +4,7 @@ description: >
   Use when the user asks sobre prototipos de artículo/receta nueva, costeo o
   lista de materiales de un artículo en desarrollo, o autorización/rechazo de
   un prototipo. Corresponde a la ruta "Artículos" (Art Prototipo) del portal
-  MRP legacy (sigma-icf).
+  MRP.
 ---
 
 # Skill: MRP — Artículos / Prototipos (⚠️ cobertura DAB no confirmada)
@@ -41,9 +41,7 @@ hay ninguna entidad `ArtPrototipo*` documentada actualmente en el Company Twin.
    read_records(ArtPrototipoD, first: 1)
    read_records(ArtPrototipoMaterial, first: 1)
    ```
-   Si alguna responde con datos/columnas reales, úsala y **repórtale al equipo
-   que se documente en el Twin** (no la documentes tú mismo con datos
-   inventados).
+   Si alguna responde con datos/columnas reales, úsala.
 2. Si ninguna existe o el tool regresa error de entidad desconocida, **dile al
    usuario explícitamente que esta información (prototipos de artículo,
    costeo, autorización) no está disponible todavía a través de este agente**

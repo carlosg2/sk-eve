@@ -47,6 +47,7 @@ NO existe una regla universal "campos en UPPERCASE". El casing depende de la **v
 | `ArtFamFC` | Familia, StockMinimo, StockMaximo, TiempoEntrega | familias FC |
 | `ResumenPlaneacionCF` | Articulo, Descripcion, VariedadCF, FamiliaCF, S1..S54, P1..P54, Venta, Stock, Producir, Kg | **VariedadCF/FamiliaCF**, no Variedad/Familia |
 | `CalendarioFC` | Ano, Semana, FechaD, FechaA | **Ano** (no ANO) |
+| `DIM_TIEMPO_SEMANA` | Anio, MES, SEMANA, NMES, NSEMANA, FECHAINICIO, FECHAFIN, PERIODOCERRADO | calendario de semanas; nombre SIEMPRE en MAYÚSCULAS (`DIM_TIEMPO_SEMANA`); **Anio** (el DAB normaliza `AÑO` de la BD) + `MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN` en UPPERCASE; `NMES` ("12 Diciembre") y `NSEMANA` ("SEM 53/08") útiles para cabeceras |
 | `ArtMaterial` | Articulo (BOM) | shape result.value[] |
 | `Prov` | Nombre, Estatus, ... | catálogo |
 
@@ -62,6 +63,8 @@ property named 'X'`, la corrección depende de la entidad y del casing:
 | `EXISTENCIA` | `Disponible` | ArtDisponible, ArtDisponibleDesc |
 | `VARIEDAD` / `FAMILIACF` | `VariedadCF` / `FamiliaCF` | ResumenPlaneacionCF |
 | `ANO` | `Ano` | CalendarioFC |
+| `DimTiempoSemana` / `FECHAINICIO` camelCase | `DIM_TIEMPO_SEMANA` (nombre entidad UPPERCASE) con `Anio`/`MES`/`SEMANA`/`FECHAINICIO`/`FECHAFIN` | calendario |
+| `FechaInicio` / `FechaInicial` | `FECHAINICIO` / `FECHAFIN` | DIM_TIEMPO_SEMANA |
 | `CENTROTRABAJO` (camelCase) | `CENTROTRABAJO` (UPPERCASE) | ForecastPlanProduccion |
 | `SEMANA` (camelCase) | `SEMANA` (UPPERCASE) | ForecastPlanProduccion |
 | `UNIDAD` en ArtDisponible | `Unidad` en **ArtDisponibleDesc** | vista correcta |

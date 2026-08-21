@@ -3,8 +3,7 @@ tenant: icf
 description: >
   Use when the user asks por cumplimiento de producción (programado vs.
   producido), forecast vs. venta real, o KPIs de eficiencia por centro de
-  trabajo, familia o artículo. Corresponde a la ruta "Indicadores" del portal
-  MRP legacy (sigma-icf).
+  trabajo, familia o artículo. Corresponde a la ruta "Indicadores" del portal MRP.
 ---
 
 # Skill: MRP — Indicadores (cumplimiento plan vs. real)
@@ -45,7 +44,7 @@ aggregate_records(ProdD, filter: "Articulo eq '<A>' and FechaEntrega ge <inicio>
 ```
 
 Cumplimiento % = `SUM(Cantidad producida real) / Producir programado * 100`.
-Usar `DimTiempoSemana` (campos `Anio`/`MES`/`SEMANA`/
+Usar `DIM_TIEMPO_SEMANA` (campos `Anio`/`MES`/`SEMANA`/
 `FECHAINICIO`/`FECHAFIN`) o `CalendarioFC` (camelCase `Ano`/`Semana`/
 `FechaD`/`FechaA`) para traducir semana → rango de fechas antes de filtrar
 `ProdD`. Nota: `ProdD` no tiene campo `Fecha` — usar
@@ -130,7 +129,7 @@ aggregate_records(UV_QV_FILLRATE, function: "sum", field: "RECHAZO",
   <fin>T23:59:59Z`; 0 filas → `null` → tratar como 0).
 - ⚠️ **El producido del PERIODO completo SÍ se aísla por rango de fechas**
   : `FechaD..FechaA` = `MIN(FECHAINICIO)..MAX(FECHAFIN)`
-  de las semanas del periodo según `DimTiempoSemana` (`Anio eq <Y> and MES eq
+  de las semanas del periodo según `DIM_TIEMPO_SEMANA` (`Anio eq <Y> and MES eq
   <P>`) o `CalendarioFC` (`Ano`/`MES`). NO declarar "no se puede aislar el
   producido del periodo" sin intentar este rango; si `FechaEntrega` trae 0
   filas, reintentar con `FechaRequerida` antes de rendirse.
@@ -175,7 +174,7 @@ vienen de la BD (Centro sin nombre → `null` en el portal, Familia vacía →
   a mano (patrones verificados contra el MCP; `Fecha` no existe en
   `ProdD`/`VentaTCalc`, usar `FechaEntrega`/`FechaEmision` con ISO `Z`).
 - ⚠️ El producido del periodo NO es "no aislable": se filtra `ProdD` por el
-  rango de fechas del periodo completo (`DimTiempoSemana`/`CalendarioFC` →
+  rango de fechas del periodo completo (`DIM_TIEMPO_SEMANA`/`CalendarioFC` →
   `MIN FECHAINICIO..MAX FECHAFIN`). Un turno declaró la
   limitación sin intentarlo — regla: intentar siempre el patrón antes de
   declarar "no disponible". Si `ProdD` viene vacío, confirmar que la fecha

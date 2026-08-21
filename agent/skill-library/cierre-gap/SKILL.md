@@ -3,11 +3,11 @@ tenant: icf
 description: >
   Use when the user asks to CLOSE the abasto gap with a purchase: "cierra el
   gap de abasto", "arma la requisición de lo que falta", "cubre los faltantes
-  del mes", "prepara la compra de los faltantes críticos". It is the
-  HITL-heavy requisition flow with IDEAL AUTONOMY: plan with the todo tool,
-  resolve in silence what the data decides, ask ONLY what builds the next step,
-  then present the requisition and ask authorization AFTER showing it, then
-  close with the 3-filter authorization board.
+  del mes", "prepara la compra de los faltantes críticos". Es el flujo de
+  requisición con aprobación (HITL): planificar con la herramienta de tareas,
+  resolver en silencio lo que los datos deciden, preguntar SOLO lo que construye
+  el siguiente paso, presentar la requisición y pedir autorización DESPUÉS de
+  mostrarla, y cerrar con el tablero de autorización de 3 filtros.
 ---
 
 # Skill: Cierre del gap de abasto — requisición controlada

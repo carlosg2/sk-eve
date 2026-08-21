@@ -5,7 +5,7 @@ description: >
   producción (S1-S54, P1-P54) por artículo, cliente, centro de trabajo,
   concepto o programa, o por la **venta real embarcada** de un
   artículo/periodo (UV_QV_FILLRATE). Corresponde a la ruta "Desglose de
-  Forecast" del portal MRP legacy (sigma-icf).
+  Forecast" del portal MRP.
 ---
 
 # Skill: MRP — Desglose de Forecast (grid maestro de planeación)
@@ -109,7 +109,7 @@ El portal deriva el Inventario Semanal de un artículo cruzando tres fuentes
 2. **Ventas Semana** = `UV_QV_FILLRATE` sumando `CANTIDAD_EMBARCADA − RECHAZO`
    por `SEMANA_FACTURA` — ver Patrón 3 de este skill.
 3. **Producción Semana** = `ProdD` (`sum(Cantidad)` filtrando por el rango de
-   fechas de la semana con `DimTiempoSemana`/`CalendarioFC`) — ver skill
+   fechas de la semana con `DIM_TIEMPO_SEMANA`/`CalendarioFC`) — ver skill
    `mrp-indicadores` Patrón 1.
 
 Inventario Final = Inventario Inicial − Ventas + Producción.
@@ -155,15 +155,13 @@ el portal no muestre; las semanas que no aplican se muestran en blanco.
   datos del snapshot y declararlo (no inventar ceros).
 - El **usuario fijo del módulo FC es `MASERP`** (mismo criterio que el motor
   de referencia: corrida `MASERP · Ejercicio · Periodo · S<n>..S<n+4>`).
-- ✅ **Corrida `MASERP` cargada en el MCP **:
-  el backend ejecutó la carga inicial de Periodo 8 y el snapshot remoto tiene
-  el plan: 90 artículos · S32=3,978,128 / P32=2,867,048 / S33=2,440,112 /
-  P33=2,120,442 / S34=1,973,193 / P34=1,872,112 / S35=2,142,893 /
-  P35=2,104,518. La ventana del periodo 8 es **S32–S35** (S36 sin datos →
-  reportar "sin datos", no cero). Si un periodo futuro no tiene plan (semanas
-  en `null`), declarar "pendiente de re-corrida del backend" y NO inventar.
-- Fuente del agente: siempre el **MCP**. Desde entonces el MCP y la BD
-  directa del equipo están alineados (misma corrida `MASERP · Periodo 8 ·
+- ✅ **Corrida `MASERP` cargada en el MCP **: el snapshot remoto del
+  Periodo 8 tiene el plan poblado (90 artículos; ventana **S32–S35**; S36 sin
+  datos → reportar "sin datos", no cero). Si un periodo futuro no tiene plan
+  (semanas en `null`), declarar "pendiente de re-corrida" y NO inventar.
+  Totales de referencia en el Twin: `mrp-plan-produccion` (concepto
+  `query_company_twin`).
+- Fuente del agente: siempre el **MCP** (misma corrida `MASERP · Periodo 8 ·
   S32–S36`).
 
 ## Limitaciones

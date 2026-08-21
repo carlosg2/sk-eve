@@ -16,7 +16,7 @@ Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`,
 
 ## Recordatorios rápidos
 
-- **Contrato de tools** : `read_records` usa `select` (**string** coma-sep, ej. `"ID,Saldo"`) y `orderby` **array** (`["Saldo desc"]`); `aggregate_records` usa `orderby` **string** (`"desc"`) y soporta `having` nativo. Detalle: [Contrato de MCP tools](../../..`mcp-tools`).
+- **Contrato de tools** : `read_records` usa `select` (**string** coma-sep, ej. `"ID,Saldo"`) y `orderby` **array** (`["Saldo desc"]`); `aggregate_records` usa `orderby` **string** (`"desc"`) y soporta `having` nativo. Detalle: consultar el concepto `mcp-tools` en el Twin (`query_company_twin({ concept: 'mcp-tools' })`).
 - **Fechas OData sin comillas**: `Vencimiento le 2026-12-31` (NO `'2026-12-31'`). Rango: `Vencimiento ge 2026-06-24 and Vencimiento le 2026-07-01`.
 - **Estatus pendiente de pago = `PENDIENTE`** (ciclo `SINAFECTAR → PENDIENTE → CONCLUIDO`/`CANCELADO`). Detalle en el Twin (`cxp`, `afectar`).
 - **Antes de create/update**: consulta el schema en el Twin, valida límites varchar e incluye campos requeridos. `create_record` usa `data` (object); `update`/`delete` usan `keys`.
@@ -57,7 +57,7 @@ filter: Estatus eq 'PENDIENTE' and Vencimiento ge HOY and Vencimiento le HOY+N
 
 ### Transiciones de estatus (afectar / cambiar situación)
 ```
-# USAR el tool dedicado 'afectar' (está en el allow-list). NO usar execute_entity.
+# USAR el tool dedicado 'afectar'. NO usar execute_entity.
 afectar(Modulo="DIN", ID=2660, Accion="AFECTAR", Base="Todo", Usuario="ADMIN", Estacion=1)
 # Estacion es Int32 obligatorio. Usar 1 si no hay estación real. NUNCA pasar como string.
 

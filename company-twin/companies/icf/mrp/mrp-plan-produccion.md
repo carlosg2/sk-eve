@@ -94,16 +94,15 @@ inventario y stock. Llave lógica: `ID+Usuario`.
 ⚠️ **Usuario fijo del módulo FC **: las consultas de los snapshots
 usar SIEMPRE **`MASERP`** (mismo criterio que el motor de referencia).
 
-✅ **Corrida de MASERP ejecutada y en línea **:
-el backend corrió la carga inicial de `MASERP · 2026 · Periodo 8` y el MCP
-remoto YA tiene el plan poblado. `ResumenPlaneacionCF` con `Usuario eq 'MASERP'`
+✅ **Corrida de MASERP en línea **:
+la carga inicial de `MASERP · 2026 · Periodo 8` ya se ejecutó y el MCP
+remoto tiene el plan poblado. `ResumenPlaneacionCF` con `Usuario eq 'MASERP'`
 = **90 filas** y totales exactos a la referencia del motor:
 S32=3,978,128 · P32=2,867,048 · S33=2,440,112 · P33=2,120,442 · S34=1,973,193 ·
 P34=1,872,112 · S35=2,142,893 · P35=2,104,518. Ventana visible del periodo 8:
 **S32–S35** (S36 sin datos en el snapshot → reportar "sin datos", no cero).
 Si un periodo futuro no tiene plan (semanas en `null`), declarar la limitación
-("pendiente de re-corrida del backend"), NO inventar. La fuente del agente
-siempre es el MCP.
+("pendiente de re-corrida"), NO inventar. La fuente del agente siempre es el MCP.
 
 ⚠️ **Cómo se genera la corrida **: el snapshot NO es
 un dato permanente — lo regenera la **carga inicial** del proceso (SPs
@@ -111,12 +110,11 @@ un dato permanente — lo regenera la **carga inicial** del proceso (SPs
 `spFCAsignarBasesDefaul`/`spArtCentroDefaul`/`spArtCentroBalanceo`, seguidos de
 `spWebForecast12`/`spWebForecastFam12S`/`spWebForecastBBC12`/
 `spWebForecastArribos12`/`spWebInicio`). Por eso cada usuario tiene SU corrida.
-✅ **Desde que se publicó, el SP `spFCForcastCFNuk` SÍ está publicado en el MCP ICF**
+✅ **El SP `spFCForcastCFNuk` está publicado en el MCP ICF**
 como tool **`fcforcast_cfnuk`** (parámetros `Usuario, Ejercicio, Periodo,
 EnSilencio`; el booleano va como `true`/`false` — DAB rechaza `"1"`). El agente
-NO lo llama en el flujo normal (la regeneración es trabajo del backend; el tool
-quedó validado idempotente por el equipo); si un usuario no tiene plan, pedir
-al backend la re-corrida.
+NO lo llama en el flujo normal (regenera el plan); si un usuario no tiene plan,
+reportar que la corrida no existe para ese usuario.
 
 ## `ResumenPlaneacionCFHist`
 Histórico/bitácora de `ResumenPlaneacionCF` (mismas columnas `Sn`/`Pn`

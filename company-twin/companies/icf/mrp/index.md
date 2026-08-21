@@ -20,8 +20,8 @@ con `read_records(<Entidad>, first: 1)` sin `select` para ver todos los campos.
 
 # Contenido
 
-* [Núcleo MRP](mrp-explosion.md) — `ExplocionMatCF`, `BalanceFC`, `BalanceFCHist`, `ProcesadosCF`, `UtLogEjcProMrp`, `UtMaxMinCompra`, `UV_QV_PPTOCOMPRA`, `UtMrpPrevioMateriaPrima`, `MovSituacionFC`, `MovSituacionUsuarioFC`.
-* [Forecast y arribos a 12 semanas](mrp-forecast-arribos.md) — `Arribos12`, `Arribos12S`, `ArribosSub12S`, `FCArribos`, `ForecastArtFam12`, `ForecastBBC12`, `ForecastHist`, `ForecastAyuda`, `CalendarioFC`, `DimTiempoSemana` (SÍ publicada), `DimTiempoSemanaIso`, `ArtFamFC`, `UV_QV_FILLRATE` (venta real — filtrar por MES_FISCAL).
+* [Núcleo MRP](mrp-explosion.md) — `ExplocionMatCF`, `BalanceFC`, `BalanceFCHist`, `ProcesadosCF`, `UtMaxMinCompra`, `UV_QV_PPTOCOMPRA`, `UtMrpPrevioMateriaPrima`, `MovSituacionFC`, `MovSituacionUsuarioFC`. ⚠️ `UtLogEjcProMrp` NO existe (ver detalle en el enlace).
+* [Forecast y arribos a 12 semanas](mrp-forecast-arribos.md) — `Arribos12`, `Arribos12S`, `ArribosSub12S`, `FCArribos`, `ForecastArtFam12`, `ForecastBBC12`, `ForecastHist`, `ForecastAyuda`, `CalendarioFC`, `DIM_TIEMPO_SEMANA` (SÍ publicada), `DIM_TIEMPO_SEMANA_ISO`, `ArtFamFC`, `UV_QV_FILLRATE` (venta real — filtrar por MES_FISCAL).
 * [Plan y programa de producción](mrp-plan-produccion.md) — `ForecastPlanProduccion`, `ForecastPlanSemanal`, `ForecastPlanSemanalD`, `ProgramaProdProcesadosA`, `ProgramaProdSemillasA`, `ProgramaProdSituacionLog`, `Prod`, `ProdD`, `ResumenPlaneacionCF`, `ResumenPlaneacionCFHist`, `MovSituacionFCL` (workflow), `AuxiliarU` (saldo inventario).
 * [Centros y estaciones de trabajo](mrp-centros-estaciones.md) — `Centro`, `CentroFC`, `CentroFCHist`, `CentroFCTemp`, `EstacionTFC`, `EstacionTFCHist`, `EstacionTFCTemp`, `ArtCentroTemp`.
 * [Presupuesto VACA](mrp-vaca.md) — `ArtDisponibleVaca`, `VacaPresupuestoVtaCon`, `VacaPresupuestoVtaConD`, `VentaTCalc`.

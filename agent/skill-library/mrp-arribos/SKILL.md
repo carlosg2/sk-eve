@@ -4,7 +4,7 @@ description: >
   Use when the user asks about arribos (recepciones) proyectados a 12 semanas,
   cobertura de materia prima o BBC a futuro, cuándo se debe generar un embarque
   sugerido, o arribos pendientes de la línea VACA. Corresponde a la ruta
-  "Programa de Arribos" del portal MRP legacy (sigma-icf).
+  "Programa de Arribos" del portal MRP.
 ---
 
 # Skill: MRP — Programa de Arribos (cobertura y arribos proyectados)

@@ -64,10 +64,10 @@ read_records(entity=CXP, filter="Estatus eq 'PENDIENTE'")
 read_records(entity=CXP, filter="Estatus eq 'PENDIENTE' and Vencimiento le 2026-12-31")
 
 # Total pendiente por proveedor
-aggregate_records(entity=CXP, function=sum, field=Saldo, filter="Estatus eq 'PENDIENTE'", groupby=[Proveedor])
+aggregate_records(entity=CXP, function=sum, field=Saldo, filter="Estatus eq 'PENDIENTE'", groupby=["Proveedor"])
 
 # Proveedores que deben más de 50k (HAVING nativo)
-aggregate_records(entity=CXP, function=sum, field=Saldo, filter="Estatus eq 'PENDIENTE'", groupby=[Proveedor], having={ gt: 50000 })
+aggregate_records(entity=CXP, function=sum, field=Saldo, filter="Estatus eq 'PENDIENTE'", groupby=["Proveedor"], having={ gt: 50000 })
 ```
 
 # Reglas de escritura

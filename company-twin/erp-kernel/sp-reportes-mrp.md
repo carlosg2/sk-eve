@@ -9,9 +9,9 @@ mcp_tools: [web_desglose_forecast, web_cobertura_materia_prima, web_art_material
 
 # SPs de reporte del portal MRP (P1)
 
-Los **16 SPs de reporte** del portal MRP/FC se publicaron en el MCP ICF el
-(config a 100 entidades, 37 tools MCP: 7 DML + 30 custom).
-Verificado en vivo: todos responden `status: success` con el formato del portal.
+Los **16 SPs de reporte** del portal MRP/FC están publicados en el MCP ICF
+(37 tools MCP: 7 DML + 30 custom). Verificados: todos responden `status: success`
+con el formato del portal.
 
 Son la **fuente canónica del formato EXACTO de pantalla** de Daniel. Los usa el
 agente cuando se necesita el grid del portal tal cual; también sirven para
@@ -41,14 +41,38 @@ con el nombre de la entidad en minúsculas + guiones bajos).
 | `web_fcfaltante_concentrado` | `spWebFCFaltanteConcentrado` | `Usuario, Ejercicio, Periodo` | **Faltantes concentrado** (por familia) |
 | `cfarticulo_cumplimiento` | `spCFArticuloCumplimiento` | `Usuario, Ejercicio, Periodo, +Centro?, +Familia?` | **Cumplimiento de artículos** — `Centro, Familia, Articulo, Descripcion, ProgramadoKg, ProducidoKg, …` |
 | `cfcentra_trabajo_cumplimiento` | `spCFCentraTrabajoCumplimiento` | `Usuario, Ejercicio, Periodo` | **Cumplimiento de centros** |
-| `programa_produccion_concentrado_centro` | `spProgramaProduccionConcentradoCentro` | `Usuario, Ejercicio, Periodo, +Semana?` | **Concentrado por centro** |
+| `programa_produccion_concentrado_centro` | `spProgramaProduccionConcentradoCentro` | `Usuario, Ejercicio, Periodo, Semana` (**Semana REQUERIDA**) | **Concentrado por centro** |
 | `programa_produccion_concentrado_familia` | `spProgramaProduccionConcentradoFamilia` | `Usuario, Ejercicio, Periodo, +Semana?` | **Concentrado por familia** |
 | `web_inicio_concentrado` | `spWebInicioConcentrado` | `Usuario, Ejercicio, Periodo` | **Programa mensual concentrado** |
 | `fccentro_capacidad_real` | `spFCCentroCapacidadReal` | `Usuario, Centro, +CapacidadHras OUTPUT, +CapacidadPzas OUTPUT` | **Capacidad real por centro** — devuelve `CapacidadHras, CapacidadPzas` (OUTPUT soportado por el DAB: `SELECT @param AS [param]`) |
 | `web_forecast_hist_lista` | `spWebForecastHistLista` | `Usuario, Ejercicio, Periodo` | **Histórico/versiones** (ForecastHist) |
 | `fcarribos_vaca` | `spFCArribosVaca` | `Usuario, FechaD datetime, FechaA datetime` | **Arribos Vaca (pendientes)** — 3 bases (ICF/AVA/PDB) |
 | `vaca_presupuesto_forecast_semanal` | `spVacaPresupuestoForecastSemanal` | `Usuario varchar(50)='MASERP', Ejercicio, Semana` | **Presupuesto Vaca semanal** |
-| `fcppplan_semana` | `spFC_PP_PlanSemana` | `Usuario, Ejercicio, Periodo, +ID?, +Semana?, +CentroTrabajo?` | **Plan semanal** (ForecastPlanSemanal/D) |
+| `fcppplan_semana` | `spFC_PP_PlanSemana` | `Usuario, Ejercicio, Periodo, ID` (**ID REQUERIDO**), `+Semana?, +CentroTrabajo?` | **Plan semanal** (ForecastPlanSemanal/D) |
+
+## Firmas verificadas en vivo (2026-08-20)
+
+Los siguientes SPs exigen parámetros que antes se documentaban como opcionales
+(`+X?`) y **fallan con `ExecutionError: expects parameter '@X', which was not
+supplied` si se omiten**:
+
+| Tool | Parámetro REQUERIDO (no opcional) | Error si falta |
+|---|---|---|
+| `programa_produccion_concentrado_centro` | `Semana` | `spProgramaProduccionConcentradoCentro expects parameter '@Semana'` |
+| `fcppplan_semana` | `ID` (y `Semana` también exigido si se usa con filtro) | `spFC_PP_PlanSemana expects parameter '@ID'` |
+
+`web_art_explosion_material` acepta **solo** `Usuario, Ejercicio, Periodo`
+(verificado con `describe_entities`: parámetros declarados = esos 3, todos required).
+**NO acepta** `FechaEmision` ni `FechaD` ni `Semana` como parámetros extra
+(`InvalidArguments: Invalid parameter: X`). ⚠️ Incluso con los 3 obligatorios el SP
+puede fallar con `The conversion of a varchar data type to a datetime data type
+resulted in an out-of-range value` — es un **error interno del SP/snapshot** (no del
+llamador); en ese caso declarar la limitación y usar `read_records(ExplocionMatCF)`
+como respaldo. `web_art_material_req_prorrateo` y `vaca_presupuesto_forecast_semanal`
+tienen el mismo patrón de fecha interna.
+
+`buscar_registro` requiere `@campo` (el campo sobre el que busca) además de
+`entidad` y `termino` — si falta: `spbuscar_registro expects parameter '@campo'`.
 
 ## Verificación 
 
@@ -75,5 +99,5 @@ prefiere consultas propias, puede comparar contra el SP.
 
 - `spWebSigmaEjecucion` (@SQL varchar(max), SQL dinámico) **NO se publica** —
   riesgo de inyección.
-- Los SPs de **carga** (cadena P0) NO se exponen al agente en la allow-list
+- Los SPs de **carga** (cadena P0) NO se exponen al agente
   (escrituras de regeneración; ver `fcforcast-cfnuk.md`).

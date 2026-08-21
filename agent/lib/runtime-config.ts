@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 
 type RuntimeFile = {
   activeTenant?: string;
@@ -173,7 +173,43 @@ export type ScopedSkill = {
   slug: string;
   description: string | null;
   markdown: string;
+  /**
+   * Archivos hermanos del skill (references/, scripts/, templates/, assets/...)
+   * en formato package-relative (clave = path relativo al directorio del skill,
+   * separador `/`). Eve los materializa al sandbox vía `defineSkill({ files })`
+   * y el modelo los lee on-demand con `read_file` o `read_skill_file`. Solo el
+   * SKILL.md entra al prompt (progressive disclosure, sin costo por turno).
+   */
+  files: Record<string, string | Uint8Array>;
 };
+
+/**
+ * Recoge recursivamente los archivos hermanos de un skill del catálogo,
+ * excluyendo `SKILL.md`, `.DS_Store` y ocultos. Devuelve un map package-relative
+ * que Eve escribe al sandbox (`$HOME/.agents/skills/<slug>/...`).
+ */
+function collectSkillFiles(skillDir: string): Record<string, string | Uint8Array> {
+  const files: Record<string, string | Uint8Array> = {};
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "SKILL.md" || entry.name === ".DS_Store") continue;
+      if (entry.name.startsWith(".")) continue;
+      const abs = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(abs);
+      } else if (entry.isFile()) {
+        const rel = relative(skillDir, abs).split(sep).join("/");
+        try {
+          files[rel] = readFileSync(abs, "utf8");
+        } catch {
+          // Archivo ilegible: se omite. El SKILL.md no debe referenciarlo.
+        }
+      }
+    }
+  };
+  walk(skillDir);
+  return files;
+}
 
 /**
  * Resuelve el agente activo (tenant + agente) desde `runtime.json` y carga su
@@ -238,7 +274,14 @@ export function loadScopedSkills(agent: ActiveAgent): ScopedSkill[] {
     const { fm, body } = parseFrontmatter(readFileSync(file, "utf8"));
     const visible = fm.tenant == null || asList(fm.tenant).includes(agent.tenant);
     if (!visible) continue;
-    out.push({ slug: entry.name, description: scalar(fm.description), markdown: body.trim() });
+    out.push({
+      slug: entry.name,
+      description: scalar(fm.description),
+      markdown: body.trim(),
+      // Subcarpetas (references/, scripts/, templates/, assets/) se montan como
+      // archivos package-relative; Eve los materializa al sandbox del skill.
+      files: collectSkillFiles(join(root, entry.name)),
+    });
   }
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }

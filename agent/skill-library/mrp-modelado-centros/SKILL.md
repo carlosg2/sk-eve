@@ -3,8 +3,7 @@ tenant: icf
 description: >
   Use when the user pregunta por configuración/capacidad de centros de
   trabajo y estaciones (turnos, capacidad real, balanceo de carga). Corresponde
-  a la ruta Modelado de Centros (/modelado3) del portal MRP legacy
-  (sigma-icf).
+  a la ruta Modelado de Centros (/modelado3) del portal MRP.
 ---
 
 # Skill: MRP — Modelado de Centros (capacidad y balanceo)
@@ -15,7 +14,7 @@ description: >
 Conexión MCP: **`intelisis-dab`**. Tools: `read_records`, `aggregate_records`, **`fccentro_capacidad_real`** (SP del portal: capacidad real por centro, devuelve `CapacidadHras`/`CapacidadPzas`; parámetros `Usuario, Centro`).
 `Usuario` fijo: **`"MASERP"`**.
 
-## Origen (portal legacy sigma-icf, ruta `/modelado3`; existe un duplicado
+## Origen (portal MRP, ruta `/modelado3`; existe un duplicado
 `/modelado4` idéntico — el nav real solo enlaza `modelado3`)
 
 Vista de configuración de **capacidad de centros de trabajo**: por cada

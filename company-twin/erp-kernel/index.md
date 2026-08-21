@@ -69,9 +69,9 @@ por entidad (camelCase vs UPPERCASE) vive en [Casing por vista](/erp-kernel/casi
 
 * **Operadores de filtro:** `eq, ne, gt, ge, lt, le, and, or, not`.
 * **NO soportados en filtro:** `contains`, `startswith`, `endswith`, `regex`. El OData URI parser
-  de este binario sigma-dab no implementa funciones de texto. Para texto parcial (ej. proveedor
-  por nombre) trae candidatos con `read_records` sin filtro y filtra client-side, o resuelve
-  la clave exacta primero con `aggregate groupby:[Campo]`.
+  no implementa funciones de texto. Para texto parcial (ej. proveedor por nombre) usa el tool
+  `buscar_registro` (búsqueda por texto libre), o trae candidatos con `read_records` sin filtro
+  y filtra client-side, o resuelve la clave exacta primero con `aggregate groupby:[Campo]`.
 * **`HAVING` SÍ soportado** : `aggregate_records` acepta `having` (object) con
   operadores `eq, neq, gt, gte, lt, lte, in`. Ej.: `having: { gt: 40 }`. Requiere `groupby`.
   **No** simules HAVING en cliente.
@@ -84,15 +84,23 @@ por entidad (camelCase vs UPPERCASE) vive en [Casing por vista](/erp-kernel/casi
   (`execute_entity`) que encapsule el join. Alternativa: encadenar tool calls (FK en paso 1,
   entidad dependiente en paso 2 con `campo eq 'v1' or campo eq 'v2'`).
 * **Fechas sin comillas:** `Vencimiento le 2026-12-31`.
+* **⚠️ Tipos compatibles en operadores (verificado):** un operador comparando tipos
+  distintos falla con `A binary operator with incompatible types was detected`
+  (p. ej. `Edm.DateTimeOffset` vs `Edm.String`). Una fecha con comillas
+  (`Vencimiento le '2026-12-31'`) es un **string** → incompatible con un campo fecha.
+  Fechas SIEMPRE sin comillas y en ISO `YYYY-MM-DD`; strings SIEMPRE con comillas simples.
+* **⚠️ `$filter query parameter is not well formed`:** sintaxis del filtro rota
+  (paréntesis sin cerrar, operador mal escrito, comillas sin abrir). Si el filtro
+  falla con este error, revisa la construcción del `$filter` antes de reintentar.
 * **Strings con comillas simples:** `Estatus eq 'PENDIENTE'`.
 * **Casing por vista (regla ):** NO existe "campos en UPPERCASE"
   universal. La mayoría de entidades (catálogos y movimientos) se exponen en **camelCase**
   (`FechaEmision`, `Articulo`, `Cantidad`, `MovID`, `Descripcion1`); SOLO vistas de módulos
   específicos (p.ej. `ForecastPlanProduccion`/`UV_QV_PPTOCOMPRA` en ICF) son UPPERCASE
   (`SEMANA`, `PORPRODUCIR`). Ante cualquier duda verificar con `read_records(<Ent>, first:1)`.
-  Mapa completo por entidad: [casing.md](/erp-kernel/casing.md). (La regla genérica
-  "UPPERCASE" (regla antigua) era una sobre-generalización que causó 25+ errores
-  `Invalid field` en entidades camelCase — ver erp-kernel/log.md 2026-08-17.)
+  Mapa completo por entidad: [casing.md](/erp-kernel/casing.md). La regla genérica
+  "UPPERCASE" era una sobre-generalización que causó errores `Invalid field` en entidades
+  camelCase.
 
 ## Módulos de negocio — cómo decirlos (canal de voz y etiquetas)
 
