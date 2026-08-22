@@ -1,17 +1,42 @@
 import { json } from "@sveltejs/kit";
-import { listPromptInjections } from "../../../../../agent/lib/session-store.js";
+import {
+  deriveSystemPromptLayers,
+  listPromptInjections,
+  type PromptInjectionRecord,
+  type SystemPromptLayer,
+} from "../../../../../agent/lib/session-store.js";
 import type { RequestHandler } from "./$types";
 
-// Radiografía de inyecciones de contexto (lóbulo frontal + memoria episódica).
-// llm_inputs captura el prompt PRE-middleware (por eso planTag sale null); estas
-// inyecciones las registra el propio middleware (agent/lib/context-budget.ts)
-// al inyectar, para que sean analizables/evaluables en el tiempo: qué se
-// inyectó, cuándo, cuánto pesó y de qué sesiones previas salió la memoria.
+// Radiografía COMPLETA de inyecciones de contexto, por sesión:
+//   1. `layers` — capas del SYSTEM PROMPT (derivadas de llm_inputs.instructions,
+//      que captura el prompt compilado PRE-middleware): base, framework, agente
+//      activo, mapa de ruteo y empresa activa. Cada una con su ORIGEN.
+//   2. `injections` — inyecciones POR-TURNO registradas por el middleware
+//      (context-budget.ts): plan de contexto, memoria episódica, anti-duplicados
+//      y compactación de tool-results.
+// `items` fusiona ambas cronológicamente (las capas arrancan en el primer input).
+// GET /api/audit/injections?session=<sessionId>&kind=<opcional>&limit=<n>
 export const GET: RequestHandler = async ({ url }) => {
-  const session = url.searchParams.get("session") ?? undefined;
+  const session = url.searchParams.get("session") ?? url.searchParams.get("sessionId") ?? undefined;
   const kindRaw = url.searchParams.get("kind");
-  const kind = kindRaw === "plan" || kindRaw === "memory" ? kindRaw : undefined;
+  const kind = kindRaw?.trim() || undefined;
   const limit = Math.max(1, Math.min(500, Number(url.searchParams.get("limit") ?? 100)));
-  const injections = await listPromptInjections({ sessionId: session, kind, limit });
-  return json({ injections, count: injections.length });
+
+  const injections: PromptInjectionRecord[] = session
+    ? await listPromptInjections({ sessionId: session, kind, limit })
+    : [];
+  const layers: SystemPromptLayer[] = session ? deriveSystemPromptLayers(session) : [];
+
+  const items: Array<PromptInjectionRecord & { label?: string }> = [
+    ...layers,
+    ...injections,
+  ].sort((a, b) => a.at.localeCompare(b.at));
+
+  return json({
+    sessionId: session ?? null,
+    count: items.length,
+    layers,
+    injections,
+    items,
+  });
 };

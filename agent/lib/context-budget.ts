@@ -138,7 +138,9 @@ function compactToolResultText(text: string): string {
 
 // Compacta tool-results de leer (read_records/aggregate_records/buscar_registro):
 // proyecta a campos útiles y acota filas, en vez de truncar chars a cuchillo.
-function compactToolResults(prompt: Array<{ role?: string; content?: unknown }>): void {
+// Devuelve cuántos resultados fueron modificados (para la radiografía de inyecciones).
+function compactToolResults(prompt: Array<{ role?: string; content?: unknown }>): number {
+  let modified = 0;
   for (const message of prompt) {
     if (message.role !== "tool" || !Array.isArray(message.content)) continue;
     for (const part of message.content as Array<Record<string, any>>) {
@@ -147,17 +149,22 @@ function compactToolResults(prompt: Array<{ role?: string; content?: unknown }>)
       const isRead = /__read_records$|__aggregate_records$|__buscar_registro$/.test(toolName);
       if (!isRead) continue;
       for (const { content } of toolResultTexts(part)) {
+        const before = content.text;
         content.text = compactToolResultText(content.text);
+        if (content.text !== before) modified++;
       }
     }
   }
+  return modified;
 }
 
 // Caché de resultados repetidos dentro de la sesión: si el MISMO resultado (texto
 // normalizado) ya apareció en un tool-result anterior, la repetición se reemplaza por
 // un placeholder-resumen (el modelo ya lo tiene en el historial del prompt).
-function dedupeRepeatedResults(prompt: Array<{ role?: string; content?: unknown }>): void {
+// Devuelve cuántos resultados fueron deduplicados.
+function dedupeRepeatedResults(prompt: Array<{ role?: string; content?: unknown }>): number {
   const seen = new Map<string, { index: number; toolName: string; rows: number }>();
+  let deduped = 0;
   let index = 0;
   for (const message of prompt) {
     if (message.role !== "tool" || !Array.isArray(message.content)) continue;
@@ -173,6 +180,7 @@ function dedupeRepeatedResults(prompt: Array<{ role?: string; content?: unknown 
             `No se repite: usa el resultado anterior del historial.` +
             (prev.rows ? ` Resumen: ${prev.rows} filas.` : "") +
             `]`;
+          deduped++;
         } else {
           const rows = Number(text.match(/"totalRows":\s*(\d+)/)?.[1] ?? 0);
           seen.set(hash, { index, toolName: String(part.toolName ?? ""), rows });
@@ -181,11 +189,15 @@ function dedupeRepeatedResults(prompt: Array<{ role?: string; content?: unknown 
       index++;
     }
   }
+  return deduped;
 }
 
 // Trunca tool-results MCP excesivamente grandes (paginación bruta) a un tope
-// seguro, avisando al modelo para que no repita la lectura masiva.
-function truncateLargeToolResults(prompt: Array<{ role?: string; content?: unknown }>): void {
+// seguro, avisando al modelo para que no repita la lectura masiva. Devuelve
+// cuántos truncó y cuántos chars recortó.
+function truncateLargeToolResults(prompt: Array<{ role?: string; content?: unknown }>): { count: number; chars: number } {
+	let count = 0;
+	let chars = 0;
 	for (const message of prompt) {
 		if (message.role !== "tool" || !Array.isArray(message.content)) continue;
 		for (const part of message.content as Array<Record<string, any>>) {
@@ -199,10 +211,13 @@ function truncateLargeToolResults(prompt: Array<{ role?: string; content?: unkno
 						kept +
 						`\n… [TRUNCADO: resultado de ${content.text.length} chars; limitado a ${MAX_TOOL_RESULT_CHARS}. ` +
 						`No reintentar la lectura masiva: usa aggregate_records (groupby) o buscar_registro (LIKE en servidor).]`;
+					count++;
+					chars += content.text.length - kept;
 				}
 			}
 		}
 	}
+	return { count, chars };
 }
 
 // "Lóbulo frontal" (fase B — por mensaje): el middleware ve el prompt completo de
@@ -236,6 +251,7 @@ function injectContextPlan(prompt: Array<{ role?: string; content?: unknown }>):
       sessionId: getCurrentSessionId() ?? "",
       at: new Date().toISOString(),
       kind: "plan",
+      origin: "context-budget.ts · lóbulo frontal (plan de contexto)",
       tag,
       chars: markdown.length,
       message,
@@ -278,13 +294,23 @@ function warnRepeatedToolCalls(prompt: Array<{ role?: string; content?: unknown 
     const warnKey = stableHash(dups.join("|"));
     if (lastDupWarning === warnKey) return; // ya avisado para este turno
     lastDupWarning = warnKey;
-    prompt.unshift({
-      role: "system",
-      content:
-        "## ⚠️ Duplicados detectados (auto)\n" +
-        "Repetiste tool calls con el MISMO input en este turno:\n\n" +
-        dups.map((k) => `- ${k}`).join("\n") +
-        "\n\nReutiliza el resultado previo del historial. No vuelvas a invocar el mismo tool con el mismo filtro/select.",
+    const content =
+      "## ⚠️ Duplicados detectados (auto)\n" +
+      "Repetiste tool calls con el MISMO input en este turno:\n\n" +
+      dups.map((k) => `- ${k}`).join("\n") +
+      "\n\nReutiliza el resultado previo del historial. No vuelvas a invocar el mismo tool con el mismo filtro/select.";
+    prompt.unshift({ role: "system", content });
+    // Radiografía durable: registrar la inyección de anti-duplicados para el
+    // tab "Inyecciones" de /audit (igual que plan/memoria).
+    void appendPromptInjection({
+      sessionId: getCurrentSessionId() ?? "",
+      at: new Date().toISOString(),
+      kind: "duplicates",
+      origin: "context-budget.ts · anti-duplicados",
+      tag: `[dup:${warnKey.slice(0, 8)}]`,
+      chars: content.length,
+      message: dups.join(" | ").slice(0, 300),
+      body: content,
     });
   } catch {
     // nunca romper la llamada al modelo por el detector de duplicados
@@ -347,6 +373,7 @@ function injectEpisodicMemory(prompt: Array<{ role?: string; content?: unknown }
       sessionId: getCurrentSessionId() ?? "",
       at: new Date().toISOString(),
       kind: "memory",
+      origin: "context-budget.ts · memoria episódica",
       tag,
       chars: parts.join("\n").length,
       hits: hits.length,
@@ -375,6 +402,42 @@ function truncateSchemaDescriptions(schema: unknown): unknown {
 	return result;
 }
 
+// ── Radiografía de compactación (guard de contexto) ───────────────────────────
+// Registra UN evento `compact` por step cuando el middleware modificó
+// tool-results (proyección, dedupe o truncado), para que el tab "Inyecciones"
+// de /audit muestre qué se recortó y cuánto. Dedupe por contenido del resumen
+// para no repetir filas idénticas en steps consecutivos.
+let lastCompactKey: string | undefined;
+
+function recordCompaction(
+  compacted: number,
+  deduped: number,
+  truncated: { count: number; chars: number },
+): void {
+  try {
+    const parts: string[] = [];
+    if (compacted > 0) parts.push(`${compacted} tool-result(s) compactados (proyección de columnas/filas)`);
+    if (deduped > 0) parts.push(`${deduped} resultado(s) deduplicados (placeholder)`);
+    if (truncated.count > 0) parts.push(`${truncated.count} resultado(s) truncados (>${MAX_TOOL_RESULT_CHARS} chars, −${truncated.chars})`);
+    if (!parts.length) return;
+    const key = parts.join(" · ");
+    if (lastCompactKey === key) return; // mismo resumen: no repetir
+    lastCompactKey = key;
+    void appendPromptInjection({
+      sessionId: getCurrentSessionId() ?? "",
+      at: new Date().toISOString(),
+      kind: "compact",
+      origin: "context-budget.ts · compactación tool-results",
+      tag: "[compact]",
+      chars: key.length,
+      message: key.slice(0, 300),
+      body: "Tool-results modificados en este step (guard de contexto):\n\n- " + parts.join("\n- "),
+    });
+  } catch {
+    // nunca romper la llamada al modelo por la radiografía
+  }
+}
+
 export const contextBudgetMiddleware: LanguageModelMiddleware = {
   transformParams: async ({ params }) => {
     const anyParams = params as unknown as {
@@ -400,12 +463,13 @@ export const contextBudgetMiddleware: LanguageModelMiddleware = {
       // el middleware crashearía la llamada al modelo (el ReferenceError de
       // truncateSchemaDescriptions causó exactamente eso → refresh de página).
       try {
-        compactToolResults(prompt);
-        dedupeRepeatedResults(prompt);
+        const nCompact = compactToolResults(prompt);
+        const nDedupe = dedupeRepeatedResults(prompt);
         warnRepeatedToolCalls(prompt);
         injectContextPlan(prompt);
         injectEpisodicMemory(prompt);
-        truncateLargeToolResults(prompt);
+        const trunc = truncateLargeToolResults(prompt);
+        recordCompaction(nCompact, nDedupe, trunc);
       } catch {
         // nunca romper la llamada al modelo por el guard de contexto
       }

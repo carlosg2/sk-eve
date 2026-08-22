@@ -256,6 +256,16 @@ function getDb(): DatabaseSync {
   if (!icols.some((c) => c.name === "body")) {
     db.exec("ALTER TABLE prompt_injections ADD COLUMN body TEXT");
   }
+  // Migración de `prompt_injections` (2026-08-21): columnas `origin` (fuente
+  // declarativa de la inyección, p.ej. "context-budget.ts · anti-duplicados")
+  // y `step` (índice del step en el que se inyectó). El tab de /audit
+  // "Inyecciones" las usa para agrupar por origen.
+  if (!icols.some((c) => c.name === "origin")) {
+    db.exec("ALTER TABLE prompt_injections ADD COLUMN origin TEXT");
+  }
+  if (!icols.some((c) => c.name === "step")) {
+    db.exec("ALTER TABLE prompt_injections ADD COLUMN step INTEGER");
+  }
   // Arranque del proceso: ningún turno puede estar corriendo en un proceso
   // recién creado, así que limpiar flags `active` huérfanos (un kill del dev
   // server a mitad de turno deja active=1 sin evento de cierre).
@@ -682,16 +692,20 @@ export function getLastStartedSessionId(): string | null {
   }
 }
 
-/** Una inyección de contexto registrada por el middleware (plan o memoria). */
+/** Una inyección de contexto registrada por el middleware (o derivada del system prompt). */
 export interface PromptInjectionRecord {
   sessionId: string;
   at: string;
-  kind: "plan" | "memory";
+  kind: string; // plan | memory | duplicates | compact (middleware) | base | framework | agent | routing | tenant (system)
+  /** Fuente declarativa: archivo/mecanismo que la inyectó (p.ej. "context-budget.ts · anti-duplicados"). */
+  origin?: string;
   tag: string;
   chars: number;
   hits?: number;
   message?: string;
   sources?: Array<{ sessionId: string; type: string }>;
+  /** Índice del step en el que se inyectó (middleware). */
+  step?: number;
   /** Contenido COMPLETO que se inyectó al prompt (visible en el debugger). */
   body?: string;
 }
@@ -701,19 +715,21 @@ export async function appendPromptInjection(rec: PromptInjectionRecord): Promise
   try {
     getDb()
       .prepare(
-        `INSERT INTO prompt_injections (sessionId, at, kind, tag, chars, hits, message, sources, body)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO prompt_injections (sessionId, at, kind, origin, tag, chars, hits, message, sources, body, step)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         rec.sessionId,
         rec.at,
         rec.kind,
+        rec.origin ?? null,
         rec.tag,
         rec.chars,
         rec.hits ?? null,
         rec.message ? String(rec.message).slice(0, 300) : null,
         rec.sources ? JSON.stringify(rec.sources) : null,
         rec.body ?? null,
+        rec.step ?? null,
       );
   } catch {
     // nunca romper el turno por un fallo de persistencia
@@ -722,7 +738,7 @@ export async function appendPromptInjection(rec: PromptInjectionRecord): Promise
 
 /** Lee inyecciones de contexto, más recientes primero. */
 export async function listPromptInjections(
-  opts: { sessionId?: string; kind?: "plan" | "memory"; limit?: number } = {},
+  opts: { sessionId?: string; kind?: string; limit?: number } = {},
 ): Promise<PromptInjectionRecord[]> {
   const limit = Math.max(1, Math.min(500, opts.limit ?? 100));
   const where: string[] = [];
@@ -743,14 +759,119 @@ export async function listPromptInjections(
   return rows.map((r) => ({
     sessionId: String(r.sessionId),
     at: String(r.at),
-    kind: String(r.kind) as "plan" | "memory",
+    kind: String(r.kind),
+    origin: r.origin == null ? undefined : String(r.origin),
     tag: String(r.tag),
     chars: Number(r.chars),
     hits: r.hits == null ? undefined : Number(r.hits),
     message: r.message == null ? undefined : String(r.message),
     sources: r.sources ? JSON.parse(String(r.sources)) : undefined,
     body: r.body == null ? undefined : String(r.body),
+    step: r.step == null ? undefined : Number(r.step),
   }));
+}
+
+// ── Capas del system prompt (derivadas de llm_inputs) ─────────────────────────
+// llm_inputs captura el system prompt COMPLETO compilado por step (PRE-middleware):
+// base (agent/instructions.md) + boilerplate de framework + agente activo + mapa
+// de ruteo + empresa activa. Este derivador lo divide por marcadores estables
+// para que /audit pueda mostrar cada capa con su ORIGEN, sin tocar el runtime.
+const SYSTEM_LAYER_MARKERS = {
+  framework: "Tool execution",
+  agent: "## Agente activo",
+  routing: "## Mapa del Company Twin",
+  tenant: "## Empresa activa",
+} as const;
+
+/** Una capa del system prompt con su origen declarativo. */
+export interface SystemPromptLayer extends PromptInjectionRecord {
+  kind: "base" | "framework" | "agent" | "routing" | "tenant";
+  origin: string;
+  label: string;
+}
+
+/**
+ * Divide el system prompt del PRIMER input LLM de la sesión en sus capas
+ * (base / framework / agente / ruteo / empresa). Devuelve [] si no hay inputs.
+ * Blindado: nunca rompe por shape inesperado.
+ */
+export function deriveSystemPromptLayers(sessionId: string): SystemPromptLayer[] {
+  try {
+    const row = getDb()
+      .prepare(
+        "SELECT id, at, step, instructions FROM llm_inputs WHERE sessionId = ? AND instructions IS NOT NULL ORDER BY id ASC LIMIT 1",
+      )
+      .get(sessionId) as { id: number; at: string; step: number; instructions: string } | undefined;
+    if (!row) return [];
+    const parsed = JSON.parse(row.instructions) as unknown;
+    const raw =
+      typeof parsed === "string" ? parsed : (parsed as { content?: unknown } | null)?.content ?? "";
+    const text = String(raw).replace(/^Instructions \(instructions\)\n/, "");
+
+    const mAgent = text.indexOf(SYSTEM_LAYER_MARKERS.agent);
+    const mRouting = text.indexOf(SYSTEM_LAYER_MARKERS.routing);
+    const mTenant = text.indexOf(SYSTEM_LAYER_MARKERS.tenant);
+    const mFramework = text.indexOf(SYSTEM_LAYER_MARKERS.framework);
+
+    const layers: SystemPromptLayer[] = [];
+    const push = (kind: SystemPromptLayer["kind"], origin: string, label: string, body: string) => {
+      const b = body.trim();
+      if (!b) return;
+      layers.push({
+        sessionId,
+        at: row.at,
+        kind,
+        origin,
+        label,
+        tag: "[system]",
+        chars: b.length,
+        body: b,
+        step: row.step,
+      });
+    };
+
+    const baseEnd = mFramework !== -1 ? mFramework : mAgent !== -1 ? mAgent : text.length;
+    push(
+      "base",
+      "agent/instructions.md (base)",
+      "Base — instrucciones globales del sistema",
+      text.slice(0, baseEnd),
+    );
+
+    if (mFramework !== -1) {
+      const fEnd = mAgent !== -1 ? mAgent : mRouting !== -1 ? mRouting : text.length;
+      push("framework", "Eve framework (boilerplate)", "Framework — reglas de ejecución de Eve", text.slice(mFramework, fEnd));
+    }
+    if (mAgent !== -1) {
+      const aEnd = mRouting !== -1 ? mRouting : mTenant !== -1 ? mTenant : text.length;
+      push(
+        "agent",
+        "agent/instructions/agent-active.ts → company-twin/…/instructions.md",
+        "Agente activo — instructions.md + tools permitidas + canal de voz",
+        text.slice(mAgent, aEnd),
+      );
+    }
+    if (mRouting !== -1) {
+      const rEnd = mTenant !== -1 ? mTenant : text.length;
+      push(
+        "routing",
+        "agent/lib/context-planner.ts (buildRoutingMarkdown)",
+        "Mapa de ruteo — Company Twin (conceptos disponibles)",
+        text.slice(mRouting, rEnd),
+      );
+    }
+    if (mTenant !== -1) {
+      push(
+        "tenant",
+        "agent/instructions/tenant.ts → company-twin/…/profile.md",
+        "Empresa activa — identidad del tenant",
+        text.slice(mTenant),
+      );
+    }
+    return layers;
+  } catch {
+    return [];
+  }
 }
 
 /** Resumen de un turno terminado (misma forma que TurnTrace de trace-store). */

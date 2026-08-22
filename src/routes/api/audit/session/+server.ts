@@ -207,7 +207,7 @@ export async function GET({ url }) {
     for (const inj of [...injections].reverse()) {
       items.push({
         source: "injection", at: inj.at, t: 0,
-        injKind: inj.kind, injTag: inj.tag, injChars: inj.chars, injHits: inj.hits,
+        injKind: inj.kind, injOrigin: inj.origin, injTag: inj.tag, injChars: inj.chars, injHits: inj.hits,
         injMessage: inj.message, injSources: inj.sources, injBody: inj.body,
       });
     }

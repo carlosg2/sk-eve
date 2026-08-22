@@ -95,7 +95,7 @@ mostrar en qué `CtTrabajo` se produce cada artículo padre.
 
 ## Regla TARIMA — cadena neta del requerimiento (M1)
 
-**LA regla más importante del motor MRP de Daniel.** El requerimiento REAL de
+**LA regla más importante del motor MRP.** El requerimiento REAL de
 material (`InvRequerido`) NUNCA es el forecast bruto: es la **cadena neta por
 padre**, y solo los padres del usuario generan demanda de material:
 
@@ -228,7 +228,7 @@ alcanceDias = round(InvH / requerido * 26)             # si requerido > 0
 - `totalPadre` = cadena neta del padre (sección TARIMA). **NUNCA**
   `Producir × rendimiento` para el requerido del hijo.
 - `InvH` = disponible del material (misma suma `ArtDisponible` en almacenes MP
-  del M1; el legacy de Daniel usa `ARTDISPONIBLEVACA`, NO publicada en el MCP —
+  del M1; el motor legacy usa `ARTDISPONIBLEVACA`, NO publicada en el MCP —
   usar `ArtDisponible`/`ArtDisponibleDesc`).
 
 **Fila padre (adicionales):**
@@ -258,18 +258,9 @@ read_parallel({ operations: [
 ```
 
 **Lote posterior** — el `Disponible` por artículo DEPENDE de los artículos
-conocidos del lote anterior; con los artículos del plan ya en contexto,
-agregarlos TODOS en OTRO `read_parallel` (un `aggregate_records` por
-artículo):
-
-```
-read_parallel({ operations: [
-  { tool: "aggregate_records", args: { entity: "ArtDisponible", function: "sum", field: "Disponible",
-      filter: "Articulo eq '<ART1>' and (Almacen eq 'CRIBA1MP' or Almacen eq 'CRIBA2FUM' or Almacen eq 'JAMAICA' or Almacen eq 'PROCESADOS')" } },
-  { tool: "aggregate_records", args: { entity: "ArtDisponible", function: "sum", field: "Disponible",
-      filter: "Articulo eq '<ART2>' and (Almacen eq 'CRIBA1MP' or Almacen eq 'CRIBA2FUM' or Almacen eq 'JAMAICA' or Almacen eq 'PROCESADOS')" } }
-]})
-```
+conocidos del lote anterior. Agregarlos TODOS en OTRO `read_parallel` (un
+`aggregate_records(ArtDisponible, sum, Disponible)` por artículo con el filtro
+MP del M1 paso 4) — mismo patrón del Lote 3 de M7.
 
 Usa `Nivel eq 1` si el usuario pregunta por el producto padre (agregado), o
 `Nivel eq 3` para sub-materiales (segundo nivel de BOM).
@@ -281,7 +272,7 @@ read_records(ExplocionMatCF, filter: "Usuario eq 'MASERP' and ArticuloHijo eq '<
   select: "Articulo,ArticuloHijo,PorAlcance,AlcanceDias,Cubre")
 ```
 
-`Cubre` puede venir `null` (no solo `false`/`true` — ):
+`Cubre` puede venir `null` (no solo `false`/`true`):
 considerar el material **no cubierto** si `Cubre` no es `true` O
 `PorAlcance < 100` → riesgo de producción, no solo "faltante de compra" (eso
 es el skill `gap-abasto`/`mrp-faltantes`).
@@ -289,20 +280,19 @@ es el skill `gap-abasto`/`mrp-faltantes`).
 ## Patrón 3 — Detalle de lote/almacén asignado (FIFO) contra el plan autorizado
 
 La asignación PEPS/FIFO de lotes (`SerieLote`) contra el plan autorizado
-materializa en `UtMrpPrevioMateriaPrima`, que **NO existe en el MCP ICF** (es
-staging de la base MSSQL `MRPCF5000` del portal legacy; EntityNotFound). Si el
+materializa en `UtMrpPrevioMateriaPrima`, que **NO existe en el MCP ICF**
+(entidad no publicada). Si el
 usuario pregunta por lote específico asignado, declara la limitación y ofrece
 `ArtDisponibleDesc` (existencias por artículo/almacén) — ver skill
 `mrp-inventario`.
 
 ## Limitaciones
 
-- **BOM FUENTE = `ArtMaterial`** — `ExplocionMatCF` es solo referencia
-  (snapshot scratch por usuario): nunca construir requerimientos estables desde
-  ella. Si regresa vacío, la corrida de `MASERP` no existe en ese snapshot;
-  declarar "dato no disponible" (no hay bitácora `UtLogEjcProMrp` en el MCP de
-  ICF). Proxy: `aggregate_records(ExplocionMatCF, function: "count", field:
-  "*")` o `CalendarioFC`.
+- BOM FUENTE = `ArtMaterial` (regla en M7): si `ExplocionMatCF` regresa vacío,
+  la corrida de `MASERP` no existe en ese snapshot → declarar "dato no
+  disponible" (no hay bitácora `UtLogEjcProMrp` en el MCP de ICF). Proxy:
+  `aggregate_records(ExplocionMatCF, function: "count", field: "*")` o
+  `CalendarioFC`.
 - `PorAlcance`/`AlcanceDias` ya vienen calculados en `ExplocionMatCF` — cuando
   el snapshot existe, úsalos tal cual (no recalcules). Las fórmulas de la
   sección "Semáforos de cobertura" definen su semántica y sirven para

@@ -22,7 +22,7 @@
     input?: unknown; output?: unknown; state?: string; text?: string; meta?: Record<string, unknown>;
     question?: string | null; turn?: TurnInfo;
     voiceType?: string; voiceData?: unknown;
-    injKind?: "plan" | "memory"; injTag?: string; injChars?: number; injHits?: number;
+    injKind?: string; injOrigin?: string; injTag?: string; injChars?: number; injHits?: number;
     injMessage?: string; injSources?: Array<{ sessionId: string; type: string }>; injBody?: string;
   };
   type SessionData = {
@@ -54,6 +54,27 @@
     pasosProm: number; callsProm: number; tokInProm: number; tokOutProm: number;
     errProm: number; duracionPromMs: number; hallazgosTotal: number;
   };
+  // Item del tab "Inyecciones": capas del system prompt (derivadas de
+  // llm_inputs) + inyecciones por-turno del middleware, cada una con ORIGEN.
+  type InjItem = {
+    sessionId: string; at: string; kind: string; origin?: string; tag: string;
+    chars: number; hits?: number; message?: string;
+    sources?: Array<{ sessionId: string; type: string }>;
+    body?: string; step?: number; label?: string;
+  };
+  const INJ_GROUP = (k: string): "system" | "middleware" =>
+    ["base", "framework", "agent", "routing", "tenant"].includes(k) ? "system" : "middleware";
+  const INJ_META: Record<string, { label: string; badge: string }> = {
+    base: { label: "Base — instructions globales", badge: "bg-sky-950 text-sky-300 border-sky-700/60" },
+    framework: { label: "Framework Eve", badge: "bg-zinc-900 text-zinc-400 border-zinc-700" },
+    agent: { label: "Agente activo", badge: "bg-violet-950 text-violet-300 border-violet-700/60" },
+    routing: { label: "Mapa de ruteo (Company Twin)", badge: "bg-indigo-950 text-indigo-300 border-indigo-700/60" },
+    tenant: { label: "Empresa activa", badge: "bg-teal-950 text-teal-300 border-teal-700/60" },
+    plan: { label: "Plan de contexto (lóbulo frontal)", badge: "bg-fuchsia-950 text-fuchsia-300 border-fuchsia-700/60" },
+    memory: { label: "Memoria episódica", badge: "bg-cyan-950 text-cyan-300 border-cyan-700/60" },
+    duplicates: { label: "Anti-duplicados", badge: "bg-amber-950 text-amber-300 border-amber-700/60" },
+    compact: { label: "Compactación tool-results", badge: "bg-emerald-950 text-emerald-300 border-emerald-700/60" },
+  };
 
   let sessions = $state<Session[]>([]);
   let selectedSession = $state<string | null>(null);
@@ -70,12 +91,18 @@
   let expandedInj = $state<Set<number>>(new Set());
   let expandedVoice = $state<Set<number>>(new Set());
   // Vista + evaluaciones de calidad.
-  let view = $state<"radiografia" | "evaluaciones">("radiografia");
+  let view = $state<"radiografia" | "inyecciones" | "evaluaciones">("radiografia");
   let evaluaciones = $state<Evaluacion[]>([]);
   let tendencia = $state<Tendencia[]>([]);
   let evalLoading = $state(false);
   let evalError = $state<string | null>(null);
   let expandedEval = $state<Set<number>>(new Set());
+  // Tab "Inyecciones": lista completa con origen.
+  let inyecciones = $state<InjItem[]>([]);
+  let injLoading = $state(false);
+  let injError = $state<string | null>(null);
+  let expandedInjTab = $state<Set<number>>(new Set());
+  let injFilter = $state<"todos" | "system" | "middleware">("todos");
 
   function fmt(ms: number | null | undefined): string {
     if (ms == null) return "—";
@@ -331,6 +358,39 @@
     }
   }
 
+  // Tab "Inyecciones": todo lo inyectado al runtime, con origen.
+  async function loadInyecciones() {
+    if (!selectedSession) return;
+    injLoading = true;
+    injError = null;
+    expandedInjTab = new Set();
+    try {
+      const res = await fetch(`/api/audit/injections?session=${encodeURIComponent(selectedSession)}&limit=500`);
+      const j = await res.json();
+      if (j.error) throw new Error(j.error);
+      inyecciones = (j.items ?? []) as InjItem[];
+    } catch (e) {
+      injError = String(e);
+      inyecciones = [];
+    } finally {
+      injLoading = false;
+    }
+  }
+
+  function toggleInjTab(i: number) {
+    const next = new Set(expandedInjTab);
+    next.has(i) ? next.delete(i) : next.add(i);
+    expandedInjTab = next;
+  }
+
+  const injCounts = $derived({
+    system: inyecciones.filter((i) => INJ_GROUP(i.kind) === "system").length,
+    middleware: inyecciones.filter((i) => INJ_GROUP(i.kind) === "middleware").length,
+  });
+  const filteredInj = $derived(
+    inyecciones.filter((i) => injFilter === "todos" || INJ_GROUP(i.kind) === injFilter),
+  );
+
   // Línea de tiempo filtrada por fuente + tope defensivo de voz.
   const filtered = $derived.by(() => {
     if (!data) return [];
@@ -365,6 +425,7 @@
   $effect(() => {
     if (selectedSession) {
       void loadSession();
+      if (view === "inyecciones") void loadInyecciones();
     }
   });
 </script>
@@ -391,6 +452,10 @@
               class="rounded-md px-3 py-1 text-xs font-medium transition-colors ${view === 'evaluaciones' ? 'bg-emerald-600/20 text-emerald-300' : 'text-zinc-400 hover:text-zinc-200'}"
               onclick={() => (view = "evaluaciones")}
             >Evaluaciones {tendencia.length ? `(${tendencia.length})` : ""}</button>
+            <button
+              class="rounded-md px-3 py-1 text-xs font-medium transition-colors ${view === 'inyecciones' ? 'bg-violet-600/20 text-violet-300' : 'text-zinc-400 hover:text-zinc-200'}"
+              onclick={() => (view = "inyecciones")}
+            >Inyecciones</button>
           </div>
         </div>
       </div>
@@ -572,10 +637,10 @@
                   {:else if item.source === "injection"}
                     <!-- Inyección de contexto -->
                     <div class="relative">
-                      <span class="absolute -left-[31px] top-[7px] h-3 w-3 rounded-full ${item.injKind === 'plan' ? 'bg-violet-500' : 'bg-cyan-500'} ring-4 ring-zinc-950"></span>
+                      <span class="absolute -left-[31px] top-[7px] h-3 w-3 rounded-full bg-violet-500 ring-4 ring-zinc-950"></span>
                       <div class="flex flex-wrap items-center gap-2">
-                        <span class="rounded-md border px-2 py-0.5 text-[11px] font-semibold ${item.injKind === 'plan' ? 'bg-violet-950 text-violet-300 border-violet-700/60' : 'bg-cyan-950 text-cyan-300 border-cyan-700/60'}">
-                          {item.injKind === "plan" ? "plan (lóbulo frontal)" : "memoria episódica"}
+                        <span class="rounded-md border px-2 py-0.5 text-[11px] font-semibold ${INJ_META[item.injKind ?? '']?.badge ?? 'bg-violet-950 text-violet-300 border-violet-700/60'}">
+                          {INJ_META[item.injKind ?? '']?.label ?? item.injKind ?? "inyección"}
                         </span>
                         <span class="font-mono text-[10px] text-zinc-500">{item.injTag}</span>
                         <span class="text-[10px] tabular-nums text-zinc-500">t+{fmt(item.t)}</span>
@@ -589,6 +654,9 @@
                           </button>
                         {/if}
                       </div>
+                      {#if item.injOrigin}
+                        <div class="mt-1 font-mono text-[10px] text-zinc-600">↳ {item.injOrigin}</div>
+                      {/if}
                       {#if item.injMessage}
                         <div class="mt-1 truncate text-[10px] text-zinc-600" title={item.injMessage}>↳ mensaje: {item.injMessage}</div>
                       {/if}
@@ -658,6 +726,124 @@
           <div class="flex h-64 items-center justify-center text-sm text-zinc-600">Selecciona una sesión para ver la línea de tiempo completa.</div>
         {/if}
       </section>
+      </div>
+    {:else if view === "inyecciones"}
+      <!-- Tab Inyecciones: todo lo inyectado al runtime, con ORIGEN -->
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+        <aside class="space-y-5">
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+            <label for="audit-inj-session" class="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Sesión</label>
+            <select
+              id="audit-inj-session"
+              bind:value={selectedSession}
+              class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm focus:border-violet-600 focus:outline-none"
+            >
+              {#each sessions as s}
+                <option value={s.id}>{trunc(s.title, 48)} · {s.id.slice(-8)}</option>
+              {/each}
+            </select>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+            <h2 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Inyecciones</h2>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="rounded-lg border border-zinc-800 bg-black/40 p-2 text-center">
+                <div class="text-lg font-bold text-indigo-300">{injCounts.system}</div>
+                <div class="text-[9px] uppercase tracking-wider text-zinc-500">system prompt</div>
+              </div>
+              <div class="rounded-lg border border-zinc-800 bg-black/40 p-2 text-center">
+                <div class="text-lg font-bold text-fuchsia-300">{injCounts.middleware}</div>
+                <div class="text-[9px] uppercase tracking-wider text-zinc-500">por-turno</div>
+              </div>
+            </div>
+            <div class="mt-2 text-[10px] text-zinc-500">{inyecciones.length} inyecciones registradas</div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+            <h2 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Origen</h2>
+            <div class="space-y-1.5 text-[10px] leading-relaxed text-zinc-500">
+              <p><span class="text-sky-400">base</span> — agent/instructions.md</p>
+              <p><span class="text-violet-400">agente</span> — agent-active.ts → company-twin/…/instructions.md</p>
+              <p><span class="text-indigo-400">ruteo</span> — context-planner.ts (Company Twin)</p>
+              <p><span class="text-teal-400">empresa</span> — tenant.ts → profile.md</p>
+              <p><span class="text-fuchsia-400">plan</span> · <span class="text-cyan-400">memoria</span> · <span class="text-amber-400">dup</span> · <span class="text-emerald-400">compact</span> — context-budget.ts</p>
+            </div>
+          </div>
+        </aside>
+
+        <section class="min-w-0">
+          {#if injError}
+            <div class="mb-4 rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-300">{injError}</div>
+          {/if}
+
+          <div class="mb-3 flex flex-wrap items-center gap-2">
+            <button
+              class="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${injFilter === 'todos' ? 'border-zinc-500 bg-zinc-800 text-zinc-200' : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-zinc-300'}"
+              onclick={() => (injFilter = "todos")}
+            >todas ({inyecciones.length})</button>
+            <button
+              class="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${injFilter === 'system' ? 'border-indigo-600 bg-indigo-950/50 text-indigo-300' : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-zinc-300'}"
+              onclick={() => (injFilter = "system")}
+            >system prompt ({injCounts.system})</button>
+            <button
+              class="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${injFilter === 'middleware' ? 'border-fuchsia-700 bg-fuchsia-950/50 text-fuchsia-300' : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-zinc-300'}"
+              onclick={() => (injFilter = "middleware")}
+            >por-turno ({injCounts.middleware})</button>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/40">
+            <div class="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Todo lo inyectado al runtime ({filteredInj.length})</h2>
+              <button class="text-[11px] text-cyan-400 hover:underline" onclick={() => (expandedInjTab = new Set())}>colapsar todo</button>
+            </div>
+            <div class="divide-y divide-zinc-800">
+              {#if injLoading}
+                <div class="px-4 py-10 text-center text-sm text-zinc-500">Cargando inyecciones…</div>
+              {:else if !filteredInj.length}
+                <div class="px-4 py-10 text-center text-sm text-zinc-500">Sin inyecciones registradas para esta sesión.</div>
+              {:else}
+                {#each filteredInj as inj, idx (inj.sessionId + inj.at + idx)}
+                  <div class="px-4 py-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="rounded-md border px-2 py-0.5 text-[11px] font-semibold ${INJ_META[inj.kind]?.badge ?? 'bg-zinc-900 text-zinc-400 border-zinc-700'}">
+                        {INJ_META[inj.kind]?.label ?? inj.kind}
+                      </span>
+                      <span class="rounded-md border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-zinc-400">
+                        {INJ_GROUP(inj.kind)}
+                      </span>
+                      <span class="text-[10px] tabular-nums text-zinc-500">{new Date(inj.at).toLocaleTimeString()}</span>
+                      <span class="text-[10px] tabular-nums text-zinc-500">{fmtK(inj.chars)} chars</span>
+                      {#if inj.step != null}<span class="text-[10px] tabular-nums text-zinc-500">step {inj.step}</span>{/if}
+                      {#if inj.tag}<span class="font-mono text-[9px] text-zinc-600">{inj.tag}</span>{/if}
+                      {#if inj.kind === "memory" && inj.hits != null}<span class="text-[10px] text-zinc-500">{inj.hits} hits</span>{/if}
+                      {#if inj.body}
+                        <button class="ml-auto text-[11px] text-zinc-400 hover:underline" onclick={() => toggleInjTab(idx)}>
+                          {expandedInjTab.has(idx) ? "▾ ocultar contenido" : "▸ ver contenido"}
+                        </button>
+                      {/if}
+                    </div>
+                    {#if inj.origin}
+                      <div class="mt-1 font-mono text-[10px] text-zinc-600" title={inj.origin}>↳ {inj.origin}</div>
+                    {/if}
+                    {#if inj.message}
+                      <div class="mt-1 truncate text-[10px] text-zinc-500" title={inj.message}>msg: {inj.message}</div>
+                    {/if}
+                    {#if inj.sources?.length}
+                      <div class="mt-1 flex flex-wrap gap-1">
+                        {#each inj.sources as src}
+                          <span class="rounded bg-zinc-800 px-1 py-0.5 font-mono text-[9px] text-zinc-400">{src.type}·{String(src.sessionId).slice(-8)}</span>
+                        {/each}
+                      </div>
+                    {/if}
+                    {#if expandedInjTab.has(idx) && inj.body}
+                      <pre class="mt-1 max-h-96 overflow-y-auto whitespace-pre-wrap rounded-lg border border-zinc-800 bg-black/40 p-2 font-mono text-[10px] leading-relaxed text-zinc-400">{inj.body}</pre>
+                    {/if}
+                  </div>
+                {/each}
+              {/if}
+            </div>
+          </div>
+        </section>
       </div>
     {:else}
       <!-- Evaluaciones de calidad (fábrica, para graduación de skills) -->
